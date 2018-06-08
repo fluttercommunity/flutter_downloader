@@ -9,7 +9,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 Open Xcode. Enable background mode.
 
-<img src="./screenshot/enable_background_mode.pgn?raw=true"/>
+<img src="./screenshot/enable_background_mode.png?raw=true"/>
 
 **Note:** If you want to download file with HTTP request, you need to disable Apple Transport Security (ATS) feature.
 * Disable ATS for a specific domain only: (add following codes to the end of your `Info.plist` file)
