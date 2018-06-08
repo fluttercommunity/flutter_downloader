@@ -7,9 +7,17 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 ## iOS integration
 
-Open Xcode. Enable background mode.
+* Open Xcode. Enable background mode.
 
 <img width="512" src="./screenshot/enable_background_mode.png?raw=true"/>
+
+* Add following code to your `AppDelegate` (this method will called when a URL session finished its work while your app is not running):
+
+````
+- (void)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void (^)(void))completionHandler {
+    completionHandler();
+}
+````
 
 **Note:** If you want to download file with HTTP request, you need to disable Apple Transport Security (ATS) feature.
 * Disable ATS for a specific domain only: (add following codes to the end of your `Info.plist` file)

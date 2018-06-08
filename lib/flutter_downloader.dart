@@ -1,9 +1,8 @@
 library flutter_downloader;
 
-import 'package:flutter/services.dart';
 import 'dart:async';
-
-import 'package:meta/meta.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 
 typedef void DownloadCallback(String id, DownloadTaskStatus status, int progress);
 
