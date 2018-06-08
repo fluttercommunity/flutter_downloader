@@ -39,17 +39,17 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     {
       'name': 'Android Programming Cookbook',
       'link':
-      'http://enos.itcollege.ee/~jpoial/allalaadimised/reading/Android-Programming-Cookbook.pdf'
+          'http://enos.itcollege.ee/~jpoial/allalaadimised/reading/Android-Programming-Cookbook.pdf'
     },
     {
       'name': 'iOS Programming Guide',
       'link':
-      'http://darwinlogic.com/uploads/education/iOS_Programming_Guide.pdf'
+          'http://darwinlogic.com/uploads/education/iOS_Programming_Guide.pdf'
     },
     {
       'name': 'Objective-C Programming (Pre-Course Workbook',
       'link':
-      'https://www.bignerdranch.com/documents/objective-c-prereading-assignment.pdf'
+          'https://www.bignerdranch.com/documents/objective-c-prereading-assignment.pdf'
     }
   ];
 
@@ -64,7 +64,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
 
     FlutterDownloader.registerCallback((id, status, progress) {
-      print('Download task ($id) is in status ($status) and process ($progress)');
+      print(
+          'Download task ($id) is in status ($status) and process ($progress)');
       final task = _tasks.firstWhere((task) => task.taskId == id);
       setState(() {
         task?.status = status;
@@ -99,52 +100,52 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       ),
       body: _isLoading
           ? new Center(
-        child: new CircularProgressIndicator(),
-      )
+              child: new CircularProgressIndicator(),
+            )
           : new Container(
-        child: new ListView(
-          children: _tasks
-              .map((task) => new Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: new Stack(
-              children: <Widget>[
-                new Container(
-                  width: double.infinity,
-                  height: 64.0,
-                  child: new Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      new Expanded(
-                        child: new Text(
-                          task.name,
-                          maxLines: 1,
-                          softWrap: true,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      new Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
-                        child: _buildActionForTask(task),
-                      ),
-                    ],
-                  ),
-                ),
-                task.status == DownloadTaskStatus.running
-                    ? new Positioned(
-                  left: 0.0,
-                  right: 0.0,
-                  bottom: 0.0,
-                  child: new LinearProgressIndicator(
-                    value: task.progress / 100,
-                  ),
-                )
-                    : new Container()
-              ].where((child) => child != null).toList(),
+              child: new ListView(
+                children: _tasks
+                    .map((task) => new Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: new Stack(
+                            children: <Widget>[
+                              new Container(
+                                width: double.infinity,
+                                height: 64.0,
+                                child: new Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: <Widget>[
+                                    new Expanded(
+                                      child: new Text(
+                                        task.name,
+                                        maxLines: 1,
+                                        softWrap: true,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    new Padding(
+                                      padding: const EdgeInsets.only(left: 8.0),
+                                      child: _buildActionForTask(task),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              task.status == DownloadTaskStatus.running
+                                  ? new Positioned(
+                                      left: 0.0,
+                                      right: 0.0,
+                                      bottom: 0.0,
+                                      child: new LinearProgressIndicator(
+                                        value: task.progress / 100,
+                                      ),
+                                    )
+                                  : new Container()
+                            ].where((child) => child != null).toList(),
+                          ),
+                        ))
+                    .toList(),
+              ),
             ),
-          ))
-              .toList(),
-        ),
-      ),
     );
   }
 
@@ -163,7 +164,10 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         onPressed: () {
           _cancelDownload(task);
         },
-        child: new Icon(Icons.stop, color: Colors.red,),
+        child: new Icon(
+          Icons.stop,
+          color: Colors.red,
+        ),
         shape: new CircleBorder(),
         constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
       );
@@ -182,8 +186,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   }
 
   void _requestDownload(_TaskInfo task) async {
-    task.taskId =
-    await FlutterDownloader.enqueue(url: task.link, savedDir: _localPath, showNotification: true);
+    task.taskId = await FlutterDownloader.enqueue(
+        url: task.link, savedDir: _localPath, showNotification: true);
   }
 
   void _cancelDownload(_TaskInfo task) async {
@@ -205,25 +209,22 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       final List<dynamic> array = json.decode(taskJson);
       if (array != null) {
         _tasks = array.map((item) => new _TaskInfo.fromJson(item)).toList();
-        List<String> ids = _tasks
-            .where((task) => task.taskId != null)
-            .map((task) => task.taskId)
-            .toList();
-        final tasks = await FlutterDownloader.loadTasks(ids: ids);
+        final tasks = await FlutterDownloader.loadTasks();
         for (final task in tasks) {
-          _tasks.firstWhere((item) => item.taskId == task.taskId).status =
-              task.status;
+          _tasks.firstWhere((item) => item.taskId == task.taskId)
+            ..status = task.status
+            ..progress = task.progress;
         }
       } else {
         _tasks = _documents
             .map((document) =>
-            _TaskInfo(name: document['name'], link: document['link']))
+                _TaskInfo(name: document['name'], link: document['link']))
             .toList();
       }
     } else {
       _tasks = _documents
           .map((document) =>
-          _TaskInfo(name: document['name'], link: document['link']))
+              _TaskInfo(name: document['name'], link: document['link']))
           .toList();
     }
     setState(() {
@@ -257,13 +258,13 @@ class _TaskInfo {
         link = json['link'],
         taskId = json['task_id'],
         progress = json['progress'] ?? 0,
-        status = json['status'] ?? 0;
+        status = DownloadTaskStatus.from(json['status'] ?? 0);
 
   Map<String, dynamic> toJson() => {
-    'name': name,
-    'link': link,
-    'task_id': taskId,
-    'progress': progress,
-    'status': status
-  };
+        'name': name,
+        'link': link,
+        'task_id': taskId,
+        'progress': progress,
+        'status': status.value
+      };
 }

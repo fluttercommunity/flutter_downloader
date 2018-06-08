@@ -47,14 +47,10 @@
         [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
         result(taskId);
     } else if ([@"loadTasks" isEqualToString:call.method]) {
-        NSArray *ids = call.arguments[KEY_IDS];
         [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
             NSMutableArray *tasks = [NSMutableArray new];
             for (NSURLSessionDownloadTask *download in downloads) {
                 NSNumber *taskIdentifier = @(download.taskIdentifier);
-                if (![ids containsObject:[taskIdentifier stringValue]]) {
-                    continue;
-                }
                 int64_t bytesReceived = download.countOfBytesReceived;
                 int64_t bytesExpectedToReceive = download.countOfBytesExpectedToReceive;
                 NSError *error = download.error;
@@ -65,7 +61,7 @@
                     status = STATUS_RUNNING;
                 } else if (state == NSURLSessionTaskStateCompleted) {
                     if (error != nil) {
-                        status = STATUS_FAILED;
+                        status = [error code] == -999 ? STATUS_CANCELED : STATUS_FAILED;
                     } else {
                         status = STATUS_COMPLETE;
                     }

@@ -12,11 +12,15 @@ class DownloadTaskStatus {
 
   const DownloadTaskStatus._internal(this._value);
 
+  int get value => _value;
+
   get hashCode => _value;
 
   operator ==(status) => status._value == this._value;
 
   toString() => 'DownloadTaskStatus($_value)';
+
+  static DownloadTaskStatus from(int value) => DownloadTaskStatus._internal(value);
 
   static const undefined = const DownloadTaskStatus._internal(0);
   static const enqueued = const DownloadTaskStatus._internal(1);
@@ -58,14 +62,14 @@ class FlutterDownloader {
     }
   }
 
-  static Future<List<DownloadTask>> loadTasks({@required List<String> ids}) async {
+  static Future<List<DownloadTask>> loadTasks() async {
     try {
-      List<dynamic> result = await platform.invokeMethod("loadTasks", {'ids': ids});
+      List<dynamic> result = await platform.invokeMethod("loadTasks");
       print('Loaded tasks: $result');
       return result.map((item) =>
       new DownloadTask(
           taskId: item['task_id'],
-          status: item['status'],
+          status: DownloadTaskStatus._internal(item['status']),
           progress: item['progress'])
       ).toList();
     } on PlatformException catch (e) {
@@ -83,11 +87,11 @@ class FlutterDownloader {
 
 //// TODO: implement to pause and resume a download process
 
-//  static void pause({@required downloadId}) {
+//  static void pause({@required taskId}) {
 //
 //  }
 //
-//  static void resume({@required downloadId}) {
+//  static void resume({@required taskId}) {
 //
 //  }
 

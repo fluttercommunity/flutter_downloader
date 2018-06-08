@@ -124,8 +124,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
             insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, fileName, savedDir);
             result.success(taskId);
         } else if (call.method.equals("loadTasks")) {
-            List<String> ids = call.argument("ids");
-            List<DownloadTask> tasks = loadTask(ids);
+            List<DownloadTask> tasks = loadTask();
             List<Map> array = new ArrayList<>();
             for (DownloadTask task : tasks) {
                 Map<String, Object> item = new HashMap<>();
@@ -187,26 +186,20 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
         db.insertWithOnConflict(TaskContract.TaskEntry.TABLE_NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE);
     }
 
-    private List<DownloadTask> loadTask(List<String> taskIds) {
+    private List<DownloadTask> loadTask() {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
 
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < taskIds.size(); i++) {
-            builder.append("\'").append(taskIds.get(i)).append("\'");
-            if (i < taskIds.size() - 1) builder.append(",");
-        }
         String[] projection = new String[]{
                 BaseColumns._ID,
                 TaskContract.TaskEntry.COLUMN_NAME_TASK_ID,
                 TaskContract.TaskEntry.COLUMN_NAME_PROGRESS,
                 TaskContract.TaskEntry.COLUMN_NAME_STATUS
         };
-        String selection = TaskContract.TaskEntry.COLUMN_NAME_TASK_ID + " IN (" + builder.toString() + ")";
 
         Cursor cursor = db.query(
                 TaskContract.TaskEntry.TABLE_NAME,
                 projection,
-                selection,
+                null,
                 null,
                 null,
                 null,
