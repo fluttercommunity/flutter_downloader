@@ -83,7 +83,7 @@ public class DownloadWorker extends Worker {
         int responseCode = httpConn.getResponseCode();
 
         // always check HTTP response code first
-        if (responseCode == HttpURLConnection.HTTP_OK) {
+        if (responseCode == HttpURLConnection.HTTP_OK && !isStopped()) {
             String contentType = httpConn.getContentType();
             int contentLength = httpConn.getContentLength();
 
@@ -105,7 +105,7 @@ public class DownloadWorker extends Worker {
             long count = 0;
             int bytesRead = -1;
             byte[] buffer = new byte[BUFFER_SIZE];
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
+            while ((bytesRead = inputStream.read(buffer)) != -1 && !isStopped()) {
                 count += bytesRead;
                 int progress = (int) ((count * 100) / contentLength);
                 outputStream.write(buffer, 0, bytesRead);
@@ -121,14 +121,17 @@ public class DownloadWorker extends Worker {
             outputStream.close();
             inputStream.close();
 
-            updateNotification(context, fileName, 100);
-            updateTask(getId(), fileURL, DownloadStatus.COMPLETE, 100, fileName, saveDir);
+            int progress = isStopped() ? -1 : 100;
+            int status = isStopped() ? DownloadStatus.CANCELED : DownloadStatus.COMPLETE;
+            updateNotification(context, fileName, progress);
+            updateTask(getId(), fileURL, status, progress, fileName, saveDir);
 
-            Log.d(TAG, "File downloaded");
+            Log.d(TAG, isStopped() ? "Download canceled" : "File downloaded");
         } else {
+            int status = isStopped() ? DownloadStatus.CANCELED : DownloadStatus.FAILED;
             updateNotification(context, fileName, -1);
-            updateTask(getId(), fileURL, DownloadStatus.FAILED, lastProgress, fileName, saveDir);
-            Log.d(TAG, "No file to download. Server replied HTTP code: " + responseCode);
+            updateTask(getId(), fileURL, status, lastProgress, fileName, saveDir);
+            Log.d(TAG, isStopped() ? "Download canceled" : "No file to download. Server replied HTTP code: " + responseCode);
         }
         httpConn.disconnect();
     }
@@ -170,8 +173,9 @@ public class DownloadWorker extends Worker {
             builder.setContentText("Download started")
                     .setProgress(0, 0, true);
         } else if (progress < 0) {
-            status = DownloadStatus.FAILED;
-            builder.setContentText("Download failed")
+            status = isStopped() ? DownloadStatus.CANCELED : DownloadStatus.FAILED;
+            String message = isStopped() ? "Download canceled" : "Download failed";
+            builder.setContentText(message)
                     .setProgress(0, 0, false);
         } else {
             status = DownloadStatus.COMPLETE;

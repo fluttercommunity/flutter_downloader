@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import androidx.work.Constraints;
 import androidx.work.Data;
@@ -34,6 +35,7 @@ import io.flutter.view.FlutterNativeView;
 
 public class FlutterDownloaderPlugin implements MethodCallHandler {
     private static final String CHANNEL = "vn.hunghd/downloader";
+    private static final String TAG = "flutter_download_task";
 
     private MethodChannel flutterChannel;
     private TaskDbHelper dbHelper;
@@ -107,6 +109,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                     .setConstraints(new Constraints.Builder()
                             .setRequiredNetworkType(NetworkType.CONNECTED)
                             .build())
+                    .addTag(TAG)
                     .setInputData(new Data.Builder()
                             .putString(DownloadWorker.ARG_URL, url)
                             .putString(DownloadWorker.ARG_SAVED_DIR, savedDir)
@@ -116,10 +119,10 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                     )
                     .build();
             WorkManager.getInstance().enqueue(request);
-            String downloadId = request.getId().toString();
-            sendUpdateProgress(downloadId, DownloadStatus.ENQUEUED, 0);
-            insertOrUpdateNewTask(downloadId, url, DownloadStatus.ENQUEUED, 0, fileName, savedDir);
-            result.success(downloadId);
+            String taskId = request.getId().toString();
+            sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0);
+            insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, fileName, savedDir);
+            result.success(taskId);
         } else if (call.method.equals("loadTasks")) {
             List<String> ids = call.argument("ids");
             List<DownloadTask> tasks = loadTask(ids);
@@ -132,20 +135,33 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                 array.add(item);
             }
             result.success(array);
+        } else if (call.method.equals("cancel")) {
+            String taskId = call.argument("task_id");
+            cancel(taskId);
+        } else if (call.method.equals("cancelAll")) {
+            cancelAll();
         } else {
             result.notImplemented();
         }
     }
 
-    public void onStart(Context context) {
+    private void onStart(Context context) {
         LocalBroadcastManager.getInstance(context)
                 .registerReceiver(updateProcessEventReceiver,
                         new IntentFilter(DownloadWorker.UPDATE_PROCESS_EVENT));
     }
 
-    public void onStop(Context context) {
+    private void onStop(Context context) {
         LocalBroadcastManager.getInstance(context)
                 .unregisterReceiver(updateProcessEventReceiver);
+    }
+
+    private void cancel(String taskId) {
+        WorkManager.getInstance().cancelWorkById(UUID.fromString(taskId));
+    }
+
+    private void cancelAll() {
+        WorkManager.getInstance().cancelAllWorkByTag(TAG);
     }
 
     private void sendUpdateProgress(String id, int status, int progress) {

@@ -5,6 +5,7 @@
 #define STATUS_RUNNING 2
 #define STATUS_COMPLETE 3
 #define STATUS_FAILED 4
+#define STATUS_CANCELED 5
 
 #define KEY_URL @"url"
 #define KEY_SAVED_DIR @"saved_dir"
@@ -78,6 +79,11 @@
             };
             result(tasks);
         }];
+    } else if ([@"cancel" isEqualToString:call.method]) {
+       NSString *taskId = call.arguments[KEY_TASK_ID];
+       [self cancelTaskWithId:taskId];
+    } else if ([@"cancelAll" isEqualToString:call.method]) {
+       [self cancelAllTask];
     } else {
         result(FlutterMethodNotImplemented);
     }
@@ -123,6 +129,30 @@
     [task resume];
 
     return task;
+}
+
+- (void)cancelTaskWithId: (NSString*)taskId
+{
+    [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
+        for (NSURLSessionDownloadTask *download in downloads) {
+            NSURLSessionTaskState state = download.state;
+            NSNumber *taskIdentifier = @(download.taskIdentifier);
+            if ([taskId isEqualToString:[taskIdentifier stringValue]] && (state == NSURLSessionTaskStateRunning)) {
+                [download cancel];
+            }
+        };
+    }];
+}
+
+- (void)cancelAllTask {
+    [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
+        for (NSURLSessionDownloadTask *download in downloads) {
+            NSURLSessionTaskState state = download.state;
+            if (state == NSURLSessionTaskStateRunning) {
+                [download cancel];
+            }
+        };
+    }];
 }
 
 - (void)sendUpdateProgressForTaskId: (NSString*)taskId inStatus: (NSNumber*) status andProgress: (NSNumber*) progress
@@ -188,7 +218,8 @@
 {
     if (error != nil) {
         NSLog(@"Download completed with error: %@", [error localizedDescription]);
-        [self sendUpdateProgressForTaskId:[@(task.taskIdentifier) stringValue] inStatus:@(STATUS_FAILED) andProgress:@0];
+        int status = [error code] == -999 ? STATUS_CANCELED : STATUS_FAILED;
+        [self sendUpdateProgressForTaskId:[@(task.taskIdentifier) stringValue] inStatus:@(status) andProgress:@0];
     }
 }
 

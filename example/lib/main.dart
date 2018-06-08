@@ -64,8 +64,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
 
     FlutterDownloader.registerCallback((id, status, progress) {
-      print(
-          'Download task ($id) is in status ($status) and process ($progress)');
+      print('Download task ($id) is in status ($status) and process ($progress)');
       final task = _tasks.firstWhere((task) => task.taskId == id);
       setState(() {
         task?.status = status;
@@ -130,7 +129,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                     ],
                   ),
                 ),
-                task.status == 2
+                task.status == DownloadTaskStatus.running
                     ? new Positioned(
                   left: 0.0,
                   right: 0.0,
@@ -150,7 +149,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   }
 
   Widget _buildActionForTask(_TaskInfo task) {
-    if (task.status == 0) {
+    if (task.status == DownloadTaskStatus.undefined) {
       return new RawMaterialButton(
         onPressed: () {
           _requestDownload(task);
@@ -159,12 +158,23 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         shape: new CircleBorder(),
         constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
       );
-    } else if (task.status == 3) {
+    } else if (task.status == DownloadTaskStatus.running) {
+      return new RawMaterialButton(
+        onPressed: () {
+          _cancelDownload(task);
+        },
+        child: new Icon(Icons.stop, color: Colors.red,),
+        shape: new CircleBorder(),
+        constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
+      );
+    } else if (task.status == DownloadTaskStatus.complete) {
       return new Text(
         'Ready',
         style: new TextStyle(color: Colors.green),
       );
-    } else if (task.status == 4) {
+    } else if (task.status == DownloadTaskStatus.canceled) {
+      return new Text('Canceled', style: new TextStyle(color: Colors.red));
+    } else if (task.status == DownloadTaskStatus.failed) {
       return new Text('Failed', style: new TextStyle(color: Colors.red));
     } else {
       return null;
@@ -174,6 +184,10 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void _requestDownload(_TaskInfo task) async {
     task.taskId =
     await FlutterDownloader.enqueue(url: task.link, savedDir: _localPath, showNotification: true);
+  }
+
+  void _cancelDownload(_TaskInfo task) async {
+    await FlutterDownloader.cancel(taskId: task.taskId);
   }
 
   Future<String> _findLocalPath() async {
@@ -234,7 +248,7 @@ class _TaskInfo {
 
   String taskId;
   int progress = 0;
-  int status = 0;
+  DownloadTaskStatus status = DownloadTaskStatus.undefined;
 
   _TaskInfo({this.name, this.link});
 
