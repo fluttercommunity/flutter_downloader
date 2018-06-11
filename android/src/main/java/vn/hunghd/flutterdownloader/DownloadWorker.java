@@ -11,7 +11,11 @@ import android.support.annotation.NonNull;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.LocalBroadcastManager;
+import android.text.TextUtils;
 import android.util.Log;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -19,6 +23,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Iterator;
+import java.util.Map;
 
 import androidx.work.Worker;
 import vn.hunghd.flutterdownloader.TaskContract.TaskEntry;
@@ -29,6 +35,7 @@ public class DownloadWorker extends Worker {
     public static final String ARG_URL = "url";
     public static final String ARG_FILE_NAME = "file_name";
     public static final String ARG_SAVED_DIR = "saved_file";
+    public static final String ARG_HEADERS = "headers";
     public static final String ARG_SHOW_NOTIFICATION = "show_notification";
 
     public static final String EXTRA_ID = "id";
@@ -54,7 +61,7 @@ public class DownloadWorker extends Worker {
         String url = getInputData().getString(ARG_URL, null);
         String fileName = getInputData().getString(ARG_FILE_NAME, null);
         String savedDir = getInputData().getString(ARG_SAVED_DIR, null);
-
+        String headers = getInputData().getString(ARG_HEADERS, null);
         if (url == null || savedDir == null)
             throw new IllegalArgumentException("url and saved_dir must be not null");
 
@@ -65,7 +72,7 @@ public class DownloadWorker extends Worker {
         updateNotification(context, fileName == null ? url : fileName, 0);
         updateTask(getId(), url, DownloadStatus.RUNNING, 0, fileName, savedDir);
         try {
-            downloadFile(context, url, savedDir, fileName);
+            downloadFile(context, url, savedDir, fileName, headers);
             return WorkerResult.SUCCESS;
         } catch (IOException e) {
             updateNotification(context, fileName == null ? url : fileName, -1);
@@ -75,11 +82,26 @@ public class DownloadWorker extends Worker {
         }
     }
 
-    private void downloadFile(Context context, String fileURL, String saveDir, String fileName)
+    private void downloadFile(Context context, String fileURL, String saveDir, String fileName, String headers)
             throws IOException {
 
         URL url = new URL(fileURL);
         HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
+        if (!TextUtils.isEmpty(headers)) {
+            Log.d(TAG, "Headers = " + headers);
+            try {
+                JSONObject json = new JSONObject(headers);
+                for (Iterator<String> it = json.keys(); it.hasNext(); ) {
+                    String key = it.next();
+                    httpConn.setRequestProperty(key, json.getString(key));
+                }
+                httpConn.setDoInput(true);
+                httpConn.setDoOutput(true);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+
         int responseCode = httpConn.getResponseCode();
 
         // always check HTTP response code first

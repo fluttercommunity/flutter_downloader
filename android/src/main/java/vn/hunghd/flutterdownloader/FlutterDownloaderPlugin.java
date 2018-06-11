@@ -104,6 +104,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
             String url = call.argument("url");
             String savedDir = call.argument("saved_dir");
             String fileName = call.argument("file_name");
+            String headers = call.argument("headers");
             boolean showNotification = call.argument("show_notification");
             WorkRequest request = new OneTimeWorkRequest.Builder(DownloadWorker.class)
                     .setConstraints(new Constraints.Builder()
@@ -114,6 +115,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                             .putString(DownloadWorker.ARG_URL, url)
                             .putString(DownloadWorker.ARG_SAVED_DIR, savedDir)
                             .putString(DownloadWorker.ARG_FILE_NAME, fileName)
+                            .putString(DownloadWorker.ARG_HEADERS, headers)
                             .putBoolean(DownloadWorker.ARG_SHOW_NOTIFICATION, showNotification)
                             .build()
                     )

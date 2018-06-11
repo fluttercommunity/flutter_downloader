@@ -15,6 +15,7 @@
 #define KEY_IDS @"ids"
 #define KEY_TASK_ID @"task_id"
 #define KEY_STATUS @"status"
+#define KEY_HEADERS @"headers"
 
 #define STEP_UPDATE 10
 
@@ -41,8 +42,9 @@
         NSString *urlString = call.arguments[KEY_URL];
         NSString *savedDir = call.arguments[KEY_SAVED_DIR];
         NSString *fileName = call.arguments[KEY_FILE_NAME];
+        NSString *headers = call.arguments[KEY_HEADERS];
 
-        NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir];
+        NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
         NSString *taskId = [@(task.taskIdentifier) stringValue];
         [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
         result(taskId);
@@ -110,9 +112,21 @@
     return _session;
 }
 
-- (NSURLSessionDownloadTask*)downloadTaskWithURL: (NSURL*) url fileName: (NSString*) fileName andSavedDir: (NSString*) savedDir
+- (NSURLSessionDownloadTask*)downloadTaskWithURL: (NSURL*) url fileName: (NSString*) fileName andSavedDir: (NSString*) savedDir andHeaders: (NSString*) headers
 {
-    NSURLSessionDownloadTask *task = [_session downloadTaskWithURL:url];
+    NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:url];
+    if (headers != nil && [headers length] > 0) {
+        NSError *jsonError;
+        NSData *data = [headers dataUsingEncoding:NSUTF8StringEncoding];
+        NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers error:&jsonError];
+
+        for (NSString *key in json) {
+            NSString *value = json[key];
+            NSLog(@"Header(%@: %@)", key, value);
+            [request setValue:value forHTTPHeaderField:key];
+        }
+    }
+    NSURLSessionDownloadTask *task = [_session downloadTaskWithRequest:request];
     NSNumber *taskId = @(task.taskIdentifier);
     NSMutableDictionary *info = [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                  taskId, KEY_ID,

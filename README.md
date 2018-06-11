@@ -11,7 +11,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 <img width="512" src="./screenshot/enable_background_mode.png?raw=true"/>
 
-* Add following code to your `AppDelegate` (this method will called when a URL session finished its work while your app is not running):
+* Add following code to your `AppDelegate` (this method will be called when an URL session finished its work while your app is not running):
 
 ````
 - (void)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void (^)(void))completionHandler {

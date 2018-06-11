@@ -4,7 +4,8 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 
-typedef void DownloadCallback(String id, DownloadTaskStatus status, int progress);
+typedef void DownloadCallback(
+    String id, DownloadTaskStatus status, int progress);
 
 class DownloadTaskStatus {
   final int _value;
@@ -19,7 +20,8 @@ class DownloadTaskStatus {
 
   toString() => 'DownloadTaskStatus($_value)';
 
-  static DownloadTaskStatus from(int value) => DownloadTaskStatus._internal(value);
+  static DownloadTaskStatus from(int value) =>
+      DownloadTaskStatus._internal(value);
 
   static const undefined = const DownloadTaskStatus._internal(0);
   static const enqueued = const DownloadTaskStatus._internal(1);
@@ -44,13 +46,24 @@ class FlutterDownloader {
     @required String url,
     @required String savedDir,
     String fileName,
+    Map<String, String> headers,
     bool showNotification = false,
   }) async {
+    StringBuffer headerBuilder = StringBuffer();
+    if (headers != null) {
+      headerBuilder.write('{');
+      headerBuilder.writeAll(
+          headers.entries
+              .map((entry) => '\"${entry.key}\": \"${entry.value}\"'),
+          ',');
+      headerBuilder.write('}');
+    }
     try {
       String taskId = await platform.invokeMethod('enqueue', {
         'url': url,
         'saved_dir': savedDir,
         'file_name': fileName,
+        'headers': headerBuilder.toString(),
         'show_notification': showNotification
       });
       print('Download task is enqueued with id($taskId)');
@@ -65,12 +78,12 @@ class FlutterDownloader {
     try {
       List<dynamic> result = await platform.invokeMethod("loadTasks");
       print('Loaded tasks: $result');
-      return result.map((item) =>
-      new DownloadTask(
-          taskId: item['task_id'],
-          status: DownloadTaskStatus._internal(item['status']),
-          progress: item['progress'])
-      ).toList();
+      return result
+          .map((item) => new DownloadTask(
+              taskId: item['task_id'],
+              status: DownloadTaskStatus._internal(item['status']),
+              progress: item['progress']))
+          .toList();
     } on PlatformException catch (e) {
       return null;
     }
