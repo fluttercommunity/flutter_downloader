@@ -187,9 +187,9 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
 
   void _requestDownload(_TaskInfo task) async {
     task.taskId = await FlutterDownloader.enqueue(
-        url: task.link,
-        savedDir: _localPath,
-        showNotification: true,
+      url: task.link,
+      savedDir: _localPath,
+      showNotification: true,
     );
   }
 

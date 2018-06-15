@@ -62,6 +62,7 @@ public class DownloadWorker extends Worker {
         String fileName = getInputData().getString(ARG_FILE_NAME, null);
         String savedDir = getInputData().getString(ARG_SAVED_DIR, null);
         String headers = getInputData().getString(ARG_HEADERS, null);
+
         if (url == null || savedDir == null)
             throw new IllegalArgumentException("url and saved_dir must be not null");
 
@@ -84,7 +85,6 @@ public class DownloadWorker extends Worker {
 
     private void downloadFile(Context context, String fileURL, String saveDir, String fileName, String headers)
             throws IOException {
-
         URL url = new URL(fileURL);
         HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
         if (!TextUtils.isEmpty(headers)) {
@@ -96,12 +96,12 @@ public class DownloadWorker extends Worker {
                     httpConn.setRequestProperty(key, json.getString(key));
                 }
                 httpConn.setDoInput(true);
-                httpConn.setDoOutput(true);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
         }
 
+        httpConn.connect();
         int responseCode = httpConn.getResponseCode();
 
         // always check HTTP response code first
@@ -163,12 +163,13 @@ public class DownloadWorker extends Worker {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // Create the NotificationChannel, but only on API 26+ because
             // the NotificationChannel class is new and not in the support library
-            int importance = NotificationManager.IMPORTANCE_HIGH;
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "", importance);
+
+            CharSequence name = context.getApplicationInfo().loadLabel(context.getPackageManager());
+            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
 
             // Add the channel
-            NotificationManager notificationManager =
-                    (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
 
             if (notificationManager != null) {
                 notificationManager.createNotificationChannel(channel);

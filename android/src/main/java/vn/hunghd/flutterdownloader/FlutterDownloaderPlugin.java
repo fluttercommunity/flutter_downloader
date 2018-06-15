@@ -14,12 +14,15 @@ import android.os.Bundle;
 import android.provider.BaseColumns;
 import android.support.v4.content.LocalBroadcastManager;
 
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
+import androidx.work.BackoffPolicy;
 import androidx.work.Constraints;
 import androidx.work.Data;
 import androidx.work.NetworkType;
@@ -108,9 +111,11 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
             boolean showNotification = call.argument("show_notification");
             WorkRequest request = new OneTimeWorkRequest.Builder(DownloadWorker.class)
                     .setConstraints(new Constraints.Builder()
+                            .setRequiresStorageNotLow(true)
                             .setRequiredNetworkType(NetworkType.CONNECTED)
                             .build())
                     .addTag(TAG)
+                    .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.SECONDS)
                     .setInputData(new Data.Builder()
                             .putString(DownloadWorker.ARG_URL, url)
                             .putString(DownloadWorker.ARG_SAVED_DIR, savedDir)

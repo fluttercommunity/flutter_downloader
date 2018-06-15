@@ -61,8 +61,8 @@ To create new download task:
 
 ````
 final taskId = await FlutterDownloader.enqueue(
-  url: `your download link`, 
-  savedDir: `the path of directory where you want to save downloaded files`, 
+  url: 'your download link', 
+  savedDir: 'the path of directory where you want to save downloaded files', 
   showNotification: true // show download progress in status bar (for Android)
 );
 ````
