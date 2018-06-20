@@ -13,7 +13,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 * Add following code to your `AppDelegate` (this method will be called when an URL session finished its work while your app is not running):
 
-````
+````objectivec
 - (void)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void (^)(void))completionHandler {
     completionHandler();
 }
@@ -21,7 +21,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 **Note:** If you want to download file with HTTP request, you need to disable Apple Transport Security (ATS) feature.
 * Disable ATS for a specific domain only: (add following codes to the end of your `Info.plist` file)
-````
+````xml
 <key>NSAppTransportSecurity</key>
 <dict>
   <key>NSExceptionDomains</key>
@@ -44,7 +44,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 * Completely disable ATS: (add following codes to the end of your `Info.plist` file)
 
-````
+````xml
 <key>NSAppTransportSecurity</key>  
 <dict>  
     <key>NSAllowsArbitraryLoads</key><true/>  
@@ -53,13 +53,13 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 ## Usage
 
-````
+````dart
 import 'package:flutter_downloader/flutter_downloader.dart';
 ````
 
 To create new download task:
 
-````
+````dart
 final taskId = await FlutterDownloader.enqueue(
   url: 'your download link', 
   savedDir: 'the path of directory where you want to save downloaded files', 
@@ -69,7 +69,7 @@ final taskId = await FlutterDownloader.enqueue(
 
 To update download progress:
 
-````
+````dart
 FlutterDownloader.registerCallback((id, status, progress) {
   // code to update your UI
 });
@@ -77,19 +77,19 @@ FlutterDownloader.registerCallback((id, status, progress) {
 
 To load the status of download tasks:
 
-````
+````dart
 final tasks = await FlutterDownloader.loadTasks();
 ````
 
 To cancel a task:
 
-````
+````dart
 FlutterDownloader.cancel(taskId: taskId);
 ````
 
 To cancel all tasks:
 
-````
+````dart
 FlutterDownloader.cancelAll();
 ````
 
