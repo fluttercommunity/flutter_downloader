@@ -13,3 +13,7 @@
 ## 0.0.4
 
 * fix bug: Worker finished with FAILURE on Android API 26 and above
+
+## 0.0.5
+
+* update metadata

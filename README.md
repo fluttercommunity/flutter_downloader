@@ -1,4 +1,6 @@
-# flutter_downloader
+# Flutter Downloader
+
+[![pub package](https://img.shields.io/pub/v/flutter_downloader.svg)](https://pub.dartlang.org/packages/flutter_downloader)
 
 A plugin for creating and managing download tasks. Supports iOS and Android. 
 
@@ -9,7 +11,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 * Open Xcode. Enable background mode.
 
-<img width="512" src="./screenshot/enable_background_mode.png?raw=true"/>
+<img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/enable_background_mode.png?raw=true"/>
 
 * Add following code to your `AppDelegate` (this method will be called when an URL session finished its work while your app is not running):
 
