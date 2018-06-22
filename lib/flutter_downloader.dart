@@ -47,7 +47,7 @@ class FlutterDownloader {
     @required String savedDir,
     String fileName,
     Map<String, String> headers,
-    bool showNotification = false,
+    bool showNotification = true,
   }) async {
     StringBuffer headerBuilder = StringBuffer();
     if (headers != null) {

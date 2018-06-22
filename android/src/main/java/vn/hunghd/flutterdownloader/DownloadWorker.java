@@ -24,7 +24,6 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Iterator;
-import java.util.Map;
 
 import androidx.work.Worker;
 import vn.hunghd.flutterdownloader.TaskContract.TaskEntry;
@@ -54,7 +53,7 @@ public class DownloadWorker extends Worker {
 
     @NonNull
     @Override
-    public WorkerResult doWork() {
+    public Result doWork() {
         Context context = getApplicationContext();
         dbHelper = new TaskDbHelper(context);
 
@@ -71,15 +70,15 @@ public class DownloadWorker extends Worker {
         buildNotification(context);
 
         updateNotification(context, fileName == null ? url : fileName, 0);
-        updateTask(getId(), url, DownloadStatus.RUNNING, 0, fileName, savedDir);
+        updateTask(getId().toString(), url, DownloadStatus.RUNNING, 0, fileName, savedDir);
         try {
             downloadFile(context, url, savedDir, fileName, headers);
-            return WorkerResult.SUCCESS;
+            return Result.SUCCESS;
         } catch (IOException e) {
             updateNotification(context, fileName == null ? url : fileName, -1);
-            updateTask(getId(), url, DownloadStatus.FAILED, lastProgress, fileName, savedDir);
+            updateTask(getId().toString(), url, DownloadStatus.FAILED, lastProgress, fileName, savedDir);
             e.printStackTrace();
-            return WorkerResult.FAILURE;
+            return Result.FAILURE;
         }
     }
 
@@ -136,7 +135,7 @@ public class DownloadWorker extends Worker {
                         && progress != lastProgress) {
                     lastProgress = progress;
                     updateNotification(context, fileName, progress);
-                    updateTask(getId(), fileURL, DownloadStatus.RUNNING, progress, fileName, saveDir);
+                    updateTask(getId().toString(), fileURL, DownloadStatus.RUNNING, progress, fileName, saveDir);
                 }
             }
 
@@ -146,13 +145,13 @@ public class DownloadWorker extends Worker {
             int progress = isStopped() ? -1 : 100;
             int status = isStopped() ? DownloadStatus.CANCELED : DownloadStatus.COMPLETE;
             updateNotification(context, fileName, progress);
-            updateTask(getId(), fileURL, status, progress, fileName, saveDir);
+            updateTask(getId().toString(), fileURL, status, progress, fileName, saveDir);
 
             Log.d(TAG, isStopped() ? "Download canceled" : "File downloaded");
         } else {
             int status = isStopped() ? DownloadStatus.CANCELED : DownloadStatus.FAILED;
             updateNotification(context, fileName, -1);
-            updateTask(getId(), fileURL, status, lastProgress, fileName, saveDir);
+            updateTask(getId().toString(), fileURL, status, lastProgress, fileName, saveDir);
             Log.d(TAG, isStopped() ? "Download canceled" : "No file to download. Server replied HTTP code: " + responseCode);
         }
         httpConn.disconnect();
@@ -216,7 +215,7 @@ public class DownloadWorker extends Worker {
 
     private void sendUpdateProcessEvent(Context context, int status, int progress) {
         Intent intent = new Intent(UPDATE_PROCESS_EVENT);
-        intent.putExtra(EXTRA_ID, getId());
+        intent.putExtra(EXTRA_ID, getId().toString());
         intent.putExtra(EXTRA_STATUS, status);
         intent.putExtra(EXTRA_PROGRESS, progress);
         LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
