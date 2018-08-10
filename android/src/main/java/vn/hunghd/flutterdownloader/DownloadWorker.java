@@ -57,10 +57,10 @@ public class DownloadWorker extends Worker {
         Context context = getApplicationContext();
         dbHelper = new TaskDbHelper(context);
 
-        String url = getInputData().getString(ARG_URL, null);
-        String fileName = getInputData().getString(ARG_FILE_NAME, null);
-        String savedDir = getInputData().getString(ARG_SAVED_DIR, null);
-        String headers = getInputData().getString(ARG_HEADERS, null);
+        String url = getInputData().getString(ARG_URL);
+        String fileName = getInputData().getString(ARG_FILE_NAME);
+        String savedDir = getInputData().getString(ARG_SAVED_DIR);
+        String headers = getInputData().getString(ARG_HEADERS);
 
         if (url == null || savedDir == null)
             throw new IllegalArgumentException("url and saved_dir must be not null");
@@ -166,6 +166,7 @@ public class DownloadWorker extends Worker {
             CharSequence name = context.getApplicationInfo().loadLabel(context.getPackageManager());
             int importance = NotificationManager.IMPORTANCE_DEFAULT;
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
+            channel.setSound(null, null);
 
             // Add the channel
             NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
@@ -178,7 +179,7 @@ public class DownloadWorker extends Worker {
         // Create the notification
         builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_download)
-                .setPriority(NotificationCompat.PRIORITY_HIGH);
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
     }
 
     private void updateNotification(Context context, String title, int progress) {

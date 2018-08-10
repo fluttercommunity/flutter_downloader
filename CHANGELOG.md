@@ -26,3 +26,12 @@
 ## 0.0.7
 
 * upgrade WorkManager to v1.0.0-alpha04
+
+## 0.0.8
+
+* upgrade WorkManager to v1.0.0-alpha06
+* fix bug: disable sound on notifications
+
+## 0.0.9
+
+* re-config to support Dart2
