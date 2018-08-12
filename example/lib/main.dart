@@ -190,6 +190,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       url: task.link,
       savedDir: _localPath,
       showNotification: true,
+      clickToOpenDownloadedFile: false
     );
   }
 

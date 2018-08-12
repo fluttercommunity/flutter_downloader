@@ -48,6 +48,7 @@ class FlutterDownloader {
     String fileName,
     Map<String, String> headers,
     bool showNotification = true,
+    bool clickToOpenDownloadedFile = true
   }) async {
     StringBuffer headerBuilder = StringBuffer();
     if (headers != null) {
@@ -64,7 +65,8 @@ class FlutterDownloader {
         'saved_dir': savedDir,
         'file_name': fileName,
         'headers': headerBuilder.toString(),
-        'show_notification': showNotification
+        'show_notification': showNotification,
+        'click_to_open_downloaded_file': clickToOpenDownloadedFile,
       });
       print('Download task is enqueued with id($taskId)');
       return taskId;

@@ -2,14 +2,19 @@ package vn.hunghd.flutterdownloader;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
 import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
+import android.support.v4.content.FileProvider;
 import android.support.v4.content.LocalBroadcastManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -24,6 +29,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Iterator;
+import java.util.List;
 
 import androidx.work.Worker;
 import vn.hunghd.flutterdownloader.TaskContract.TaskEntry;
@@ -36,6 +42,7 @@ public class DownloadWorker extends Worker {
     public static final String ARG_SAVED_DIR = "saved_file";
     public static final String ARG_HEADERS = "headers";
     public static final String ARG_SHOW_NOTIFICATION = "show_notification";
+    public static final String ARG_CLICK_TO_OPEN_DOWNLOADED_FILE = "click_to_open_downloaded_file";
 
     public static final String EXTRA_ID = "id";
     public static final String EXTRA_PROGRESS = "progress";
@@ -49,6 +56,7 @@ public class DownloadWorker extends Worker {
     private TaskDbHelper dbHelper;
     private NotificationCompat.Builder builder;
     private boolean showNotification;
+    private boolean clickToOpenDownloadedFile;
     private int lastProgress = 0;
 
     @NonNull
@@ -66,17 +74,21 @@ public class DownloadWorker extends Worker {
             throw new IllegalArgumentException("url and saved_dir must be not null");
 
         showNotification = getInputData().getBoolean(ARG_SHOW_NOTIFICATION, false);
+        clickToOpenDownloadedFile = getInputData().getBoolean(ARG_CLICK_TO_OPEN_DOWNLOADED_FILE, false);
 
         buildNotification(context);
 
-        updateNotification(context, fileName == null ? url : fileName, 0);
+        updateNotification(context, fileName == null ? url : fileName, 0, null);
         updateTask(getId().toString(), url, DownloadStatus.RUNNING, 0, fileName, savedDir);
         try {
             downloadFile(context, url, savedDir, fileName, headers);
             return Result.SUCCESS;
         } catch (IOException e) {
-            updateNotification(context, fileName == null ? url : fileName, -1);
+            updateNotification(context, fileName == null ? url : fileName, -1, null);
             updateTask(getId().toString(), url, DownloadStatus.FAILED, lastProgress, fileName, savedDir);
+            e.printStackTrace();
+            return Result.FAILURE;
+        } catch (Exception e) {
             e.printStackTrace();
             return Result.FAILURE;
         }
@@ -134,7 +146,7 @@ public class DownloadWorker extends Worker {
                 if ((lastProgress == 0 || progress > lastProgress + STEP_UPDATE || progress == 100)
                         && progress != lastProgress) {
                     lastProgress = progress;
-                    updateNotification(context, fileName, progress);
+                    updateNotification(context, fileName, progress, null);
                     updateTask(getId().toString(), fileURL, DownloadStatus.RUNNING, progress, fileName, saveDir);
                 }
             }
@@ -144,13 +156,23 @@ public class DownloadWorker extends Worker {
 
             int progress = isStopped() ? -1 : 100;
             int status = isStopped() ? DownloadStatus.CANCELED : DownloadStatus.COMPLETE;
-            updateNotification(context, fileName, progress);
+            PendingIntent pendingIntent = null;
+            if (status == DownloadStatus.COMPLETE && clickToOpenDownloadedFile) {
+                Intent intent = getOpenFileIntent(saveFilePath, contentType);
+                if (validateIntent(intent)) {
+                    Log.d(TAG, "Setting an intent to open the file " + saveFilePath);
+                    pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                } else {
+                    Log.d(TAG, "There's no application that can open the file " + saveFilePath);
+                }
+            }
+            updateNotification(context, fileName, progress, pendingIntent);
             updateTask(getId().toString(), fileURL, status, progress, fileName, saveDir);
 
             Log.d(TAG, isStopped() ? "Download canceled" : "File downloaded");
         } else {
             int status = isStopped() ? DownloadStatus.CANCELED : DownloadStatus.FAILED;
-            updateNotification(context, fileName, -1);
+            updateNotification(context, fileName, -1, null);
             updateTask(getId().toString(), fileURL, status, lastProgress, fileName, saveDir);
             Log.d(TAG, isStopped() ? "Download canceled" : "No file to download. Server replied HTTP code: " + responseCode);
         }
@@ -179,11 +201,13 @@ public class DownloadWorker extends Worker {
         // Create the notification
         builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_download)
+                .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
     }
 
-    private void updateNotification(Context context, String title, int progress) {
+    private void updateNotification(Context context, String title, int progress, PendingIntent intent) {
         builder.setContentTitle(title);
+        builder.setContentIntent(intent);
 
         int status;
 
@@ -241,5 +265,27 @@ public class DownloadWorker extends Worker {
         values.put(TaskEntry.COLUMN_NAME_FILE_NAME, fileName);
         values.put(TaskEntry.COLUMN_NAME_SAVED_DIR, savedDir);
         return values;
+    }
+
+    private Intent getOpenFileIntent(String path, String contentType) {
+        File file = new File(path);
+        Uri uri = FileProvider.getUriForFile(getApplicationContext(), getApplicationContext().getPackageName() + ".flutter_downloader.provider", file);
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setDataAndType(uri, contentType);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        return intent;
+    }
+
+    private boolean validateIntent(Intent intent) {
+        PackageManager manager = getApplicationContext().getPackageManager();
+        List<ResolveInfo> infos = manager.queryIntentActivities(intent, 0);
+        if (infos.size() > 0) {
+            //Then there is an Application(s) can handle this intent
+            return true;
+        } else {
+            //No Application can handle this intent
+            return false;
+        }
     }
 }

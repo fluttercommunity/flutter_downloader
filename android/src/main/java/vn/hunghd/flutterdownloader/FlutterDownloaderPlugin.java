@@ -109,6 +109,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
             String fileName = call.argument("file_name");
             String headers = call.argument("headers");
             boolean showNotification = call.argument("show_notification");
+            boolean clickToOpenDownloadedFile = call.argument("click_to_open_downloaded_file");
             WorkRequest request = new OneTimeWorkRequest.Builder(DownloadWorker.class)
                     .setConstraints(new Constraints.Builder()
                             .setRequiresStorageNotLow(true)
@@ -122,6 +123,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                             .putString(DownloadWorker.ARG_FILE_NAME, fileName)
                             .putString(DownloadWorker.ARG_HEADERS, headers)
                             .putBoolean(DownloadWorker.ARG_SHOW_NOTIFICATION, showNotification)
+                            .putBoolean(DownloadWorker.ARG_CLICK_TO_OPEN_DOWNLOADED_FILE, clickToOpenDownloadedFile)
                             .build()
                     )
                     .build();

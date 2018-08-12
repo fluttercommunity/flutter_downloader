@@ -35,3 +35,7 @@
 ## 0.0.9
 
 * re-config to support Dart2
+
+## 0.1.0
+
+* add: handle click on notification to open downloaded file (for Android)

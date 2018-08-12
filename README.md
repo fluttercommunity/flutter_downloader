@@ -53,6 +53,26 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 </dict>
 ````
 
+## Android integration
+
+In order to handle click action on notification to open the downloaded file on Android, you need to add some additional configurations:
+
+* add the following codes to your `AndroidManifest.xml` (inside `application` tag):
+
+````xml
+<provider
+    android:name="vn.hunghd.flutterdownloader.DownloadedFileProvider"
+    android:authorities="${applicationId}.flutter_downloader.provider"
+    android:exported="false"
+    android:grantUriPermissions="true">
+    <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/provider_paths"/>
+</provider>
+````
+
+* you have to save your downloaded files in external storage (where the other applications have permission to read your files)
+
 ## Usage
 
 ````dart
@@ -65,7 +85,8 @@ To create new download task:
 final taskId = await FlutterDownloader.enqueue(
   url: 'your download link', 
   savedDir: 'the path of directory where you want to save downloaded files', 
-  showNotification: true // show download progress in status bar (for Android)
+  showNotification: true, // show download progress in status bar (for Android)
+  clickToOpenDownloadedFile: true, // click on notification to open downloaded file (for Android)
 );
 ````
 
@@ -94,7 +115,6 @@ To cancel all tasks:
 ````dart
 FlutterDownloader.cancelAll();
 ````
-
 
 [1]: https://developer.android.com/topic/libraries/architecture/workmanager
 [2]: https://developer.apple.com/documentation/foundation/nsurlsessiondownloadtask?language=objc
