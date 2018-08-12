@@ -11,7 +11,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 * Open Xcode. Enable background mode.
 
-<img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/enable_background_mode_1.png?raw=true"/>
+<img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/enable_background_mode.png?raw=true"/>
 
 * Add following code to your `AppDelegate` (this method will be called when an URL session finished its work while your app is not running):
 
