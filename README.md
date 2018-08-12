@@ -73,6 +73,9 @@ In order to handle click action on notification to open the downloaded file on A
 
 * you have to save your downloaded files in external storage (where the other applications have permission to read your files)
 
+### Note:
+The downloaded files are only able to be opened if your device has at least an application that can read these file types (mp3, pdf, etc) 
+
 ## Usage
 
 ````dart
