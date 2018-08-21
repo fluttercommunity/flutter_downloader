@@ -13,6 +13,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.provider.BaseColumns;
 import android.support.v4.content.LocalBroadcastManager;
+import android.util.Log;
 
 
 import java.util.ArrayList;
@@ -20,9 +21,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import androidx.work.BackoffPolicy;
+import androidx.work.Configuration;
 import androidx.work.Constraints;
 import androidx.work.Data;
 import androidx.work.NetworkType;
@@ -34,7 +39,6 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.PluginRegistry;
-import io.flutter.view.FlutterNativeView;
 
 public class FlutterDownloaderPlugin implements MethodCallHandler {
     private static final String CHANNEL = "vn.hunghd/downloader";
@@ -42,6 +46,8 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
 
     private MethodChannel flutterChannel;
     private TaskDbHelper dbHelper;
+
+    public static int maximumConcurrentTask;
 
     private final BroadcastReceiver updateProcessEventReceiver = new BroadcastReceiver() {
         @Override
@@ -56,7 +62,11 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
     private FlutterDownloaderPlugin(Context context, BinaryMessenger messenger) {
         flutterChannel = new MethodChannel(messenger, CHANNEL);
         flutterChannel.setMethodCallHandler(this);
-        dbHelper = new TaskDbHelper(context);
+        dbHelper = TaskDbHelper.getInstance(context);
+        Log.d(TAG, "maximumConcurrentTask = " + maximumConcurrentTask);
+        WorkManager.initialize(context, new Configuration.Builder()
+                .setExecutor(Executors.newFixedThreadPool(Math.max(maximumConcurrentTask, 1)))
+                .build());
     }
 
     @SuppressLint("NewApi")

@@ -10,6 +10,8 @@ public class TaskDbHelper extends SQLiteOpenHelper {
     public static final int DATABASE_VERSION = 1;
     public static final String DATABASE_NAME = "download_tasks.db";
 
+    private static TaskDbHelper instance = null;
+
     private static final String SQL_CREATE_ENTRIES =
             "CREATE TABLE " + TaskEntry.TABLE_NAME + " (" +
             TaskEntry._ID + " INTEGER PRIMARY KEY," +
@@ -23,7 +25,20 @@ public class TaskDbHelper extends SQLiteOpenHelper {
     private static final String SQL_DELETE_ENTRIES =
             "DROP TABLE IF EXISTS " + TaskEntry.TABLE_NAME;
 
-    public TaskDbHelper(Context context) {
+
+    public static TaskDbHelper getInstance(Context ctx) {
+
+        // Use the application context, which will ensure that you
+        // don't accidentally leak an Activity's context.
+        // See this article for more information: http://bit.ly/6LRzfx
+        if (instance == null) {
+            instance = new TaskDbHelper(ctx.getApplicationContext());
+        }
+        return instance;
+    }
+
+
+    private TaskDbHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
 

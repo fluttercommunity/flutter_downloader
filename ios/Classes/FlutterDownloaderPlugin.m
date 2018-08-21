@@ -30,6 +30,20 @@
 
 @implementation FlutterDownloaderPlugin
 
+static int maximumConcurrentTask;
+
++ (int)maximumConcurrentTask {
+    @synchronized(self) {
+        return maximumConcurrentTask;
+    }
+}
+
++ (void)setMaximumConcurrentTask:(int)val {
+    @synchronized(self) {
+        maximumConcurrentTask = val;
+    }
+}
+
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
 
     FlutterDownloaderPlugin* instance = [[FlutterDownloaderPlugin alloc] initWithBinaryMessenger:registrar.messenger];
@@ -93,9 +107,9 @@
         _flutterChannel = [FlutterMethodChannel
                                 methodChannelWithName:@"vn.hunghd/downloader"
                                 binaryMessenger:messenger];
-
+        NSLog(@"maximumConcurrentTask: %d", FlutterDownloaderPlugin.maximumConcurrentTask);
         NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:[NSString stringWithFormat:@"%@.download.background", NSBundle.mainBundle.bundleIdentifier]];
-        sessionConfiguration.HTTPMaximumConnectionsPerHost = 5;
+        sessionConfiguration.HTTPMaximumConnectionsPerHost = MAX(FlutterDownloaderPlugin.maximumConcurrentTask, 1);
         _session = [NSURLSession sessionWithConfiguration:sessionConfiguration delegate:self delegateQueue:nil];
 
         _downloadInfo = [NSMutableDictionary new];

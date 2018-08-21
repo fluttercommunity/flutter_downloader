@@ -63,7 +63,7 @@ public class DownloadWorker extends Worker {
     @Override
     public Result doWork() {
         Context context = getApplicationContext();
-        dbHelper = new TaskDbHelper(context);
+        dbHelper = TaskDbHelper.getInstance(context);
 
         String url = getInputData().getString(ARG_URL);
         String fileName = getInputData().getString(ARG_FILE_NAME);
