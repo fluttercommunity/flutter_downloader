@@ -39,3 +39,8 @@
 ## 0.1.0
 
 * add: handle click on notification to open downloaded file (for Android)
+
+## 0.1.1
+
+* fix bugs: SQLite leak
+* new feature: support configuration of the maximum of concurrent download tasks

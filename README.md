@@ -53,6 +53,23 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 </dict>
 ````
 
+**Note:** configure the maximum of concurrent download tasks
+
+`AppDelegate.m`
+````objectivec
+- (BOOL)application:(UIApplication *)application
+    didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+
+  // config the maximum of concurrent download tasks
+  [FlutterDownloaderPlugin setMaximumConcurrentTask: 2];
+  
+  [GeneratedPluginRegistrant registerWithRegistry:self];
+  // Override point for customization after application launch.
+  return [super application:application didFinishLaunchingWithOptions:launchOptions];
+}
+
+````
+
 ## Android integration
 
 In order to handle click action on notification to open the downloaded file on Android, you need to add some additional configurations:
@@ -73,8 +90,21 @@ In order to handle click action on notification to open the downloaded file on A
 
 * you have to save your downloaded files in external storage (where the other applications have permission to read your files)
 
-### Note:
-The downloaded files are only able to be opened if your device has at least an application that can read these file types (mp3, pdf, etc) 
+**Note:** The downloaded files are only able to be opened if your device has at least an application that can read these file types (mp3, pdf, etc)
+
+**Note:** configure the maximum of concurrent download tasks
+
+`MainActivity.java`
+````java
+@Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    // configure the maximum of concurrent download tasks
+    FlutterDownloaderPlugin.maximumConcurrentTask = 2;
+    
+    GeneratedPluginRegistrant.registerWith(this);
+  }
+```` 
 
 ## Usage
 
