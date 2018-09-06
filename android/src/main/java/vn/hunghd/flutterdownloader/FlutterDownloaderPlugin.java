@@ -44,8 +44,9 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
     private MethodChannel flutterChannel;
     private TaskDbHelper dbHelper;
     private TaskDao taskDao;
-
-    public static int maximumConcurrentTask;
+    private boolean initialized = false;
+    private Map<String, String> messages;
+    private Context context;
 
     private final BroadcastReceiver updateProcessEventReceiver = new BroadcastReceiver() {
         @Override
@@ -58,14 +59,11 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
     };
 
     private FlutterDownloaderPlugin(Context context, BinaryMessenger messenger) {
+        this.context = context;
         flutterChannel = new MethodChannel(messenger, CHANNEL);
         flutterChannel.setMethodCallHandler(this);
         dbHelper = TaskDbHelper.getInstance(context);
         taskDao = new TaskDao(dbHelper);
-        Log.d(TAG, "maximumConcurrentTask = " + maximumConcurrentTask);
-        WorkManager.initialize(context, new Configuration.Builder()
-                .setExecutor(Executors.newFixedThreadPool(Math.max(maximumConcurrentTask, 1)))
-                .build());
     }
 
     @SuppressLint("NewApi")
@@ -112,48 +110,81 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
 
     @Override
     public void onMethodCall(MethodCall call, MethodChannel.Result result) {
-        if (call.method.equals("enqueue")) {
-            String url = call.argument("url");
-            String savedDir = call.argument("saved_dir");
-            String filename = call.argument("file_name");
-            String headers = call.argument("headers");
-            boolean showNotification = call.argument("show_notification");
-            boolean clickToOpenDownloadedFile = call.argument("click_to_open_downloaded_file");
-            WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, clickToOpenDownloadedFile, false);
-            String taskId = request.getId().toString();
-            sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0);
-            taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, savedDir, headers, showNotification, clickToOpenDownloadedFile);
-            WorkManager.getInstance().enqueue(request);
-            result.success(taskId);
-        } else if (call.method.equals("loadTasks")) {
-            List<DownloadTask> tasks = taskDao.loadAllTasks();
-            List<Map> array = new ArrayList<>();
-            for (DownloadTask task : tasks) {
-                Map<String, Object> item = new HashMap<>();
-                item.put("task_id", task.taskId);
-                item.put("status", task.status);
-                item.put("progress", task.progress);
-                item.put("url", task.url);
-                item.put("file_name", task.filename);
-                item.put("saved_dir", task.savedDir);
-                array.add(item);
+        if (call.method.equals("initialize") && !initialized) {
+            int maximumConcurrentTask = call.argument("maxConcurrentTasks");
+            messages = call.argument("messages");
+
+            WorkManager.initialize(context, new Configuration.Builder()
+                    .setExecutor(Executors.newFixedThreadPool(Math.max(maximumConcurrentTask, 1)))
+                    .build());
+
+            initialized = true;
+        } else if (call.method.equals("enqueue")) {
+            if (initialized) {
+                String url = call.argument("url");
+                String savedDir = call.argument("saved_dir");
+                String filename = call.argument("file_name");
+                String headers = call.argument("headers");
+                boolean showNotification = call.argument("show_notification");
+                boolean clickToOpenDownloadedFile = call.argument("click_to_open_downloaded_file");
+                WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, clickToOpenDownloadedFile, false);
+                String taskId = request.getId().toString();
+                sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0);
+                taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, savedDir, headers, showNotification, clickToOpenDownloadedFile);
+                WorkManager.getInstance().enqueue(request);
+                result.success(taskId);
+            } else {
+                result.error("not_initialized", "initialize() must be called first", null);
             }
-            result.success(array);
+        } else if (call.method.equals("loadTasks")) {
+            if (initialized) {
+                List<DownloadTask> tasks = taskDao.loadAllTasks();
+                List<Map> array = new ArrayList<>();
+                for (DownloadTask task : tasks) {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("task_id", task.taskId);
+                    item.put("status", task.status);
+                    item.put("progress", task.progress);
+                    item.put("url", task.url);
+                    item.put("file_name", task.filename);
+                    item.put("saved_dir", task.savedDir);
+                    array.add(item);
+                }
+                result.success(array);
+            } else {
+                result.error("not_initialized", "initialize() must be called first", null);
+            }
         } else if (call.method.equals("cancel")) {
-            String taskId = call.argument("task_id");
-            cancel(taskId);
-            result.success(null);
+            if (initialized) {
+                String taskId = call.argument("task_id");
+                cancel(taskId);
+                result.success(null);
+            } else {
+                result.error("not_initialized", "initialize() must be called first", null);
+            }
         } else if (call.method.equals("cancelAll")) {
-            cancelAll();
-            result.success(null);
+            if (initialized) {
+                cancelAll();
+                result.success(null);
+            } else {
+                result.error("not_initialized", "initialize() must be called first", null);
+            }
         } else if (call.method.equals("pause")) {
-            String taskId = call.argument("task_id");
-            pause(taskId);
-            result.success(null);
+            if (initialized) {
+                String taskId = call.argument("task_id");
+                pause(taskId);
+                result.success(null);
+            } else {
+                result.error("not_initialized", "initialize() must be called first", null);
+            }
         } else if (call.method.equals("resume")) {
-            String taskId = call.argument("task_id");
-            String newTaskId = resume(taskId);
-            result.success(newTaskId);
+            if (initialized) {
+                String taskId = call.argument("task_id");
+                String newTaskId = resume(taskId);
+                result.success(newTaskId);
+            } else {
+                result.error("not_initialized", "initialize() must be called first", null);
+            }
         } else {
             result.notImplemented();
         }
@@ -186,6 +217,12 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                         .putBoolean(DownloadWorker.ARG_SHOW_NOTIFICATION, showNotification)
                         .putBoolean(DownloadWorker.ARG_CLICK_TO_OPEN_DOWNLOADED_FILE, clickToOpenDownloadedFile)
                         .putBoolean(DownloadWorker.ARG_IS_RESUME, isResume)
+                        .putString(DownloadWorker.MSG_STARTED, messages.get("started"))
+                        .putString(DownloadWorker.MSG_IN_PROGRESS, messages.get("in_progress"))
+                        .putString(DownloadWorker.MSG_CANCELED, messages.get("canceled"))
+                        .putString(DownloadWorker.MSG_FAILED, messages.get("failed"))
+                        .putString(DownloadWorker.MSG_PAUSED, messages.get("paused"))
+                        .putString(DownloadWorker.MSG_COMPLETE, messages.get("complete"))
                         .build()
                 )
                 .build();

@@ -42,6 +42,14 @@ public class DownloadWorker extends Worker {
     public static final String ARG_IS_RESUME = "is_resume";
     public static final String ARG_SHOW_NOTIFICATION = "show_notification";
     public static final String ARG_CLICK_TO_OPEN_DOWNLOADED_FILE = "click_to_open_downloaded_file";
+    public static final String ARG_MESSAGES = "messages";
+
+    public static final String MSG_STARTED = "msg_started";
+    public static final String MSG_IN_PROGRESS = "msg_in_progress";
+    public static final String MSG_CANCELED = "msg_canceled";
+    public static final String MSG_FAILED = "msg_failed";
+    public static final String MSG_PAUSED = "msg_paused";
+    public static final String MSG_COMPLETE = "msg_complete";
 
     public static final String EXTRA_ID = "id";
     public static final String EXTRA_PROGRESS = "progress";
@@ -59,6 +67,7 @@ public class DownloadWorker extends Worker {
     private boolean clickToOpenDownloadedFile;
     private int lastProgress = 0;
     private int primaryId;
+    private String msgStarted, msgInProgress, msgCanceled, msgFailed, msgPaused, msgComplete;
 
     @NonNull
     @Override
@@ -72,6 +81,13 @@ public class DownloadWorker extends Worker {
         String savedDir = getInputData().getString(ARG_SAVED_DIR);
         String headers = getInputData().getString(ARG_HEADERS);
         boolean isResume = getInputData().getBoolean(ARG_IS_RESUME, false);
+
+        msgStarted = getInputData().getString(MSG_STARTED);
+        msgInProgress = getInputData().getString(MSG_IN_PROGRESS);
+        msgCanceled = getInputData().getString(MSG_CANCELED);
+        msgFailed = getInputData().getString(MSG_FAILED);
+        msgPaused = getInputData().getString(MSG_PAUSED);
+        msgComplete = getInputData().getString(MSG_COMPLETE);
 
         Log.d(TAG, "DownloadWorker{url=" + url + ",filename=" + filename + ",savedDir=" + savedDir + ",header=" + headers + ",isResume=" + isResume);
 
@@ -273,20 +289,20 @@ public class DownloadWorker extends Worker {
 
         if (status == DownloadStatus.RUNNING) {
             shouldUpdate = true;
-            builder.setContentText(progress == 0 ? "Download started" : "Download in progress")
+            builder.setContentText(progress == 0 ? msgStarted : msgInProgress)
                     .setProgress(100, progress, progress == 0);
         } else if (status == DownloadStatus.CANCELED) {
             shouldUpdate = true;
-            builder.setContentText("Download canceled").setProgress(0, 0, false);
+            builder.setContentText(msgCanceled).setProgress(0, 0, false);
         } else if (status == DownloadStatus.FAILED) {
             shouldUpdate = true;
-            builder.setContentText("Download failed").setProgress(0, 0, false);
+            builder.setContentText(msgFailed).setProgress(0, 0, false);
         } else if (status == DownloadStatus.PAUSED) {
             shouldUpdate = true;
-            builder.setContentText("Download paused").setProgress(0, 0, false);
+            builder.setContentText(msgPaused).setProgress(0, 0, false);
         } else if (status == DownloadStatus.COMPLETE) {
             shouldUpdate = true;
-            builder.setContentText("Download complete").setProgress(0, 0, false);
+            builder.setContentText(msgComplete).setProgress(0, 0, false);
         }
 
         // Show the notification

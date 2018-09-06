@@ -5,7 +5,10 @@ import 'package:flutter_downloader/flutter_downloader.dart';
 import 'dart:convert';
 import 'dart:io';
 
-void main() => runApp(new MyApp());
+void main() {
+  FlutterDownloader.initialize(maxConcurrentTasks: 3);
+  runApp(new MyApp());
+}
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -39,17 +42,17 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     {
       'name': 'Android Programming Cookbook',
       'link':
-          'http://enos.itcollege.ee/~jpoial/allalaadimised/reading/Android-Programming-Cookbook.pdf'
+      'http://enos.itcollege.ee/~jpoial/allalaadimised/reading/Android-Programming-Cookbook.pdf'
     },
     {
       'name': 'iOS Programming Guide',
       'link':
-          'http://darwinlogic.com/uploads/education/iOS_Programming_Guide.pdf'
+      'http://darwinlogic.com/uploads/education/iOS_Programming_Guide.pdf'
     },
     {
       'name': 'Objective-C Programming (Pre-Course Workbook',
       'link':
-          'https://www.bignerdranch.com/documents/objective-c-prereading-assignment.pdf'
+      'https://www.bignerdranch.com/documents/objective-c-prereading-assignment.pdf'
     }
   ];
 
@@ -83,52 +86,54 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       ),
       body: _isLoading
           ? new Center(
-              child: new CircularProgressIndicator(),
-            )
+        child: new CircularProgressIndicator(),
+      )
           : new Container(
-              child: new ListView(
-                children: _tasks
-                    .map((task) => new Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: new Stack(
-                            children: <Widget>[
-                              new Container(
-                                width: double.infinity,
-                                height: 64.0,
-                                child: new Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: <Widget>[
-                                    new Expanded(
-                                      child: new Text(
-                                        task.name,
-                                        maxLines: 1,
-                                        softWrap: true,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    new Padding(
-                                      padding: const EdgeInsets.only(left: 8.0),
-                                      child: _buildActionForTask(task),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              task.status == DownloadTaskStatus.running || task.status == DownloadTaskStatus.paused
-                                  ? new Positioned(
-                                      left: 0.0,
-                                      right: 0.0,
-                                      bottom: 0.0,
-                                      child: new LinearProgressIndicator(
-                                        value: task.progress / 100,
-                                      ),
-                                    )
-                                  : new Container()
-                            ].where((child) => child != null).toList(),
-                          ),
-                        ))
-                    .toList(),
-              ),
+        child: new ListView(
+          children: _tasks
+              .map((task) =>
+          new Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: new Stack(
+              children: <Widget>[
+                new Container(
+                  width: double.infinity,
+                  height: 64.0,
+                  child: new Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      new Expanded(
+                        child: new Text(
+                          task.name,
+                          maxLines: 1,
+                          softWrap: true,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      new Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: _buildActionForTask(task),
+                      ),
+                    ],
+                  ),
+                ),
+                task.status == DownloadTaskStatus.running ||
+                    task.status == DownloadTaskStatus.paused
+                    ? new Positioned(
+                  left: 0.0,
+                  right: 0.0,
+                  bottom: 0.0,
+                  child: new LinearProgressIndicator(
+                    value: task.progress / 100,
+                  ),
+                )
+                    : new Container()
+              ].where((child) => child != null).toList(),
             ),
+          ))
+              .toList(),
+        ),
+      ),
     );
   }
 
@@ -206,7 +211,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
 
     _tasks = _documents
         .map((document) =>
-            _TaskInfo(name: document['name'], link: document['link']))
+        _TaskInfo(name: document['name'], link: document['link']))
         .toList();
     tasks?.forEach((task) {
       for (_TaskInfo info in _tasks) {
@@ -223,7 +228,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     setState(() {
       _isLoading = false;
     });
-
   }
 
 }

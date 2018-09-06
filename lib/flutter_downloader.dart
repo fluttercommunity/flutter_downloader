@@ -4,8 +4,8 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 
-typedef void DownloadCallback(
-    String id, DownloadTaskStatus status, int progress);
+typedef void DownloadCallback(String id, DownloadTaskStatus status,
+    int progress);
 
 class DownloadTaskStatus {
   final int _value;
@@ -40,14 +40,36 @@ class DownloadTask {
   final String filename;
   final String savedDir;
 
-  DownloadTask({this.taskId, this.status, this.progress, this.url, this.filename, this.savedDir});
+  DownloadTask(
+      {this.taskId, this.status, this.progress, this.url, this.filename, this.savedDir});
 
   @override
-  String toString() => "DownloadTask(taskId: $taskId, status: $status, progress: $progress, url: $url, filename: $filename, savedDir: $savedDir)";
+  String toString() =>
+      "DownloadTask(taskId: $taskId, status: $status, progress: $progress, url: $url, filename: $filename, savedDir: $savedDir)";
+}
+
+enum DownloadMessage {
+  started,
+  in_progress,
+  canceled,
+  failed,
+  complete,
+  paused
 }
 
 class FlutterDownloader {
   static const platform = const MethodChannel('vn.hunghd/downloader');
+
+  static Future<Null> initialize({int maxConcurrentTasks = 2, Map<DownloadMessage, String> messages = const {}}) async {
+    Map<String, String> dict = {};
+    dict['started'] = messages[DownloadMessage.started] ?? 'Download started';
+    dict['in_progress'] = messages[DownloadMessage.in_progress] ?? 'Download in progress';
+    dict['canceled'] = messages[DownloadMessage.canceled] ?? 'Download canceled';
+    dict['failed'] = messages[DownloadMessage.failed] ?? 'Download failed';
+    dict['complete'] = messages[DownloadMessage.complete] ?? 'Download complete';
+    dict['paused'] = messages[DownloadMessage.paused] ?? 'Download paused';
+    return await platform.invokeMethod('initialize', {'maxConcurrentTasks': maxConcurrentTasks, 'messages': dict});
+  }
 
   static Future<String> enqueue({
     @required String url,
@@ -88,13 +110,14 @@ class FlutterDownloader {
       List<dynamic> result = await platform.invokeMethod('loadTasks');
       print('Loaded tasks: $result');
       return result
-          .map((item) => new DownloadTask(
-              taskId: item['task_id'],
-              status: DownloadTaskStatus._internal(item['status']),
-              progress: item['progress'],
-              url: item['url'],
-              filename: item['file_name'],
-              savedDir: item['saved_dir']))
+          .map((item) =>
+      new DownloadTask(
+          taskId: item['task_id'],
+          status: DownloadTaskStatus._internal(item['status']),
+          progress: item['progress'],
+          url: item['url'],
+          filename: item['file_name'],
+          savedDir: item['saved_dir']))
           .toList();
     } on PlatformException catch (e) {
       return null;
