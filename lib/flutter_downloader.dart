@@ -29,14 +29,21 @@ class DownloadTaskStatus {
   static const complete = const DownloadTaskStatus._internal(3);
   static const failed = const DownloadTaskStatus._internal(4);
   static const canceled = const DownloadTaskStatus._internal(5);
+  static const paused = const DownloadTaskStatus._internal(6);
 }
 
 class DownloadTask {
   final String taskId;
   final DownloadTaskStatus status;
   final int progress;
+  final String url;
+  final String filename;
+  final String savedDir;
 
-  DownloadTask({this.taskId, this.status, this.progress});
+  DownloadTask({this.taskId, this.status, this.progress, this.url, this.filename, this.savedDir});
+
+  @override
+  String toString() => "DownloadTask(taskId: $taskId, status: $status, progress: $progress, url: $url, filename: $filename, savedDir: $savedDir)";
 }
 
 class FlutterDownloader {
@@ -78,13 +85,16 @@ class FlutterDownloader {
 
   static Future<List<DownloadTask>> loadTasks() async {
     try {
-      List<dynamic> result = await platform.invokeMethod("loadTasks");
+      List<dynamic> result = await platform.invokeMethod('loadTasks');
       print('Loaded tasks: $result');
       return result
           .map((item) => new DownloadTask(
               taskId: item['task_id'],
               status: DownloadTaskStatus._internal(item['status']),
-              progress: item['progress']))
+              progress: item['progress'],
+              url: item['url'],
+              filename: item['file_name'],
+              savedDir: item['saved_dir']))
           .toList();
     } on PlatformException catch (e) {
       return null;
@@ -92,22 +102,20 @@ class FlutterDownloader {
   }
 
   static Future<Null> cancel({@required String taskId}) async {
-    return await platform.invokeMethod("cancel", {'task_id': taskId});
+    return await platform.invokeMethod('cancel', {'task_id': taskId});
   }
 
   static Future<Null> cancelAll() async {
-    return await platform.invokeMethod("cancelAll");
+    return await platform.invokeMethod('cancelAll');
   }
 
-//// TODO: implement to pause and resume a download process
+  static Future<Null> pause({@required taskId}) async {
+    return await platform.invokeMethod('pause', {'task_id': taskId});
+  }
 
-//  static void pause({@required taskId}) {
-//
-//  }
-//
-//  static void resume({@required taskId}) {
-//
-//  }
+  static Future<String> resume({@required taskId}) async {
+    return await platform.invokeMethod('resume', {'task_id': taskId});
+  }
 
   static registerCallback(DownloadCallback callback) {
     platform.setMethodCallHandler((MethodCall call) {

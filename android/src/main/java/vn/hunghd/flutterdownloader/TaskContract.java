@@ -14,6 +14,10 @@ public final class TaskContract {
         public static final String COLUMN_NAME_URL = "url";
         public static final String COLUMN_NAME_SAVED_DIR = "saved_dir";
         public static final String COLUMN_NAME_FILE_NAME = "file_name";
+        public static final String COLUMN_NAME_RESUMABLE = "resumable";
+        public static final String COLUMN_NAME_HEADERS = "headers";
+        public static final String COLUMN_NAME_SHOW_NOTIFICATION = "show_notification";
+        public static final String COLUMN_NAME_CLICK_TO_OPEN_DOWNLOADED_FILE = "click_to_open_downloaded_file";
     }
 
 }

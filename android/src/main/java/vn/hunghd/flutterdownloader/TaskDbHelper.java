@@ -7,20 +7,25 @@ import android.database.sqlite.SQLiteOpenHelper;
 import vn.hunghd.flutterdownloader.TaskContract.TaskEntry;
 
 public class TaskDbHelper extends SQLiteOpenHelper {
-    public static final int DATABASE_VERSION = 1;
+    public static final int DATABASE_VERSION = 2;
     public static final String DATABASE_NAME = "download_tasks.db";
 
     private static TaskDbHelper instance = null;
 
     private static final String SQL_CREATE_ENTRIES =
             "CREATE TABLE " + TaskEntry.TABLE_NAME + " (" +
-            TaskEntry._ID + " INTEGER PRIMARY KEY," +
-            TaskEntry.COLUMN_NAME_TASK_ID + " VARCHAR(128), " +
-            TaskEntry.COLUMN_NAME_URL + " TEXT, " +
-            TaskEntry.COLUMN_NAME_STATUS + " INTEGER, " +
-            TaskEntry.COLUMN_NAME_PROGRESS + " INTEGER, " +
-            TaskEntry.COLUMN_NAME_FILE_NAME + " TEXT, " +
-            TaskEntry.COLUMN_NAME_SAVED_DIR + " TEXT)";
+                    TaskEntry._ID + " INTEGER PRIMARY KEY," +
+                    TaskEntry.COLUMN_NAME_TASK_ID + " VARCHAR(128), " +
+                    TaskEntry.COLUMN_NAME_URL + " TEXT, " +
+                    TaskEntry.COLUMN_NAME_STATUS + " INTEGER, " +
+                    TaskEntry.COLUMN_NAME_PROGRESS + " INTEGER, " +
+                    TaskEntry.COLUMN_NAME_FILE_NAME + " TEXT, " +
+                    TaskEntry.COLUMN_NAME_SAVED_DIR + " TEXT, " +
+                    TaskEntry.COLUMN_NAME_HEADERS + " TEXT, " +
+                    TaskEntry.COLUMN_NAME_RESUMABLE + " TINYINT, " +
+                    TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION + " TINYINT, " +
+                    TaskEntry.COLUMN_NAME_CLICK_TO_OPEN_DOWNLOADED_FILE + " TINYINT"
+                    + ")";
 
     private static final String SQL_DELETE_ENTRIES =
             "DROP TABLE IF EXISTS " + TaskEntry.TABLE_NAME;

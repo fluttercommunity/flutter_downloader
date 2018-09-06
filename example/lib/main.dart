@@ -32,10 +32,10 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   final _documents = [
-    {
-      'name': 'Beginning Android Application Development',
-      'link': 'http://www.kmvportal.co.in/Course/MAD/Android%20Book.pdf'
-    },
+//    {
+//      'name': 'Beginning Android Application Development',
+//      'link': 'http://www.kmvportal.co.in/Course/MAD/Android%20Book.pdf'
+//    },
     {
       'name': 'Android Programming Cookbook',
       'link':
@@ -61,8 +61,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addObserver(this);
-
     FlutterDownloader.registerCallback((id, status, progress) {
       print(
           'Download task ($id) is in status ($status) and process ($progress)');
@@ -74,22 +72,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     });
 
     _isLoading = true;
-
-    _loadTasks();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    print('AppLifecycleState changed: $state');
-    if (state == AppLifecycleState.paused) {
-      _saveDocuments();
-    }
+    _prepare();
   }
 
   @override
@@ -130,7 +113,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                                   ],
                                 ),
                               ),
-                              task.status == DownloadTaskStatus.running
+                              task.status == DownloadTaskStatus.running || task.status == DownloadTaskStatus.paused
                                   ? new Positioned(
                                       left: 0.0,
                                       right: 0.0,
@@ -162,11 +145,23 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     } else if (task.status == DownloadTaskStatus.running) {
       return new RawMaterialButton(
         onPressed: () {
-          _cancelDownload(task);
+          _pauseDownload(task);
         },
         child: new Icon(
-          Icons.stop,
+          Icons.pause,
           color: Colors.red,
+        ),
+        shape: new CircleBorder(),
+        constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
+      );
+    } else if (task.status == DownloadTaskStatus.paused) {
+      return new RawMaterialButton(
+        onPressed: () {
+          _resumeDownload(task);
+        },
+        child: new Icon(
+          Icons.play_arrow,
+          color: Colors.green,
         ),
         shape: new CircleBorder(),
         constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
@@ -187,64 +182,55 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
 
   void _requestDownload(_TaskInfo task) async {
     task.taskId = await FlutterDownloader.enqueue(
-      url: task.link,
-      savedDir: _localPath,
-      showNotification: true,
-      clickToOpenDownloadedFile: false
-    );
+        url: task.link,
+        savedDir: _localPath,
+        showNotification: true,
+        clickToOpenDownloadedFile: false);
   }
 
   void _cancelDownload(_TaskInfo task) async {
     await FlutterDownloader.cancel(taskId: task.taskId);
   }
 
-  Future<String> _findLocalPath() async {
-    final directory = await getApplicationDocumentsDirectory();
-    return directory.path;
+  void _pauseDownload(_TaskInfo task) async {
+    await FlutterDownloader.pause(taskId: task.taskId);
   }
 
-  Future<Null> _loadTasks() async {
-    final path = _localPath ?? await _findLocalPath();
-    _localPath = path;
-    final file = new File('$path/tasks.json');
-    final fileExisted = await file.exists();
-    if (fileExisted) {
-      final taskJson = await file.readAsString();
-      final List<dynamic> array = json.decode(taskJson);
-      if (array != null) {
-        _tasks = array.map((item) => new _TaskInfo.fromJson(item)).toList();
-        final tasks = await FlutterDownloader.loadTasks();
-        for (final task in tasks) {
-          _tasks.firstWhere((item) => item.taskId == task.taskId)
-            ..status = task.status
-            ..progress = task.progress;
+  void _resumeDownload(_TaskInfo task) async {
+    String newTaskId = await FlutterDownloader.resume(taskId: task.taskId);
+    task.taskId = newTaskId;
+  }
+
+  Future<Null> _prepare() async {
+    final tasks = await FlutterDownloader.loadTasks();
+
+    _tasks = _documents
+        .map((document) =>
+            _TaskInfo(name: document['name'], link: document['link']))
+        .toList();
+    tasks?.forEach((task) {
+      for (_TaskInfo info in _tasks) {
+        if (info.link == task.url) {
+          info.taskId = task.taskId;
+          info.status = task.status;
+          info.progress = task.progress;
         }
-      } else {
-        _tasks = _documents
-            .map((document) =>
-                _TaskInfo(name: document['name'], link: document['link']))
-            .toList();
       }
-    } else {
-      _tasks = _documents
-          .map((document) =>
-              _TaskInfo(name: document['name'], link: document['link']))
-          .toList();
-    }
+    });
+
+    _localPath = await _findLocalPath();
+
     setState(() {
       _isLoading = false;
     });
+
   }
 
-  _saveDocuments() {
-    final path = _localPath;
-    final file = new File('$path/tasks.json');
-    final fileExisted = file.existsSync();
-    if (!fileExisted) {
-      file.createSync();
-    }
-    file.writeAsStringSync(json.encode(_tasks));
-  }
+}
+
+Future<String> _findLocalPath() async {
+  final directory = await getApplicationDocumentsDirectory();
+  return directory.path;
 }
 
 class _TaskInfo {
@@ -256,19 +242,4 @@ class _TaskInfo {
   DownloadTaskStatus status = DownloadTaskStatus.undefined;
 
   _TaskInfo({this.name, this.link});
-
-  _TaskInfo.fromJson(Map<String, dynamic> json)
-      : name = json['name'],
-        link = json['link'],
-        taskId = json['task_id'],
-        progress = json['progress'] ?? 0,
-        status = DownloadTaskStatus.from(json['status'] ?? 0);
-
-  Map<String, dynamic> toJson() => {
-        'name': name,
-        'link': link,
-        'task_id': taskId,
-        'progress': progress,
-        'status': status.value
-      };
 }

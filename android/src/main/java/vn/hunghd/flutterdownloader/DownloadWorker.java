@@ -8,9 +8,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Build;
+import android.provider.BaseColumns;
 import android.support.annotation.NonNull;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
@@ -27,6 +29,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Iterator;
 import java.util.List;
@@ -41,6 +44,7 @@ public class DownloadWorker extends Worker {
     public static final String ARG_FILE_NAME = "file_name";
     public static final String ARG_SAVED_DIR = "saved_file";
     public static final String ARG_HEADERS = "headers";
+    public static final String ARG_IS_RESUME = "is_resume";
     public static final String ARG_SHOW_NOTIFICATION = "show_notification";
     public static final String ARG_CLICK_TO_OPEN_DOWNLOADED_FILE = "click_to_open_downloaded_file";
 
@@ -58,6 +62,7 @@ public class DownloadWorker extends Worker {
     private boolean showNotification;
     private boolean clickToOpenDownloadedFile;
     private int lastProgress = 0;
+    private int primaryId;
 
     @NonNull
     @Override
@@ -66,117 +71,172 @@ public class DownloadWorker extends Worker {
         dbHelper = TaskDbHelper.getInstance(context);
 
         String url = getInputData().getString(ARG_URL);
-        String fileName = getInputData().getString(ARG_FILE_NAME);
+        String filename = getInputData().getString(ARG_FILE_NAME);
         String savedDir = getInputData().getString(ARG_SAVED_DIR);
         String headers = getInputData().getString(ARG_HEADERS);
+        boolean isResume = getInputData().getBoolean(ARG_IS_RESUME, false);
 
-        if (url == null || savedDir == null)
-            throw new IllegalArgumentException("url and saved_dir must be not null");
+        Log.d(TAG, "DownloadWorker{url=" + url + ",filename=" + filename + ",savedDir=" + savedDir + ",header=" + headers + ",isResume=" + isResume);
 
         showNotification = getInputData().getBoolean(ARG_SHOW_NOTIFICATION, false);
         clickToOpenDownloadedFile = getInputData().getBoolean(ARG_CLICK_TO_OPEN_DOWNLOADED_FILE, false);
 
+        DownloadTask task = loadTaskInfo(getId().toString());
+        primaryId = task.primaryId;
+
         buildNotification(context);
 
-        updateNotification(context, fileName == null ? url : fileName, 0, null);
-        updateTask(getId().toString(), url, DownloadStatus.RUNNING, 0, fileName, savedDir);
+        updateNotification(context, filename == null ? url : filename, DownloadStatus.RUNNING, task.progress, null);
+        updateTask(getId().toString(), DownloadStatus.RUNNING, 0);
+
         try {
-            downloadFile(context, url, savedDir, fileName, headers);
+            downloadFile(context, url, savedDir, filename, headers, isResume);
+            cleanUp();
             return Result.SUCCESS;
-        } catch (IOException e) {
-            updateNotification(context, fileName == null ? url : fileName, -1, null);
-            updateTask(getId().toString(), url, DownloadStatus.FAILED, lastProgress, fileName, savedDir);
-            e.printStackTrace();
-            return Result.FAILURE;
         } catch (Exception e) {
+            updateNotification(context, filename == null ? url : filename, DownloadStatus.FAILED, -1, null);
+            updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
             e.printStackTrace();
             return Result.FAILURE;
+        }
+
+    }
+
+    private void downloadFile(Context context, String fileURL, String savedDir, String filename, String headers, boolean isResume) throws MalformedURLException {
+        URL url = new URL(fileURL);
+
+        HttpURLConnection httpConn = null;
+        InputStream inputStream = null;
+        FileOutputStream outputStream = null;
+
+        if (filename == null) {
+            filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
+        }
+        String saveFilePath = savedDir + File.separator + filename;
+        long downloadedBytes = 0;
+
+        try {
+            httpConn = (HttpURLConnection) url.openConnection();
+
+            if (!TextUtils.isEmpty(headers)) {
+                Log.d(TAG, "Headers = " + headers);
+                try {
+                    JSONObject json = new JSONObject(headers);
+                    for (Iterator<String> it = json.keys(); it.hasNext(); ) {
+                        String key = it.next();
+                        httpConn.setRequestProperty(key, json.getString(key));
+                    }
+                    httpConn.setDoInput(true);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (isResume) {
+                File partialFile = new File(saveFilePath);
+                downloadedBytes = partialFile.length();
+                Log.d(TAG, "Resume download: Range: bytes=" + downloadedBytes + "-");
+                httpConn.setRequestProperty("Accept-Encoding", "identity");
+                httpConn.setRequestProperty("Range", "bytes=" + downloadedBytes + "-");
+                httpConn.setDoInput(true);
+            }
+            httpConn.connect();
+            int responseCode = httpConn.getResponseCode();
+
+            // always check HTTP response code first
+            if ((responseCode == HttpURLConnection.HTTP_OK || (isResume && responseCode == HttpURLConnection.HTTP_PARTIAL)) && !isStopped() && !isCancelled()) {
+                String contentType = httpConn.getContentType();
+                int contentLength = httpConn.getContentLength();
+
+                Log.d(TAG, "Content-Type = " + contentType);
+                Log.d(TAG, "Content-Length = " + contentLength);
+                Log.d(TAG, "fileName = " + filename);
+
+                // opens input stream from the HTTP connection
+                inputStream = httpConn.getInputStream();
+
+                // opens an output stream to save into file
+                outputStream = new FileOutputStream(saveFilePath, isResume);
+
+                long count = downloadedBytes;
+                int bytesRead = -1;
+                byte[] buffer = new byte[BUFFER_SIZE];
+                while ((bytesRead = inputStream.read(buffer)) != -1 && !isStopped() && !isCancelled()) {
+                    count += bytesRead;
+                    int progress = (int) ((count * 100) / (contentLength + downloadedBytes));
+                    outputStream.write(buffer, 0, bytesRead);
+
+                    if ((lastProgress == 0 || progress > lastProgress + STEP_UPDATE || progress == 100)
+                            && progress != lastProgress) {
+                        lastProgress = progress;
+                        updateNotification(context, filename, DownloadStatus.RUNNING, progress, null);
+                        updateTask(getId().toString(), DownloadStatus.RUNNING, progress);
+                    }
+                }
+
+                DownloadTask task = loadTaskInfo(getId().toString());
+                int progress = (isStopped() || isCancelled()) && task.resumable ? lastProgress : 100;
+                int status = (isStopped() || isCancelled()) && task.resumable ? DownloadStatus.PAUSED : DownloadStatus.COMPLETE;
+                PendingIntent pendingIntent = null;
+                if (status == DownloadStatus.COMPLETE && clickToOpenDownloadedFile) {
+                    Intent intent = getOpenFileIntent(saveFilePath, contentType);
+                    if (validateIntent(intent)) {
+                        Log.d(TAG, "Setting an intent to open the file " + saveFilePath);
+                        pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                    } else {
+                        Log.d(TAG, "There's no application that can open the file " + saveFilePath);
+                    }
+                }
+                updateNotification(context, filename, status, progress, pendingIntent);
+                updateTask(getId().toString(), status, progress);
+
+                Log.d(TAG, isStopped() || isCancelled() ? "Download canceled" : "File downloaded");
+            } else {
+                DownloadTask task = loadTaskInfo(getId().toString());
+                int status = isStopped() || isCancelled() ? ((task.resumable) ? DownloadStatus.PAUSED : DownloadStatus.CANCELED) : DownloadStatus.FAILED;
+                updateNotification(context, filename, status, -1, null);
+                updateTask(getId().toString(), status, lastProgress);
+                Log.d(TAG, isStopped() || isCancelled() ? "Download canceled" : "Server replied HTTP code: " + responseCode);
+            }
+        } catch (IOException e) {
+            updateNotification(context, filename == null ? fileURL : filename, DownloadStatus.FAILED, -1, null);
+            updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
+            e.printStackTrace();
+        } finally {
+            if (outputStream != null) {
+                try {
+                    outputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (httpConn != null) {
+                httpConn.disconnect();
+            }
         }
     }
 
-    private void downloadFile(Context context, String fileURL, String saveDir, String fileName, String headers)
-            throws IOException {
-        URL url = new URL(fileURL);
-        HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
-        if (!TextUtils.isEmpty(headers)) {
-            Log.d(TAG, "Headers = " + headers);
-            try {
-                JSONObject json = new JSONObject(headers);
-                for (Iterator<String> it = json.keys(); it.hasNext(); ) {
-                    String key = it.next();
-                    httpConn.setRequestProperty(key, json.getString(key));
-                }
-                httpConn.setDoInput(true);
-            } catch (JSONException e) {
-                e.printStackTrace();
+    private void cleanUp() {
+        DownloadTask task = loadTaskInfo(getId().toString());
+        if (task != null && task.status != DownloadStatus.COMPLETE && !task.resumable) {
+            String filename = task.filename;
+            if (filename == null) {
+                filename = task.url.substring(task.url.lastIndexOf("/") + 1, task.url.length());
+            }
+
+            // check and delete uncompleted file
+            String saveFilePath = task.savedDir + File.separator + filename;
+            File tempFile = new File(saveFilePath);
+            if (tempFile.exists()) {
+                tempFile.delete();
             }
         }
-
-        httpConn.connect();
-        int responseCode = httpConn.getResponseCode();
-
-        // always check HTTP response code first
-        if (responseCode == HttpURLConnection.HTTP_OK && !isStopped()) {
-            String contentType = httpConn.getContentType();
-            int contentLength = httpConn.getContentLength();
-
-            if (fileName == null) {
-                fileName = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
-            }
-
-            Log.d(TAG, "Content-Type = " + contentType);
-            Log.d(TAG, "Content-Length = " + contentLength);
-            Log.d(TAG, "fileName = " + fileName);
-
-            // opens input stream from the HTTP connection
-            InputStream inputStream = httpConn.getInputStream();
-            String saveFilePath = saveDir + File.separator + fileName;
-
-            // opens an output stream to save into file
-            FileOutputStream outputStream = new FileOutputStream(saveFilePath);
-
-            long count = 0;
-            int bytesRead = -1;
-            byte[] buffer = new byte[BUFFER_SIZE];
-            while ((bytesRead = inputStream.read(buffer)) != -1 && !isStopped()) {
-                count += bytesRead;
-                int progress = (int) ((count * 100) / contentLength);
-                outputStream.write(buffer, 0, bytesRead);
-
-                if ((lastProgress == 0 || progress > lastProgress + STEP_UPDATE || progress == 100)
-                        && progress != lastProgress) {
-                    lastProgress = progress;
-                    updateNotification(context, fileName, progress, null);
-                    updateTask(getId().toString(), fileURL, DownloadStatus.RUNNING, progress, fileName, saveDir);
-                }
-            }
-
-            outputStream.close();
-            inputStream.close();
-
-            int progress = isStopped() ? -1 : 100;
-            int status = isStopped() ? DownloadStatus.CANCELED : DownloadStatus.COMPLETE;
-            PendingIntent pendingIntent = null;
-            if (status == DownloadStatus.COMPLETE && clickToOpenDownloadedFile) {
-                Intent intent = getOpenFileIntent(saveFilePath, contentType);
-                if (validateIntent(intent)) {
-                    Log.d(TAG, "Setting an intent to open the file " + saveFilePath);
-                    pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
-                } else {
-                    Log.d(TAG, "There's no application that can open the file " + saveFilePath);
-                }
-            }
-            updateNotification(context, fileName, progress, pendingIntent);
-            updateTask(getId().toString(), fileURL, status, progress, fileName, saveDir);
-
-            Log.d(TAG, isStopped() ? "Download canceled" : "File downloaded");
-        } else {
-            int status = isStopped() ? DownloadStatus.CANCELED : DownloadStatus.FAILED;
-            updateNotification(context, fileName, -1, null);
-            updateTask(getId().toString(), fileURL, status, lastProgress, fileName, saveDir);
-            Log.d(TAG, isStopped() ? "Download canceled" : "No file to download. Server replied HTTP code: " + responseCode);
-        }
-        httpConn.disconnect();
     }
 
     private void buildNotification(Context context) {
@@ -203,36 +263,35 @@ public class DownloadWorker extends Worker {
                 .setSmallIcon(R.drawable.ic_download)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
     }
 
-    private void updateNotification(Context context, String title, int progress, PendingIntent intent) {
+    private void updateNotification(Context context, String title, int status, int progress, PendingIntent intent) {
         builder.setContentTitle(title);
         builder.setContentIntent(intent);
+        boolean shouldUpdate = false;
 
-        int status;
-
-        if (progress > 0 && progress < 100) {
-            status = DownloadStatus.RUNNING;
-            builder.setContentText("Download in progress")
-                    .setProgress(100, progress, false);
-        } else if (progress == 0) {
-            status = DownloadStatus.RUNNING;
-            builder.setContentText("Download started")
-                    .setProgress(0, 0, true);
-        } else if (progress < 0) {
-            status = isStopped() ? DownloadStatus.CANCELED : DownloadStatus.FAILED;
-            String message = isStopped() ? "Download canceled" : "Download failed";
-            builder.setContentText(message)
-                    .setProgress(0, 0, false);
-        } else {
-            status = DownloadStatus.COMPLETE;
-            builder.setContentText("Download complete")
-                    .setProgress(0, 0, false);
+        if (status == DownloadStatus.RUNNING) {
+            shouldUpdate = true;
+            builder.setContentText(progress == 0 ? "Download started" : "Download in progress")
+                    .setProgress(100, progress, progress == 0);
+        } else if (status == DownloadStatus.CANCELED) {
+            shouldUpdate = true;
+            builder.setContentText("Download canceled").setProgress(0, 0, false);
+        } else if (status == DownloadStatus.FAILED) {
+            shouldUpdate = true;
+            builder.setContentText("Download failed").setProgress(0, 0, false);
+        } else if (status == DownloadStatus.PAUSED) {
+            shouldUpdate = true;
+            builder.setContentText("Download paused").setProgress(0, 0, false);
+        } else if (status == DownloadStatus.COMPLETE) {
+            shouldUpdate = true;
+            builder.setContentText("Download complete").setProgress(0, 0, false);
         }
 
         // Show the notification
-        if (showNotification) {
-            NotificationManagerCompat.from(context).notify(getId().hashCode(), builder.build());
+        if (showNotification && shouldUpdate) {
+            NotificationManagerCompat.from(context).notify(primaryId, builder.build());
         }
 
         sendUpdateProcessEvent(context, status, progress);
@@ -246,25 +305,71 @@ public class DownloadWorker extends Worker {
         LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
     }
 
-    private void updateTask(String taskId, String url,
-                            int status, int progress, String fileName, String savedDir) {
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
+    private DownloadTask loadTaskInfo(String taskId) {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
 
-        ContentValues values = buildContentValues(taskId, url, status, progress, fileName, savedDir);
+        String[] projection = new String[]{
+                BaseColumns._ID,
+                TaskContract.TaskEntry.COLUMN_NAME_TASK_ID,
+                TaskContract.TaskEntry.COLUMN_NAME_PROGRESS,
+                TaskContract.TaskEntry.COLUMN_NAME_STATUS,
+                TaskContract.TaskEntry.COLUMN_NAME_URL,
+                TaskContract.TaskEntry.COLUMN_NAME_FILE_NAME,
+                TaskContract.TaskEntry.COLUMN_NAME_SAVED_DIR,
+                TaskContract.TaskEntry.COLUMN_NAME_HEADERS,
+                TaskContract.TaskEntry.COLUMN_NAME_RESUMABLE,
+                TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION,
+                TaskContract.TaskEntry.COLUMN_NAME_CLICK_TO_OPEN_DOWNLOADED_FILE
+        };
 
-        db.update(TaskEntry.TABLE_NAME, values, TaskEntry.COLUMN_NAME_TASK_ID + " = ?", new String[]{taskId});
+        String whereClause = TaskEntry.COLUMN_NAME_TASK_ID + " = ?";
+        String[] whereArgs = new String[]{getId().toString()};
+
+        Cursor cursor = db.query(
+                TaskContract.TaskEntry.TABLE_NAME,
+                projection,
+                whereClause,
+                whereArgs,
+                null,
+                null,
+                BaseColumns._ID + " DESC",
+                "1"
+        );
+
+        DownloadTask result = null;
+        while (cursor.moveToNext()) {
+            int primaryId = cursor.getInt(cursor.getColumnIndexOrThrow(BaseColumns._ID));
+            int status = cursor.getInt(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_STATUS));
+            int progress = cursor.getInt(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_PROGRESS));
+            String url = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_URL));
+            String filename = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_FILE_NAME));
+            String savedDir = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_SAVED_DIR));
+            String headers = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_HEADERS));
+            int resumable = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_RESUMABLE));
+            int showNotification = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION));
+            int clickToOpenDownloadedFile = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_CLICK_TO_OPEN_DOWNLOADED_FILE));
+            result = new DownloadTask(primaryId, taskId, status, progress, url, filename, savedDir, headers, resumable == 1, showNotification == 1, clickToOpenDownloadedFile == 1);
+        }
+        cursor.close();
+
+        return result;
     }
 
-    private ContentValues buildContentValues(String taskId, String url, int status,
-                                             int progress, String fileName, String savedDir) {
+    private void updateTask(String taskId, int status, int progress) {
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
         ContentValues values = new ContentValues();
-        values.put(TaskEntry.COLUMN_NAME_TASK_ID, taskId);
-        values.put(TaskEntry.COLUMN_NAME_URL, url);
         values.put(TaskEntry.COLUMN_NAME_STATUS, status);
         values.put(TaskEntry.COLUMN_NAME_PROGRESS, progress);
-        values.put(TaskEntry.COLUMN_NAME_FILE_NAME, fileName);
-        values.put(TaskEntry.COLUMN_NAME_SAVED_DIR, savedDir);
-        return values;
+
+        db.beginTransaction();
+        try {
+            db.update(TaskEntry.TABLE_NAME, values, TaskEntry.COLUMN_NAME_TASK_ID + " = ?", new String[]{taskId});
+            db.setTransactionSuccessful();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            db.endTransaction();
+        }
     }
 
     private Intent getOpenFileIntent(String path, String contentType) {

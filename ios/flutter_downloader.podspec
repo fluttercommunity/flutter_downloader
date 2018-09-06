@@ -15,6 +15,8 @@ A plugin to create and manage bankground download tasks
   s.source_files = 'Classes/**/*'
   s.public_header_files = 'Classes/**/*.h'
   s.dependency 'Flutter'
+  s.ios.library = 'sqlite3'
+  s.ios.resource_bundle = { 'FlutterDownloaderDatabase' => 'Assets/download_tasks.sql' }
   
   s.ios.deployment_target = '8.0'
 end

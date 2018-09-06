@@ -1,4 +1,5 @@
 #import "FlutterDownloaderPlugin.h"
+#import "DBManager.h"
 
 #define STATUS_UNDEFINED 0
 #define STATUS_ENQUEUED 1
@@ -6,6 +7,7 @@
 #define STATUS_COMPLETE 3
 #define STATUS_FAILED 4
 #define STATUS_CANCELED 5
+#define STATUS_PAUSED 6
 
 #define KEY_URL @"url"
 #define KEY_SAVED_DIR @"saved_dir"
@@ -16,6 +18,7 @@
 #define KEY_TASK_ID @"task_id"
 #define KEY_STATUS @"status"
 #define KEY_HEADERS @"headers"
+#define KEY_RESUMABLE @"resumable"
 
 #define STEP_UPDATE 10
 
@@ -23,7 +26,8 @@
 {
     FlutterMethodChannel *_flutterChannel;
     NSURLSession *_session;
-    NSMutableDictionary<NSNumber *, NSMutableDictionary *> *_downloadInfo;
+    NSMutableDictionary<NSString *, NSMutableDictionary *> *_downloadInfo;
+    DBManager *_dbManager;
 }
 
 @end
@@ -48,6 +52,7 @@ static int maximumConcurrentTask;
 
     FlutterDownloaderPlugin* instance = [[FlutterDownloaderPlugin alloc] initWithBinaryMessenger:registrar.messenger];
     [registrar addMethodCallDelegate:instance channel:[instance channel]];
+    [registrar addApplicationDelegate: instance];
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
@@ -58,47 +63,82 @@ static int maximumConcurrentTask;
         NSString *fileName = call.arguments[KEY_FILE_NAME];
         NSString *headers = call.arguments[KEY_HEADERS];
 
-        NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
-        NSString *taskId = [@(task.taskIdentifier) stringValue];
-        [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
+        NSString *taskId = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
+
+        __weak id weakSelf = self;
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+           [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:savedDir resumable:NO];
+           [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
+        });
         result(taskId);
     } else if ([@"loadTasks" isEqualToString:call.method]) {
-        [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
-            NSMutableArray *tasks = [NSMutableArray new];
-            for (NSURLSessionDownloadTask *download in downloads) {
-                NSNumber *taskIdentifier = @(download.taskIdentifier);
-                int64_t bytesReceived = download.countOfBytesReceived;
-                int64_t bytesExpectedToReceive = download.countOfBytesExpectedToReceive;
-                NSError *error = download.error;
-                int progress = round(bytesReceived * 100 / bytesExpectedToReceive);
-                int status;
-                NSURLSessionTaskState state = download.state;
-                if (state == NSURLSessionTaskStateRunning) {
-                    status = STATUS_RUNNING;
-                } else if (state == NSURLSessionTaskStateCompleted) {
-                    if (error != nil) {
-                        status = [error code] == -999 ? STATUS_CANCELED : STATUS_FAILED;
-                    } else {
-                        status = STATUS_COMPLETE;
-                    }
-                } else {
-                    status = STATUS_UNDEFINED;
-                }
-                [tasks addObject:[NSDictionary dictionaryWithObjectsAndKeys:
-                                  [taskIdentifier stringValue], KEY_TASK_ID,
-                                  @(status), KEY_STATUS,
-                                  @(progress), KEY_PROGRESS, nil]];
-            };
-            result(tasks);
-        }];
+        __weak id weakSelf = self;
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+           NSArray* tasks = [weakSelf loadAllTasks];
+           result(tasks);
+        });
     } else if ([@"cancel" isEqualToString:call.method]) {
        NSString *taskId = call.arguments[KEY_TASK_ID];
        [self cancelTaskWithId:taskId];
+       result([NSNull null]);
     } else if ([@"cancelAll" isEqualToString:call.method]) {
-       [self cancelAllTask];
+       [self cancelAllTasks];
+       result([NSNull null]);
     } else {
         result(FlutterMethodNotImplemented);
     }
+}
+
+- (void) addNewTask: (NSString*) taskId url: (NSString*) url status: (int) status progress: (int) progress filename: (NSString*) filename savedDir: (NSString*) savedDir resumable: (BOOL) resumable
+{
+    NSString *query = [NSString stringWithFormat:@"INSERT INTO task (task_id,url,status,progress,file_name,saved_dir,resumable) VALUES (\"%@\",\"%@\",%d,%d,\"%@\",\"%@\",%d)", taskId, url, status, progress, filename, savedDir, resumable ? 1 : 0];
+    [_dbManager executeQuery:query];
+    if (_dbManager.affectedRows != 0) {
+        NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
+    } else {
+        NSLog(@"Could not execute the query.");
+    }
+}
+
+- (void) updateTask: (NSString*) taskId status: (int) status progress: (int) progress
+{
+    NSString *query = [NSString stringWithFormat:@"UPDATE task SET status=%d, progress=%d WHERE task_id=\"%@\"", status, progress, taskId];
+    [_dbManager executeQuery:query];
+    if (_dbManager.affectedRows != 0) {
+        NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
+    } else {
+        NSLog(@"Could not execute the query.");
+    }
+}
+
+- (void) updateTask: (NSString*) taskId resumable: (BOOL) resumable
+{
+    NSString *query = [NSString stringWithFormat:@"UPDATE task SET resumable=%d WHERE task_id=\"%@\"", resumable ? 1 : 0, taskId];
+    [_dbManager executeQuery:query];
+    if (_dbManager.affectedRows != 0) {
+        NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
+    } else {
+        NSLog(@"Could not execute the query.");
+    }
+}
+
+- (NSArray*)loadAllTasks
+{
+    NSString *query = @"SELECT * FROM task";
+    NSArray *records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query]];
+    NSLog(@"Load tasks successfully");
+    NSMutableArray *results = [NSMutableArray new];
+    for(NSArray *record in records) {
+        NSString *taskId = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"task_id"]];
+        int status = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"status"]] intValue];
+        int progress = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"progress"]] intValue];
+        NSString *url = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"url"]];
+        NSString *filename = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"file_name"]];
+        NSString *savedDir = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"saved_dir"]];
+        int resumable = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"resumable"]] intValue];
+        [results addObject:[NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, savedDir, KEY_SAVED_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, nil]];
+    }
+    return results;
 }
 
 - (instancetype)initWithBinaryMessenger: (NSObject<FlutterBinaryMessenger>*) messenger;
@@ -107,10 +147,20 @@ static int maximumConcurrentTask;
         _flutterChannel = [FlutterMethodChannel
                                 methodChannelWithName:@"vn.hunghd/downloader"
                                 binaryMessenger:messenger];
+
         NSLog(@"maximumConcurrentTask: %d", FlutterDownloaderPlugin.maximumConcurrentTask);
-        NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:[NSString stringWithFormat:@"%@.download.background", NSBundle.mainBundle.bundleIdentifier]];
+
+        NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:[NSString stringWithFormat:@"%@.download.background.%f", NSBundle.mainBundle.bundleIdentifier, [[NSDate date] timeIntervalSince1970]]];
         sessionConfiguration.HTTPMaximumConnectionsPerHost = MAX(FlutterDownloaderPlugin.maximumConcurrentTask, 1);
         _session = [NSURLSession sessionWithConfiguration:sessionConfiguration delegate:self delegateQueue:nil];
+        NSLog(@"init NSURLSession with id: %@", [[_session configuration] identifier]);
+
+        NSBundle *frameworkBundle = [NSBundle bundleForClass:FlutterDownloaderPlugin.class];
+        NSURL *bundleUrl = [[frameworkBundle resourceURL] URLByAppendingPathComponent:@"FlutterDownloaderDatabase.bundle"];
+        NSBundle *resourceBundle = [NSBundle bundleWithURL:bundleUrl];
+        NSString *dbPath = [resourceBundle pathForResource:@"download_tasks" ofType:@"sql"];
+        NSLog(@"database path: %@", dbPath);
+        _dbManager = [[DBManager alloc] initWithDatabaseFilePath:dbPath];
 
         _downloadInfo = [NSMutableDictionary new];
     }
@@ -126,7 +176,7 @@ static int maximumConcurrentTask;
     return _session;
 }
 
-- (NSURLSessionDownloadTask*)downloadTaskWithURL: (NSURL*) url fileName: (NSString*) fileName andSavedDir: (NSString*) savedDir andHeaders: (NSString*) headers
+- (NSString*)downloadTaskWithURL: (NSURL*) url fileName: (NSString*) fileName andSavedDir: (NSString*) savedDir andHeaders: (NSString*) headers
 {
     NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:url];
     if (headers != nil && [headers length] > 0) {
@@ -140,8 +190,8 @@ static int maximumConcurrentTask;
             [request setValue:value forHTTPHeaderField:key];
         }
     }
-    NSURLSessionDownloadTask *task = [_session downloadTaskWithRequest:request];
-    NSNumber *taskId = @(task.taskIdentifier);
+    NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithRequest:request];
+    NSString *taskId = [self getIdentifierForTask:task];
     NSMutableDictionary *info = [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                  taskId, KEY_ID,
                                  url, KEY_URL,
@@ -152,7 +202,17 @@ static int maximumConcurrentTask;
     _downloadInfo[taskId] = info;
     [task resume];
 
-    return task;
+    return taskId;
+}
+
+- (NSString*)getIdentifierForTask:(NSURLSessionDownloadTask*) task
+{
+    return [NSString stringWithFormat: @"%@.%lu", [[[self currentSession] configuration] identifier], [task taskIdentifier]];
+}
+
+- (NSString*)getIdentifierForTask:(NSURLSessionDownloadTask*) task ofSession:(NSURLSession *)session
+{
+    return [NSString stringWithFormat: @"%@.%lu", [[session configuration] identifier], [task taskIdentifier]];
 }
 
 - (void)cancelTaskWithId: (NSString*)taskId
@@ -160,20 +220,26 @@ static int maximumConcurrentTask;
     [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
         for (NSURLSessionDownloadTask *download in downloads) {
             NSURLSessionTaskState state = download.state;
-            NSNumber *taskIdentifier = @(download.taskIdentifier);
-            if ([taskId isEqualToString:[taskIdentifier stringValue]] && (state == NSURLSessionTaskStateRunning)) {
+            NSUInteger *taskIdentifier = download.taskIdentifier;
+            NSString *taskIdValue = [self getIdentifierForTask:download];
+            if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
                 [download cancel];
+                [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
+                [self updateTask:taskId status:STATUS_CANCELED progress:-1];
             }
         };
     }];
 }
 
-- (void)cancelAllTask {
+- (void)cancelAllTasks {
     [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
         for (NSURLSessionDownloadTask *download in downloads) {
             NSURLSessionTaskState state = download.state;
             if (state == NSURLSessionTaskStateRunning) {
                 [download cancel];
+                NSString *taskId = [self getIdentifierForTask:download];
+                [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
+                [self updateTask:taskId status:STATUS_CANCELED progress:-1];
             }
         };
     }];
@@ -187,19 +253,35 @@ static int maximumConcurrentTask;
     [_flutterChannel invokeMethod:@"updateProgress" arguments:info];
 }
 
+# pragma FlutterPlugin
+- (void)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void (^)(void))completionHandler {
+    self.backgroundTransferCompletionHandler = completionHandler;
+}
+
+- (void)applicationWillTerminate:(nonnull UIApplication *)application
+{
+    NSLog(@"applicationWillTerminate:");
+    [self cancelAllTasks];
+    _session = nil;
+    _flutterChannel = nil;
+    _downloadInfo = nil;
+    _dbManager = nil;
+}
+
 # pragma NSURLSessionTaskDelegate
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didWriteData:(int64_t)bytesWritten totalBytesWritten:(int64_t)totalBytesWritten totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite
 {
     if (totalBytesExpectedToWrite == NSURLSessionTransferSizeUnknown) {
         NSLog(@"Unknown transfer size");
     } else {
-        NSInteger taskId = downloadTask.taskIdentifier;
+        NSString *taskId = [self getIdentifierForTask:downloadTask];
         int progress = round(totalBytesWritten * 100 / (double)totalBytesExpectedToWrite);
-        NSMutableDictionary *info = _downloadInfo[@(taskId)];
+        NSMutableDictionary *info = _downloadInfo[taskId];
         NSNumber *lastProgress = info[KEY_PROGRESS];
         if (([lastProgress intValue] == 0 || (progress > [lastProgress intValue] + STEP_UPDATE) || progress == 100) && progress != [lastProgress intValue]) {
             info[KEY_PROGRESS] = @(progress);
-            [self sendUpdateProgressForTaskId:[@(taskId) stringValue] inStatus:@(STATUS_RUNNING) andProgress:@(progress)];
+            [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_RUNNING) andProgress:@(progress)];
+            [self updateTask:taskId status:STATUS_RUNNING progress:progress];
         }
     }
 }
@@ -208,7 +290,7 @@ static int maximumConcurrentTask;
 {
     NSError *error;
     NSFileManager *fileManager = [NSFileManager defaultManager];
-    NSNumber *taskId = @(downloadTask.taskIdentifier);
+    NSString *taskId = [self getIdentifierForTask:downloadTask ofSession:session];
     NSDictionary *info = _downloadInfo[taskId];
     NSString *savedDir = info[KEY_SAVED_DIR];
     NSString *fileName = info[KEY_FILE_NAME];
@@ -231,10 +313,12 @@ static int maximumConcurrentTask;
                                         error:&error];
 
     if (success) {
-        [self sendUpdateProgressForTaskId:[taskId stringValue] inStatus:@(STATUS_COMPLETE) andProgress:@100];
+        [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_COMPLETE) andProgress:@100];
+        [self updateTask:taskId status:STATUS_COMPLETE progress:100];
     } else {
         NSLog(@"Unable to copy temp file. Error: %@", [error localizedDescription]);
-        [self sendUpdateProgressForTaskId:[taskId stringValue] inStatus:@(STATUS_FAILED) andProgress:@0];
+        [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_FAILED) andProgress:@(-1)];
+        [self updateTask:taskId status:STATUS_FAILED progress:-1];
     }
 }
 
@@ -242,9 +326,40 @@ static int maximumConcurrentTask;
 {
     if (error != nil) {
         NSLog(@"Download completed with error: %@", [error localizedDescription]);
+        NSString *taskId = [self getIdentifierForTask:task ofSession:session];
         int status = [error code] == -999 ? STATUS_CANCELED : STATUS_FAILED;
-        [self sendUpdateProgressForTaskId:[@(task.taskIdentifier) stringValue] inStatus:@(status) andProgress:@0];
+        [self sendUpdateProgressForTaskId:taskId inStatus:@(status) andProgress:@(-1)];
+        [self updateTask:taskId status:status progress:-1];
     }
+}
+
+-(void)URLSessionDidFinishEventsForBackgroundURLSession:(NSURLSession *)session
+{
+    NSLog(@"URLSessionDidFinishEventsForBackgroundURLSession:");
+    // Check if all download tasks have been finished.
+    [[self currentSession] getTasksWithCompletionHandler:^(NSArray *dataTasks, NSArray *uploadTasks, NSArray *downloadTasks) {
+        if ([downloadTasks count] == 0) {
+            NSLog(@"all download tasks have been finished");
+
+            if (self.backgroundTransferCompletionHandler != nil) {
+                // Copy locally the completion handler.
+                void(^completionHandler)() = self.backgroundTransferCompletionHandler;
+
+                // Make nil the backgroundTransferCompletionHandler.
+                self.backgroundTransferCompletionHandler = nil;
+
+                [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+                    // Call the completion handler to tell the system that there are no other background transfers.
+                    completionHandler();
+
+                    // Show a local notification when all downloads are over.
+                    UILocalNotification *localNotification = [[UILocalNotification alloc] init];
+                    localNotification.alertBody = @"All files have been downloaded!";
+                    [[UIApplication sharedApplication] presentLocalNotificationNow:localNotification];
+                }];
+            }
+        }
+    }];
 }
 
 @end

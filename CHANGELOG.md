@@ -44,3 +44,4 @@
 
 * fix bugs: SQLite leak
 * new feature: support configuration of the maximum of concurrent download tasks
+* upgrade WorkManager to v1.0.0-alpha08
