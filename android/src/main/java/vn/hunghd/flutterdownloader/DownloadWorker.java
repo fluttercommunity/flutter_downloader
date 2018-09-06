@@ -3,16 +3,12 @@ package vn.hunghd.flutterdownloader;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Build;
-import android.provider.BaseColumns;
 import android.support.annotation.NonNull;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
@@ -35,7 +31,6 @@ import java.util.Iterator;
 import java.util.List;
 
 import androidx.work.Worker;
-import vn.hunghd.flutterdownloader.TaskContract.TaskEntry;
 
 public class DownloadWorker extends Worker {
     public static final String UPDATE_PROCESS_EVENT = "vn.hunghd.flutterdownloader.UPDATE_PROCESS_EVENT";
@@ -58,6 +53,7 @@ public class DownloadWorker extends Worker {
     private static final int STEP_UPDATE = 10;
 
     private TaskDbHelper dbHelper;
+    private TaskDao taskDao;
     private NotificationCompat.Builder builder;
     private boolean showNotification;
     private boolean clickToOpenDownloadedFile;
@@ -69,6 +65,7 @@ public class DownloadWorker extends Worker {
     public Result doWork() {
         Context context = getApplicationContext();
         dbHelper = TaskDbHelper.getInstance(context);
+        taskDao = new TaskDao(dbHelper);
 
         String url = getInputData().getString(ARG_URL);
         String filename = getInputData().getString(ARG_FILE_NAME);
@@ -81,25 +78,28 @@ public class DownloadWorker extends Worker {
         showNotification = getInputData().getBoolean(ARG_SHOW_NOTIFICATION, false);
         clickToOpenDownloadedFile = getInputData().getBoolean(ARG_CLICK_TO_OPEN_DOWNLOADED_FILE, false);
 
-        DownloadTask task = loadTaskInfo(getId().toString());
+        DownloadTask task = taskDao.loadTask(getId().toString());
         primaryId = task.primaryId;
 
         buildNotification(context);
 
         updateNotification(context, filename == null ? url : filename, DownloadStatus.RUNNING, task.progress, null);
-        updateTask(getId().toString(), DownloadStatus.RUNNING, 0);
+        taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, 0);
 
         try {
             downloadFile(context, url, savedDir, filename, headers, isResume);
             cleanUp();
+            dbHelper = null;
+            taskDao = null;
             return Result.SUCCESS;
         } catch (Exception e) {
             updateNotification(context, filename == null ? url : filename, DownloadStatus.FAILED, -1, null);
-            updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
+            taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
             e.printStackTrace();
+            dbHelper = null;
+            taskDao = null;
             return Result.FAILURE;
         }
-
     }
 
     private void downloadFile(Context context, String fileURL, String savedDir, String filename, String headers, boolean isResume) throws MalformedURLException {
@@ -169,11 +169,11 @@ public class DownloadWorker extends Worker {
                             && progress != lastProgress) {
                         lastProgress = progress;
                         updateNotification(context, filename, DownloadStatus.RUNNING, progress, null);
-                        updateTask(getId().toString(), DownloadStatus.RUNNING, progress);
+                        taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, progress);
                     }
                 }
 
-                DownloadTask task = loadTaskInfo(getId().toString());
+                DownloadTask task = taskDao.loadTask(getId().toString());
                 int progress = (isStopped() || isCancelled()) && task.resumable ? lastProgress : 100;
                 int status = (isStopped() || isCancelled()) && task.resumable ? DownloadStatus.PAUSED : DownloadStatus.COMPLETE;
                 PendingIntent pendingIntent = null;
@@ -187,19 +187,19 @@ public class DownloadWorker extends Worker {
                     }
                 }
                 updateNotification(context, filename, status, progress, pendingIntent);
-                updateTask(getId().toString(), status, progress);
+                taskDao.updateTask(getId().toString(), status, progress);
 
                 Log.d(TAG, isStopped() || isCancelled() ? "Download canceled" : "File downloaded");
             } else {
-                DownloadTask task = loadTaskInfo(getId().toString());
+                DownloadTask task = taskDao.loadTask(getId().toString());
                 int status = isStopped() || isCancelled() ? ((task.resumable) ? DownloadStatus.PAUSED : DownloadStatus.CANCELED) : DownloadStatus.FAILED;
                 updateNotification(context, filename, status, -1, null);
-                updateTask(getId().toString(), status, lastProgress);
+                taskDao.updateTask(getId().toString(), status, lastProgress);
                 Log.d(TAG, isStopped() || isCancelled() ? "Download canceled" : "Server replied HTTP code: " + responseCode);
             }
         } catch (IOException e) {
             updateNotification(context, filename == null ? fileURL : filename, DownloadStatus.FAILED, -1, null);
-            updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
+            taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
             e.printStackTrace();
         } finally {
             if (outputStream != null) {
@@ -223,7 +223,7 @@ public class DownloadWorker extends Worker {
     }
 
     private void cleanUp() {
-        DownloadTask task = loadTaskInfo(getId().toString());
+        DownloadTask task = taskDao.loadTask(getId().toString());
         if (task != null && task.status != DownloadStatus.COMPLETE && !task.resumable) {
             String filename = task.filename;
             if (filename == null) {
@@ -303,73 +303,6 @@ public class DownloadWorker extends Worker {
         intent.putExtra(EXTRA_STATUS, status);
         intent.putExtra(EXTRA_PROGRESS, progress);
         LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
-    }
-
-    private DownloadTask loadTaskInfo(String taskId) {
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-
-        String[] projection = new String[]{
-                BaseColumns._ID,
-                TaskContract.TaskEntry.COLUMN_NAME_TASK_ID,
-                TaskContract.TaskEntry.COLUMN_NAME_PROGRESS,
-                TaskContract.TaskEntry.COLUMN_NAME_STATUS,
-                TaskContract.TaskEntry.COLUMN_NAME_URL,
-                TaskContract.TaskEntry.COLUMN_NAME_FILE_NAME,
-                TaskContract.TaskEntry.COLUMN_NAME_SAVED_DIR,
-                TaskContract.TaskEntry.COLUMN_NAME_HEADERS,
-                TaskContract.TaskEntry.COLUMN_NAME_RESUMABLE,
-                TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION,
-                TaskContract.TaskEntry.COLUMN_NAME_CLICK_TO_OPEN_DOWNLOADED_FILE
-        };
-
-        String whereClause = TaskEntry.COLUMN_NAME_TASK_ID + " = ?";
-        String[] whereArgs = new String[]{getId().toString()};
-
-        Cursor cursor = db.query(
-                TaskContract.TaskEntry.TABLE_NAME,
-                projection,
-                whereClause,
-                whereArgs,
-                null,
-                null,
-                BaseColumns._ID + " DESC",
-                "1"
-        );
-
-        DownloadTask result = null;
-        while (cursor.moveToNext()) {
-            int primaryId = cursor.getInt(cursor.getColumnIndexOrThrow(BaseColumns._ID));
-            int status = cursor.getInt(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_STATUS));
-            int progress = cursor.getInt(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_PROGRESS));
-            String url = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_URL));
-            String filename = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_FILE_NAME));
-            String savedDir = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_SAVED_DIR));
-            String headers = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_HEADERS));
-            int resumable = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_RESUMABLE));
-            int showNotification = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION));
-            int clickToOpenDownloadedFile = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_CLICK_TO_OPEN_DOWNLOADED_FILE));
-            result = new DownloadTask(primaryId, taskId, status, progress, url, filename, savedDir, headers, resumable == 1, showNotification == 1, clickToOpenDownloadedFile == 1);
-        }
-        cursor.close();
-
-        return result;
-    }
-
-    private void updateTask(String taskId, int status, int progress) {
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put(TaskEntry.COLUMN_NAME_STATUS, status);
-        values.put(TaskEntry.COLUMN_NAME_PROGRESS, progress);
-
-        db.beginTransaction();
-        try {
-            db.update(TaskEntry.TABLE_NAME, values, TaskEntry.COLUMN_NAME_TASK_ID + " = ?", new String[]{taskId});
-            db.setTransactionSuccessful();
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            db.endTransaction();
-        }
     }
 
     private Intent getOpenFileIntent(String path, String contentType) {
