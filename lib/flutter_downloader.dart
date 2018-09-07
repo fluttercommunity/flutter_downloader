@@ -61,6 +61,9 @@ class FlutterDownloader {
   static const platform = const MethodChannel('vn.hunghd/downloader');
 
   static Future<Null> initialize({int maxConcurrentTasks = 2, Map<DownloadMessage, String> messages = const {}}) async {
+    if (maxConcurrentTasks < 1) {
+      throw ArgumentError('\'maxConcurrentTasks\' must be greater than or equal to 1');
+    }
     Map<String, String> dict = {};
     dict['started'] = messages[DownloadMessage.started] ?? 'Download started';
     dict['in_progress'] = messages[DownloadMessage.in_progress] ?? 'Download in progress';
@@ -68,7 +71,7 @@ class FlutterDownloader {
     dict['failed'] = messages[DownloadMessage.failed] ?? 'Download failed';
     dict['complete'] = messages[DownloadMessage.complete] ?? 'Download complete';
     dict['paused'] = messages[DownloadMessage.paused] ?? 'Download paused';
-    return await platform.invokeMethod('initialize', {'maxConcurrentTasks': maxConcurrentTasks, 'messages': dict});
+    return await platform.invokeMethod('initialize', {'max_concurrent_tasks': maxConcurrentTasks, 'messages': dict});
   }
 
   static Future<String> enqueue({

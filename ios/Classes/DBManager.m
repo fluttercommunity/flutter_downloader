@@ -90,7 +90,7 @@
 
         // Declare a sqlite3_stmt object in which will be stored the query after having been compiled into a SQLite statement.
         sqlite3_stmt *compiledStatement;
-        
+
         // Load all data from database to memory.
         BOOL prepareStatementResult = sqlite3_prepare_v2(sqlite3Database, query, -1, &compiledStatement, NULL);
         if(prepareStatementResult == SQLITE_OK) {
@@ -158,7 +158,6 @@
         
         // Release the compiled statement from memory.
         sqlite3_finalize(compiledStatement);
-        
     }
     
     // Close the database.

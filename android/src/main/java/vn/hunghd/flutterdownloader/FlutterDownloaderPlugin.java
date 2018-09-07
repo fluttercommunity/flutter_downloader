@@ -111,11 +111,11 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
     @Override
     public void onMethodCall(MethodCall call, MethodChannel.Result result) {
         if (call.method.equals("initialize") && !initialized) {
-            int maximumConcurrentTask = call.argument("maxConcurrentTasks");
+            int maximumConcurrentTask = call.argument("max_concurrent_tasks");
             messages = call.argument("messages");
 
             WorkManager.initialize(context, new Configuration.Builder()
-                    .setExecutor(Executors.newFixedThreadPool(Math.max(maximumConcurrentTask, 1)))
+                    .setExecutor(Executors.newFixedThreadPool(maximumConcurrentTask))
                     .build());
 
             initialized = true;
@@ -253,8 +253,8 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
         if (partialFile.exists()) {
             WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.clickToOpenDownloadedFile, true);
             String newTaskId = request.getId().toString();
-            sendUpdateProgress(newTaskId, DownloadStatus.ENQUEUED, task.progress);
-            taskDao.updateTask(taskId, newTaskId, DownloadStatus.ENQUEUED, task.progress, false);
+            sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress);
+            taskDao.updateTask(taskId, newTaskId, DownloadStatus.RUNNING, task.progress, false);
             WorkManager.getInstance().enqueue(request);
             return newTaskId;
         }
