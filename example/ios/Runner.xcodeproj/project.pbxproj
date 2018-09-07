@@ -22,7 +22,7 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
-		C4D3DF9C2139330700C8D767 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = C4D3DF9B2139330700C8D767 /* libsqlite3.tbd */; };
+		C4211353214285FA00A246B2 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = C4D3DF9B2139330700C8D767 /* libsqlite3.tbd */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -67,7 +67,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C4D3DF9C2139330700C8D767 /* libsqlite3.tbd in Frameworks */,
+				C4211353214285FA00A246B2 /* libsqlite3.tbd in Frameworks */,
 				9705A1C61CF904A100538489 /* Flutter.framework in Frameworks */,
 				3B80C3941E831B6300D905FE /* App.framework in Frameworks */,
 				39D8CCC5BA8BF0EDDDD6AE12 /* libPods-Runner.a in Frameworks */,
