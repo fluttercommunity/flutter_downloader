@@ -143,6 +143,10 @@ class FlutterDownloader {
     return await platform.invokeMethod('resume', {'task_id': taskId});
   }
 
+  static Future<String> retry({@required taskId}) async {
+    return await platform.invokeMethod('retry', {'task_id': taskId});
+  }
+
   static registerCallback(DownloadCallback callback) {
     platform.setMethodCallHandler((MethodCall call) {
       if (call.method == 'updateProgress') {

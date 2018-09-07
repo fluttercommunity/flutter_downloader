@@ -140,5 +140,11 @@ To resume a task:
 FlutterDownloader.resume(taskId: taskId);
 ````
 
+To retry a failed task:
+
+````dart
+FlutterDownloader.retry(taskId: taskId);
+````
+
 [1]: https://developer.android.com/topic/libraries/architecture/workmanager
 [2]: https://developer.apple.com/documentation/foundation/nsurlsessiondownloadtask?language=objc

@@ -180,8 +180,52 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
         } else if (call.method.equals("resume")) {
             if (initialized) {
                 String taskId = call.argument("task_id");
-                String newTaskId = resume(taskId);
-                result.success(newTaskId);
+                DownloadTask task = taskDao.loadTask(taskId);
+                if (task != null) {
+                    if (task.status == DownloadStatus.PAUSED) {
+                        String filename = task.filename;
+                        if (filename == null) {
+                            filename = task.url.substring(task.url.lastIndexOf("/") + 1, task.url.length());
+                        }
+                        String partialFilePath = task.savedDir + File.separator + filename;
+                        File partialFile = new File(partialFilePath);
+                        if (partialFile.exists()) {
+                            WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.clickToOpenDownloadedFile, true);
+                            String newTaskId = request.getId().toString();
+                            result.success(newTaskId);
+                            sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress);
+                            taskDao.updateTask(taskId, newTaskId, DownloadStatus.RUNNING, task.progress, false);
+                            WorkManager.getInstance().enqueue(request);
+                        } else {
+                            result.error("invalid_data", "not found partial downloaded data, this task cannot be resumed", null);
+                        }
+                    } else {
+                        result.error("invalid_status", "only paused task can be resumed", null);
+                    }
+                } else {
+                    result.error("invalid_task_id", "not found task corresponding to given task id", null);
+                }
+            } else {
+                result.error("not_initialized", "initialize() must be called first", null);
+            }
+        } else if (call.method.equals("retry")) {
+            if (initialized) {
+                String taskId = call.argument("task_id");
+                DownloadTask task = taskDao.loadTask(taskId);
+                if (task != null) {
+                    if (task.status == DownloadStatus.FAILED) {
+                        WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.clickToOpenDownloadedFile, false);
+                        String newTaskId = request.getId().toString();
+                        result.success(newTaskId);
+                        sendUpdateProgress(newTaskId, DownloadStatus.ENQUEUED, task.progress);
+                        taskDao.updateTask(taskId, newTaskId, DownloadStatus.ENQUEUED, task.progress, false);
+                        WorkManager.getInstance().enqueue(request);
+                    } else {
+                        result.error("invalid_status", "only failed task can be retried", null);
+                    }
+                } else {
+                    result.error("invalid_task_id", "not found task corresponding to given task id", null);
+                }
             } else {
                 result.error("not_initialized", "initialize() must be called first", null);
             }
@@ -240,25 +284,6 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
     private void pause(String taskId) {
         taskDao.updateTask(taskId, true);
         WorkManager.getInstance().cancelWorkById(UUID.fromString(taskId));
-    }
-
-    private String resume(String taskId) {
-        DownloadTask task = taskDao.loadTask(taskId);
-        String filename = task.filename;
-        if (filename == null) {
-            filename = task.url.substring(task.url.lastIndexOf("/") + 1, task.url.length());
-        }
-        String partialFilePath = task.savedDir + File.separator + filename;
-        File partialFile = new File(partialFilePath);
-        if (partialFile.exists()) {
-            WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.clickToOpenDownloadedFile, true);
-            String newTaskId = request.getId().toString();
-            sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress);
-            taskDao.updateTask(taskId, newTaskId, DownloadStatus.RUNNING, task.progress, false);
-            WorkManager.getInstance().enqueue(request);
-            return newTaskId;
-        }
-        return null;
     }
 
     private void sendUpdateProgress(String id, int status, int progress) {

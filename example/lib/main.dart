@@ -42,17 +42,17 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     {
       'name': 'Android Programming Cookbook',
       'link':
-      'http://enos.itcollege.ee/~jpoial/allalaadimised/reading/Android-Programming-Cookbook.pdf'
+          'http://enos.itcollege.ee/~jpoial/allalaadimised/reading/Android-Programming-Cookbook.pdf'
     },
     {
       'name': 'iOS Programming Guide',
       'link':
-      'http://darwinlogic.com/uploads/education/iOS_Programming_Guide.pdf'
+          'http://darwinlogic.com/uploads/education/iOS_Programming_Guide.pdf'
     },
     {
       'name': 'Objective-C Programming (Pre-Course Workbook',
       'link':
-      'https://www.bignerdranch.com/documents/objective-c-prereading-assignment.pdf'
+          'https://www.bignerdranch.com/documents/objective-c-prereading-assignment.pdf'
     }
   ];
 
@@ -86,54 +86,53 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       ),
       body: _isLoading
           ? new Center(
-        child: new CircularProgressIndicator(),
-      )
+              child: new CircularProgressIndicator(),
+            )
           : new Container(
-        child: new ListView(
-          children: _tasks
-              .map((task) =>
-          new Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: new Stack(
-              children: <Widget>[
-                new Container(
-                  width: double.infinity,
-                  height: 64.0,
-                  child: new Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      new Expanded(
-                        child: new Text(
-                          task.name,
-                          maxLines: 1,
-                          softWrap: true,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      new Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
-                        child: _buildActionForTask(task),
-                      ),
-                    ],
-                  ),
-                ),
-                task.status == DownloadTaskStatus.running ||
-                    task.status == DownloadTaskStatus.paused
-                    ? new Positioned(
-                  left: 0.0,
-                  right: 0.0,
-                  bottom: 0.0,
-                  child: new LinearProgressIndicator(
-                    value: task.progress / 100,
-                  ),
-                )
-                    : new Container()
-              ].where((child) => child != null).toList(),
+              child: new ListView(
+                children: _tasks
+                    .map((task) => new Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: new Stack(
+                            children: <Widget>[
+                              new Container(
+                                width: double.infinity,
+                                height: 64.0,
+                                child: new Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: <Widget>[
+                                    new Expanded(
+                                      child: new Text(
+                                        task.name,
+                                        maxLines: 1,
+                                        softWrap: true,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    new Padding(
+                                      padding: const EdgeInsets.only(left: 8.0),
+                                      child: _buildActionForTask(task),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              task.status == DownloadTaskStatus.running ||
+                                      task.status == DownloadTaskStatus.paused
+                                  ? new Positioned(
+                                      left: 0.0,
+                                      right: 0.0,
+                                      bottom: 0.0,
+                                      child: new LinearProgressIndicator(
+                                        value: task.progress / 100,
+                                      ),
+                                    )
+                                  : new Container()
+                            ].where((child) => child != null).toList(),
+                          ),
+                        ))
+                    .toList(),
+              ),
             ),
-          ))
-              .toList(),
-        ),
-      ),
     );
   }
 
@@ -179,7 +178,23 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     } else if (task.status == DownloadTaskStatus.canceled) {
       return new Text('Canceled', style: new TextStyle(color: Colors.red));
     } else if (task.status == DownloadTaskStatus.failed) {
-      return new Text('Failed', style: new TextStyle(color: Colors.red));
+      return Row(
+        children: [
+          new Text('Failed', style: new TextStyle(color: Colors.red)),
+          SizedBox(
+            width: 4.0,
+          ),
+          RawMaterialButton(
+            onPressed: () {
+              _retryDownload(task);
+            },
+            child: Icon(
+              Icons.refresh,
+              color: Colors.green,
+            ),
+          )
+        ],
+      );
     } else {
       return null;
     }
@@ -206,12 +221,17 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     task.taskId = newTaskId;
   }
 
+  void _retryDownload(_TaskInfo task) async {
+    String newTaskId = await FlutterDownloader.retry(taskId: task.taskId);
+    task.taskId = newTaskId;
+  }
+
   Future<Null> _prepare() async {
     final tasks = await FlutterDownloader.loadTasks();
 
     _tasks = _documents
         .map((document) =>
-        _TaskInfo(name: document['name'], link: document['link']))
+            _TaskInfo(name: document['name'], link: document['link']))
         .toList();
     tasks?.forEach((task) {
       for (_TaskInfo info in _tasks) {
@@ -229,7 +249,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       _isLoading = false;
     });
   }
-
 }
 
 Future<String> _findLocalPath() async {

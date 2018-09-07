@@ -185,7 +185,12 @@ public class DownloadWorker extends Worker {
                             && progress != lastProgress) {
                         lastProgress = progress;
                         updateNotification(context, filename, DownloadStatus.RUNNING, progress, null);
-                        taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, progress);
+
+                        // This line possibly causes system overloaded because of accessing to DB too many ?!!!
+                        // but commenting this line causes tasks loaded from DB missing current downloading progress,
+                        // however, this missing data should be temporary and it will be updated as soon as
+                        // a new bunch of data fetched and a notification sent
+                        //taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, progress);
                     }
                 }
 
