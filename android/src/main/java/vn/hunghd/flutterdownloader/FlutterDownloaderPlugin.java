@@ -247,10 +247,10 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
 
     private WorkRequest buildRequest(String url, String savedDir, String filename, String headers, boolean showNotification, boolean clickToOpenDownloadedFile, boolean isResume) {
         WorkRequest request = new OneTimeWorkRequest.Builder(DownloadWorker.class)
-//                .setConstraints(new Constraints.Builder()
-//                        .setRequiresStorageNotLow(true)
-//                        .setRequiredNetworkType(NetworkType.CONNECTED)
-//                        .build())
+                .setConstraints(new Constraints.Builder()
+                        .setRequiresStorageNotLow(true)
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build())
                 .addTag(TAG)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.SECONDS)
                 .setInputData(new Data.Builder()

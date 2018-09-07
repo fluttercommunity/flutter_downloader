@@ -179,6 +179,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       return new Text('Canceled', style: new TextStyle(color: Colors.red));
     } else if (task.status == DownloadTaskStatus.failed) {
       return Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           new Text('Failed', style: new TextStyle(color: Colors.red)),
           SizedBox(
