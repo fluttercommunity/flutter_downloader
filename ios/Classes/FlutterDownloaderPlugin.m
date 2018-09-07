@@ -70,10 +70,9 @@
             __weak id weakSelf = self;
             dispatch_sync(_databaseQueue, ^{
                 [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:savedDir headers:headers resumable:NO showNotification: [showNotification boolValue] clickToOpenDownloadedFile: [clickToOpenDownloadedFile boolValue]];
-
             });
-            [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
             result(taskId);
+            [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
         } else {
             result([FlutterError errorWithCode:@"not_initialized"
                                              message:@"initialize() must be called first"
@@ -125,13 +124,13 @@
             NSString *taskId = call.arguments[KEY_TASK_ID];
             NSString *newTaskId = [self resumeTaskWithId:taskId];
             __weak id weakSelf = self;
+            result(newTaskId);
             dispatch_sync(_databaseQueue, ^{
                 [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_RUNNING resumable:NO];
                 NSDictionary *task = [weakSelf loadTaskWithId:newTaskId];
                 NSNumber *progress = task[KEY_PROGRESS];
-                [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_RUNNING) andProgress:progress];
+                [weakSelf sendUpdateProgressForTaskId:newTaskId inStatus:@(STATUS_RUNNING) andProgress:progress];
             });
-            result(newTaskId);
         } else {
             result([FlutterError errorWithCode:@"not_initialized"
                                                message:@"initialize() must be called first"

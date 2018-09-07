@@ -128,11 +128,11 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                 boolean showNotification = call.argument("show_notification");
                 boolean clickToOpenDownloadedFile = call.argument("click_to_open_downloaded_file");
                 WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, clickToOpenDownloadedFile, false);
+                WorkManager.getInstance().enqueue(request);
                 String taskId = request.getId().toString();
+                result.success(taskId);
                 sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0);
                 taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, savedDir, headers, showNotification, clickToOpenDownloadedFile);
-                WorkManager.getInstance().enqueue(request);
-                result.success(taskId);
             } else {
                 result.error("not_initialized", "initialize() must be called first", null);
             }
