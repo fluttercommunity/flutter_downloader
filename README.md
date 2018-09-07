@@ -9,17 +9,18 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 ## iOS integration
 
-* Open Xcode. Enable background mode.
+* Open `ios` project (file `Runner.xcworkspace`) in Xcode. 
+
+* Enable background mode.
 
 <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/enable_background_mode.png?raw=true"/>
 
-* Add following code to your `AppDelegate` (this method will be called when an URL session finished its work while your app is not running):
+* Add `sqlite` library.
 
-````objectivec
-- (void)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void (^)(void))completionHandler {
-    completionHandler();
-}
-````
+<p>
+    <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/add_sqlite_1.png?raw=true" />
+    <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/add_sqlite_2.png?raw=true" />
+</p>
 
 **Note:** If you want to download file with HTTP request, you need to disable Apple Transport Security (ATS) feature.
 * Disable ATS for a specific domain only: (add following codes to the end of your `Info.plist` file)
@@ -53,23 +54,6 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 </dict>
 ````
 
-**Note:** configure the maximum of concurrent download tasks
-
-`AppDelegate.m`
-````objectivec
-- (BOOL)application:(UIApplication *)application
-    didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-
-  // config the maximum of concurrent download tasks
-  [FlutterDownloaderPlugin setMaximumConcurrentTask: 2];
-  
-  [GeneratedPluginRegistrant registerWithRegistry:self];
-  // Override point for customization after application launch.
-  return [super application:application didFinishLaunchingWithOptions:launchOptions];
-}
-
-````
-
 ## Android integration
 
 In order to handle click action on notification to open the downloaded file on Android, you need to add some additional configurations:
@@ -92,24 +76,19 @@ In order to handle click action on notification to open the downloaded file on A
 
 **Note:** The downloaded files are only able to be opened if your device has at least an application that can read these file types (mp3, pdf, etc)
 
-**Note:** configure the maximum of concurrent download tasks
-
-`MainActivity.java`
-````java
-@Override
-  protected void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
-    // configure the maximum of concurrent download tasks
-    FlutterDownloaderPlugin.maximumConcurrentTask = 2;
-    
-    GeneratedPluginRegistrant.registerWith(this);
-  }
-```` 
-
 ## Usage
 
 ````dart
 import 'package:flutter_downloader/flutter_downloader.dart';
+````
+
+Initialize plugin:
+
+````dart
+FlutterDownloader.initialize(
+  maxConcurrentTasks: 3, // config the maximum number of tasks running at a moment
+  messages: {....} // localize messages for Android notification
+);
 ````
 
 To create new download task:
@@ -147,6 +126,18 @@ To cancel all tasks:
 
 ````dart
 FlutterDownloader.cancelAll();
+````
+
+To pause a task:
+
+````dart
+FlutterDownloader.pause(taskId: taskId);
+````
+
+To resume a task:
+
+````dart
+FlutterDownloader.resume(taskId: taskId);
 ````
 
 [1]: https://developer.android.com/topic/libraries/architecture/workmanager
