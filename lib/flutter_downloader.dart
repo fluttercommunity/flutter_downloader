@@ -4,8 +4,8 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 
-typedef void DownloadCallback(String id, DownloadTaskStatus status,
-    int progress);
+typedef void DownloadCallback(
+    String id, DownloadTaskStatus status, int progress);
 
 class DownloadTaskStatus {
   final int _value;
@@ -41,7 +41,12 @@ class DownloadTask {
   final String savedDir;
 
   DownloadTask(
-      {this.taskId, this.status, this.progress, this.url, this.filename, this.savedDir});
+      {this.taskId,
+      this.status,
+      this.progress,
+      this.url,
+      this.filename,
+      this.savedDir});
 
   @override
   String toString() =>
@@ -61,29 +66,36 @@ enum DownloadMessage {
 class FlutterDownloader {
   static const platform = const MethodChannel('vn.hunghd/downloader');
 
-  static Future<Null> initialize({int maxConcurrentTasks = 2, Map<DownloadMessage, String> messages = const {}}) async {
+  static Future<Null> initialize(
+      {int maxConcurrentTasks = 2,
+      Map<DownloadMessage, String> messages = const {}}) async {
     if (maxConcurrentTasks < 1) {
-      throw ArgumentError('\'maxConcurrentTasks\' must be greater than or equal to 1');
+      throw ArgumentError(
+          '\'maxConcurrentTasks\' must be greater than or equal to 1');
     }
     Map<String, String> dict = {};
     dict['started'] = messages[DownloadMessage.started] ?? 'Download started';
-    dict['in_progress'] = messages[DownloadMessage.in_progress] ?? 'Download in progress';
-    dict['canceled'] = messages[DownloadMessage.canceled] ?? 'Download canceled';
+    dict['in_progress'] =
+        messages[DownloadMessage.in_progress] ?? 'Download in progress';
+    dict['canceled'] =
+        messages[DownloadMessage.canceled] ?? 'Download canceled';
     dict['failed'] = messages[DownloadMessage.failed] ?? 'Download failed';
-    dict['complete'] = messages[DownloadMessage.complete] ?? 'Download complete';
+    dict['complete'] =
+        messages[DownloadMessage.complete] ?? 'Download complete';
     dict['paused'] = messages[DownloadMessage.paused] ?? 'Download paused';
-    dict['all_finished'] = messages[DownloadMessage.all_finished] ?? 'All files have been downloaded';
-    return await platform.invokeMethod('initialize', {'max_concurrent_tasks': maxConcurrentTasks, 'messages': dict});
+    dict['all_finished'] = messages[DownloadMessage.all_finished] ??
+        'All files have been downloaded';
+    return await platform.invokeMethod('initialize',
+        {'max_concurrent_tasks': maxConcurrentTasks, 'messages': dict});
   }
 
-  static Future<String> enqueue({
-    @required String url,
-    @required String savedDir,
-    String fileName,
-    Map<String, String> headers,
-    bool showNotification = true,
-    bool openFileFromNotification = true
-  }) async {
+  static Future<String> enqueue(
+      {@required String url,
+      @required String savedDir,
+      String fileName,
+      Map<String, String> headers,
+      bool showNotification = true,
+      bool openFileFromNotification = true}) async {
     StringBuffer headerBuilder = StringBuffer();
     if (headers != null) {
       headerBuilder.write('{');
@@ -113,44 +125,93 @@ class FlutterDownloader {
   static Future<List<DownloadTask>> loadTasks() async {
     try {
       List<dynamic> result = await platform.invokeMethod('loadTasks');
-      print('Loaded tasks: $result');
       return result
-          .map((item) =>
-      new DownloadTask(
-          taskId: item['task_id'],
-          status: DownloadTaskStatus._internal(item['status']),
-          progress: item['progress'],
-          url: item['url'],
-          filename: item['file_name'],
-          savedDir: item['saved_dir']))
+          .map((item) => new DownloadTask(
+              taskId: item['task_id'],
+              status: DownloadTaskStatus._internal(item['status']),
+              progress: item['progress'],
+              url: item['url'],
+              filename: item['file_name'],
+              savedDir: item['saved_dir']))
           .toList();
     } on PlatformException catch (e) {
+      print(e.message);
+      return null;
+    }
+  }
+
+  static Future<List<DownloadTask>> loadTasksWithRawQuery(
+      {@required String query}) async {
+    try {
+      List<dynamic> result = await platform.invokeMethod('loadTasksWithRawQuery', {'query': query});
+      print('Loaded tasks: $result');
+      return result
+          .map((item) => new DownloadTask(
+              taskId: item['task_id'],
+              status: DownloadTaskStatus._internal(item['status']),
+              progress: item['progress'],
+              url: item['url'],
+              filename: item['file_name'],
+              savedDir: item['saved_dir']))
+          .toList();
+    } on PlatformException catch (e) {
+      print(e.message);
       return null;
     }
   }
 
   static Future<Null> cancel({@required String taskId}) async {
-    return await platform.invokeMethod('cancel', {'task_id': taskId});
+    try {
+      return await platform.invokeMethod('cancel', {'task_id': taskId});
+    } on PlatformException catch (e) {
+      print(e.message);
+      return null;
+    }
   }
 
   static Future<Null> cancelAll() async {
-    return await platform.invokeMethod('cancelAll');
+    try {
+      return await platform.invokeMethod('cancelAll');
+    } on PlatformException catch (e) {
+      print(e.message);
+      return null;
+    }
   }
 
-  static Future<Null> pause({@required taskId}) async {
-    return await platform.invokeMethod('pause', {'task_id': taskId});
+  static Future<Null> pause({@required String taskId}) async {
+    try {
+      return await platform.invokeMethod('pause', {'task_id': taskId});
+    } on PlatformException catch (e) {
+      print(e.message);
+      return null;
+    }
   }
 
-  static Future<String> resume({@required taskId}) async {
-    return await platform.invokeMethod('resume', {'task_id': taskId});
+  static Future<String> resume({@required String taskId}) async {
+    try {
+      return await platform.invokeMethod('resume', {'task_id': taskId});
+    } on PlatformException catch (e) {
+      print(e.message);
+      return null;
+    }
   }
 
-  static Future<String> retry({@required taskId}) async {
-    return await platform.invokeMethod('retry', {'task_id': taskId});
+  static Future<String> retry({@required String taskId}) async {
+    try {
+      return await platform.invokeMethod('retry', {'task_id': taskId});
+    } on PlatformException catch (e) {
+      print(e.message);
+      return null;
+    }
   }
 
-  static Future<bool> open({@required taskId}) async {
-    return await platform.invokeMethod('open', {'task_id': taskId});
+  static Future<bool> open({@required String taskId}) async {
+    try {
+      return await platform.invokeMethod('open', {'task_id': taskId});
+    } on PlatformException catch (e) {
+      print(e.message);
+      return false;
+    }
   }
 
   static registerCallback(DownloadCallback callback) {
@@ -163,5 +224,4 @@ class FlutterDownloader {
       }
     });
   }
-
 }

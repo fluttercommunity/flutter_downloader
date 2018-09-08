@@ -82,7 +82,7 @@ In order to handle click action on notification to open the downloaded file on A
 import 'package:flutter_downloader/flutter_downloader.dart';
 ````
 
-Initialize plugin:
+#### Initialize plugin:
 
 ````dart
 FlutterDownloader.initialize(
@@ -91,7 +91,7 @@ FlutterDownloader.initialize(
 );
 ````
 
-To create new download task:
+#### Create new download task:
 
 ````dart
 final taskId = await FlutterDownloader.enqueue(
@@ -102,7 +102,7 @@ final taskId = await FlutterDownloader.enqueue(
 );
 ````
 
-To update download progress:
+#### Update download progress:
 
 ````dart
 FlutterDownloader.registerCallback((id, status, progress) {
@@ -110,31 +110,57 @@ FlutterDownloader.registerCallback((id, status, progress) {
 });
 ````
 
-To load the status of download tasks:
+#### Load all tasks:
 
 ````dart
 final tasks = await FlutterDownloader.loadTasks();
 ````
 
-To cancel a task:
+#### Load tasks with a condition:
+
+````dart
+final tasks = await FlutterDownloader.loadTasksWithRawQuery(query: query);
+````
+
+- Note: In order to parse data into DownloadTask successfully, you should load data with all fields from DB (in the other word, use: `SELECT *` )
+- Note: the following is the schema of `task` table where this plugin store tasks information
+
+````
+CREATE TABLE `task` (
+	`id`	INTEGER PRIMARY KEY AUTOINCREMENT,
+	`task_id`	VARCHAR ( 256 ),
+	`url`	TEXT,
+	`status`	INTEGER DEFAULT 0,
+	`progress`	INTEGER DEFAULT 0,
+	`file_name`	TEXT,
+	`saved_dir`	TEXT,
+	`resumable`	TINYINT DEFAULT 0,
+	`headers`	TEXT,
+	`show_notification`	TINYINT DEFAULT 0,
+	`open_file_from_notification`	TINYINT DEFAULT 0,
+	`time_created`	INTEGER DEFAULT 0
+);
+````
+
+#### Cancel a task:
 
 ````dart
 FlutterDownloader.cancel(taskId: taskId);
 ````
 
-To cancel all tasks:
+#### Cancel all tasks:
 
 ````dart
 FlutterDownloader.cancelAll();
 ````
 
-To pause a task:
+#### Pause a task:
 
 ````dart
 FlutterDownloader.pause(taskId: taskId);
 ````
 
-To resume a task:
+#### Resume a task:
 
 ````dart
 FlutterDownloader.resume(taskId: taskId);
@@ -142,7 +168,7 @@ FlutterDownloader.resume(taskId: taskId);
 
 - Note: `resume()` will return a new `taskId` corresponding to a new background task that is created to continue the download process. You should replace the original `taskId` (that is marked as `paused` status) by this new `taskId` to continue tracking the download progress.
 
-To retry a failed task:
+#### Retry a failed task:
 
 ````dart
 FlutterDownloader.retry(taskId: taskId);
@@ -150,7 +176,7 @@ FlutterDownloader.retry(taskId: taskId);
 
 - Note: `retry()` will return a new `taskId` (like `resume()`)
 
-To open and preview a downloaded file:
+#### Open and preview a downloaded file:
 
 ````dart
 FlutterDownloader.open(taskId: taskId);

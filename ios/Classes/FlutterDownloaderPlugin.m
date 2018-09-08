@@ -23,8 +23,10 @@
 #define KEY_MESSAGES @"messages"
 #define KEY_SHOW_NOTIFICATION @"show_notification"
 #define KEY_OPEN_FILE_FROM_NOTIFICATION @"open_file_from_notification"
+#define KEY_QUERY @"query"
+#define KEY_TIME_CREATED @"time_created"
 
-#define NULL @"<null>"
+#define NULL_VALUE @"<null>"
 
 #define STEP_UPDATE 10
 
@@ -99,6 +101,19 @@
                                        message:@"initialize() must be called first"
                                        details:nil]);
         }
+    } else if ([@"loadTasksWithRawQuery" isEqualToString:call.method]) {
+        if (_initialized) {
+            NSString *query = call.arguments[KEY_QUERY];
+            __weak id weakSelf = self;
+            dispatch_sync(_databaseQueue, ^{
+                NSArray* tasks = [weakSelf loadTasksWithRawQuery:query];
+                result(tasks);
+            });
+        } else {
+            result([FlutterError errorWithCode:@"not_initialized"
+                                       message:@"initialize() must be called first"
+                                       details:nil]);
+        }
     } else if ([@"cancel" isEqualToString:call.method]) {
         if (_initialized) {
             NSString *taskId = call.arguments[KEY_TASK_ID];
@@ -140,7 +155,7 @@
                     NSString* savedDir = taskDict[KEY_SAVED_DIR];
                     NSNumber* progress = taskDict[KEY_PROGRESS];
                     NSString *partialFilename;
-                    if ([NULL isEqualToString: fileName]) {
+                    if ([NULL_VALUE isEqualToString: fileName]) {
                         partialFilename = [NSURL URLWithString:urlString].lastPathComponent;
                     } else {
                         partialFilename = fileName;
@@ -236,7 +251,7 @@
                     NSString *savedDir = taskDict[KEY_SAVED_DIR];
                     NSString *fileName = taskDict[KEY_FILE_NAME];
                     NSString *downloadedFileName;
-                    if ([NULL isEqualToString: fileName]) {
+                    if ([NULL_VALUE isEqualToString: fileName]) {
                         downloadedFileName = [NSURL URLWithString:urlString].lastPathComponent;
                     } else {
                         downloadedFileName = fileName;
@@ -266,9 +281,14 @@
     }
 }
 
+- (long)getCurrentTimeInMilliseconds
+{
+    return [[NSDate date] timeIntervalSince1970]*1000;
+}
+
 - (void) addNewTask: (NSString*) taskId url: (NSString*) url status: (int) status progress: (int) progress filename: (NSString*) filename savedDir: (NSString*) savedDir headers: (NSString*) headers resumable: (BOOL) resumable showNotification: (BOOL) showNotification openFileFromNotification: (BOOL) openFileFromNotification
 {
-    NSString *query = [NSString stringWithFormat:@"INSERT INTO task (task_id,url,status,progress,file_name,saved_dir,headers,resumable,show_notification,open_file_from_notification) VALUES (\"%@\",\"%@\",%d,%d,\"%@\",\"%@\",\"%@\",%d,%d,%d)", taskId, url, status, progress, filename, savedDir, headers, resumable ? 1 : 0, showNotification ? 1 : 0, openFileFromNotification ? 1 : 0];
+    NSString *query = [NSString stringWithFormat:@"INSERT INTO task (task_id,url,status,progress,file_name,saved_dir,headers,resumable,show_notification,open_file_from_notification,time_created) VALUES (\"%@\",\"%@\",%d,%d,\"%@\",\"%@\",\"%@\",%d,%d,%d,%ld)", taskId, url, status, progress, filename, savedDir, headers, resumable ? 1 : 0, showNotification ? 1 : 0, openFileFromNotification ? 1 : 0, [self getCurrentTimeInMilliseconds]];
     [_dbManager executeQuery:query];
     if (_dbManager.affectedRows != 0) {
         NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
@@ -299,7 +319,7 @@
 }
 
 - (void) updateTask: (NSString*) currentTaskId newTaskId: (NSString*) newTaskId status: (int) status resumable: (BOOL) resumable {
-    NSString *query = [NSString stringWithFormat:@"UPDATE task SET task_id=\"%@\", status=%d, resumable=%d WHERE task_id=\"%@\"", newTaskId, status, resumable ? 1 : 0, currentTaskId];
+    NSString *query = [NSString stringWithFormat:@"UPDATE task SET task_id=\"%@\", status=%d, resumable=%d, time_created=%ld WHERE task_id=\"%@\"", newTaskId, status, resumable ? 1 : 0, [self getCurrentTimeInMilliseconds], currentTaskId];
     [_dbManager executeQuery:query];
     if (_dbManager.affectedRows != 0) {
         NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
@@ -331,12 +351,24 @@
     int resumable = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"resumable"]] intValue];
     int showNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"show_notification"]] intValue];
     int openFileFromNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"open_file_from_notification"]] intValue];
-    return [NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, headers, KEY_HEADERS, savedDir, KEY_SAVED_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, [NSNumber numberWithBool:(showNotification == 1)], KEY_SHOW_NOTIFICATION, [NSNumber numberWithBool:(openFileFromNotification == 1)], KEY_OPEN_FILE_FROM_NOTIFICATION, nil];
+    long long timeCreated = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"time_created"]] longLongValue];
+    return [NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, headers, KEY_HEADERS, savedDir, KEY_SAVED_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, [NSNumber numberWithBool:(showNotification == 1)], KEY_SHOW_NOTIFICATION, [NSNumber numberWithBool:(openFileFromNotification == 1)], KEY_OPEN_FILE_FROM_NOTIFICATION, @(timeCreated), KEY_TIME_CREATED, nil];
 }
 
 - (NSArray*)loadAllTasks
 {
     NSString *query = @"SELECT * FROM task";
+    NSArray *records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query]];
+    NSLog(@"Load tasks successfully");
+    NSMutableArray *results = [NSMutableArray new];
+    for(NSArray *record in records) {
+        [results addObject:[self parseDictFromArray:record]];
+    }
+    return results;
+}
+
+- (NSArray*)loadTasksWithRawQuery: (NSString*)query
+{
     NSArray *records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query]];
     NSLog(@"Load tasks successfully");
     NSMutableArray *results = [NSMutableArray new];
@@ -432,7 +464,7 @@
                 NSString *savedDir = task[KEY_SAVED_DIR];
                 NSString *fileName = task[KEY_FILE_NAME];
                 NSString *destinationFilename;
-                if ([NULL isEqualToString: fileName]) {
+                if ([NULL_VALUE isEqualToString: fileName]) {
                     destinationFilename = download.originalRequest.URL.lastPathComponent;
                 } else {
                     destinationFilename = fileName;
@@ -566,7 +598,7 @@
     NSString *fileName = task[KEY_FILE_NAME];
 
     NSString *destinationFilename;
-    if ([NULL isEqualToString: fileName]) {
+    if ([NULL_VALUE isEqualToString: fileName]) {
         destinationFilename = downloadTask.originalRequest.URL.lastPathComponent;
     } else {
         destinationFilename = fileName;

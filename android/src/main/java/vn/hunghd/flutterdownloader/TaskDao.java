@@ -23,7 +23,8 @@ public class TaskDao {
             TaskContract.TaskEntry.COLUMN_NAME_MIME_TYPE,
             TaskContract.TaskEntry.COLUMN_NAME_RESUMABLE,
             TaskContract.TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION,
-            TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION
+            TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION,
+            TaskContract.TaskEntry.COLUMN_NAME_TIME_CREATED
     };
 
     public TaskDao(TaskDbHelper helper) {
@@ -46,6 +47,7 @@ public class TaskDao {
         values.put(TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION, showNotification ? 1 : 0);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION, openFileFromNotification ? 1 : 0);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_RESUMABLE, 0);
+        values.put(TaskContract.TaskEntry.COLUMN_NAME_TIME_CREATED, System.currentTimeMillis());
 
         db.insertWithOnConflict(TaskContract.TaskEntry.TABLE_NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE);
     }
@@ -68,6 +70,20 @@ public class TaskDao {
             result.add(parseCursor(cursor));
         }
         cursor.close();
+
+        return result;
+    }
+
+    public List<DownloadTask> loadTasksWithRawQuery(String query) {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = db.rawQuery(query, null);
+
+        List<DownloadTask> result = new ArrayList<>();
+        while (cursor.moveToNext()) {
+            result.add(parseCursor(cursor));
+        }
+        cursor.close();
+
         return result;
     }
 
@@ -121,6 +137,7 @@ public class TaskDao {
         values.put(TaskContract.TaskEntry.COLUMN_NAME_STATUS, status);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_PROGRESS, progress);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_RESUMABLE, resumable ? 1 : 0);
+        values.put(TaskContract.TaskEntry.COLUMN_NAME_TIME_CREATED, System.currentTimeMillis());
 
         db.beginTransaction();
         try {
@@ -180,7 +197,9 @@ public class TaskDao {
         int resumable = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_RESUMABLE));
         int showNotification = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION));
         int clickToOpenDownloadedFile = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION));
-        return new DownloadTask(primaryId, taskId, status, progress, url, filename, savedDir, headers, mimeType, resumable == 1, showNotification == 1, clickToOpenDownloadedFile == 1);
+        long timeCreated = cursor.getLong(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_TIME_CREATED));
+        return new DownloadTask(primaryId, taskId, status, progress, url, filename, savedDir, headers,
+                mimeType, resumable == 1, showNotification == 1, clickToOpenDownloadedFile == 1, timeCreated);
     }
 
 }

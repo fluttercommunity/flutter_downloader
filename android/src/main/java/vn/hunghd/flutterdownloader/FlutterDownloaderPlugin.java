@@ -145,6 +145,27 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                     item.put("url", task.url);
                     item.put("file_name", task.filename);
                     item.put("saved_dir", task.savedDir);
+                    item.put("time_created", task.timeCreated);
+                    array.add(item);
+                }
+                result.success(array);
+            } else {
+                result.error("not_initialized", "initialize() must be called first", null);
+            }
+        } else if (call.method.equals("loadTasksWithRawQuery")) {
+            if (initialized) {
+                String query = call.argument("query");
+                List<DownloadTask> tasks = taskDao.loadTasksWithRawQuery(query);
+                List<Map> array = new ArrayList<>();
+                for (DownloadTask task : tasks) {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("task_id", task.taskId);
+                    item.put("status", task.status);
+                    item.put("progress", task.progress);
+                    item.put("url", task.url);
+                    item.put("file_name", task.filename);
+                    item.put("saved_dir", task.savedDir);
+                    item.put("time_created", task.timeCreated);
                     array.add(item);
                 }
                 result.success(array);
