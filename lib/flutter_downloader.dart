@@ -80,7 +80,7 @@ class FlutterDownloader {
     String fileName,
     Map<String, String> headers,
     bool showNotification = true,
-    bool clickToOpenDownloadedFile = true
+    bool openFileFromNotification = true
   }) async {
     StringBuffer headerBuilder = StringBuffer();
     if (headers != null) {
@@ -98,7 +98,7 @@ class FlutterDownloader {
         'file_name': fileName,
         'headers': headerBuilder.toString(),
         'show_notification': showNotification,
-        'click_to_open_downloaded_file': clickToOpenDownloadedFile,
+        'open_file_from_notification': openFileFromNotification,
       });
       print('Download task is enqueued with id($taskId)');
       return taskId;
@@ -147,6 +147,10 @@ class FlutterDownloader {
     return await platform.invokeMethod('retry', {'task_id': taskId});
   }
 
+  static Future<bool> open({@required taskId}) async {
+    return await platform.invokeMethod('open', {'task_id': taskId});
+  }
+
   static registerCallback(DownloadCallback callback) {
     platform.setMethodCallHandler((MethodCall call) {
       if (call.method == 'updateProgress') {
@@ -157,4 +161,5 @@ class FlutterDownloader {
       }
     });
   }
+
 }

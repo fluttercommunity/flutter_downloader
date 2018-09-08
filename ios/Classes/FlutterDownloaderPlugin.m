@@ -22,11 +22,13 @@
 #define KEY_MAX_CONCURRENT_TASKS @"max_concurrent_tasks"
 #define KEY_MESSAGES @"messages"
 #define KEY_SHOW_NOTIFICATION @"show_notification"
-#define KEY_CLICK_TO_OPEN_DOWNLOADED_FILE @"click_to_open_downloaded_file"
+#define KEY_OPEN_FILE_FROM_NOTIFICATION @"open_file_from_notification"
+
+#define NULL @"<null>"
 
 #define STEP_UPDATE 10
 
-@interface FlutterDownloaderPlugin()<NSURLSessionTaskDelegate, NSURLSessionDownloadDelegate>
+@interface FlutterDownloaderPlugin()<NSURLSessionTaskDelegate, NSURLSessionDownloadDelegate, UIDocumentInteractionControllerDelegate>
 {
     FlutterMethodChannel *_flutterChannel;
     NSURLSession *_session;
@@ -64,7 +66,7 @@
             NSString *fileName = call.arguments[KEY_FILE_NAME];
             NSString *headers = call.arguments[KEY_HEADERS];
             NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
-            NSNumber *clickToOpenDownloadedFile = call.arguments[KEY_CLICK_TO_OPEN_DOWNLOADED_FILE];
+            NSNumber *openFileFromNotification = call.arguments[KEY_OPEN_FILE_FROM_NOTIFICATION];
 
             NSString *taskId = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
 
@@ -72,7 +74,7 @@
 
             __weak id weakSelf = self;
             dispatch_sync(_databaseQueue, ^{
-                [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:savedDir headers:headers resumable:NO showNotification: [showNotification boolValue] clickToOpenDownloadedFile: [clickToOpenDownloadedFile boolValue]];
+                [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:savedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
             });
             result(taskId);
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
@@ -134,13 +136,15 @@
                     NSString* savedDir = taskDict[KEY_SAVED_DIR];
                     NSNumber* progress = taskDict[KEY_PROGRESS];
                     NSString *partialFilename;
-                    if ([fileName isEqual:[NSNull null]]) {
+                    if ([NULL isEqualToString: fileName]) {
                         partialFilename = [NSURL URLWithString:urlString].lastPathComponent;
                     } else {
                         partialFilename = fileName;
                     }
                     NSURL *savedDirURL = [NSURL fileURLWithPath:savedDir];
                     NSURL *partialFileURL = [savedDirURL URLByAppendingPathComponent:partialFilename];
+
+                    NSLog(@"Try to load resume data at url: %@", partialFileURL);
 
                     NSData *resumeData = [NSData dataWithContentsOfURL:partialFileURL];
 
@@ -181,34 +185,76 @@
                                        details:nil]);
         }
     } else if ([@"retry" isEqualToString:call.method]) {
-        NSString *taskId = call.arguments[KEY_TASK_ID];
-        NSDictionary* taskDict = [self loadTaskWithId:taskId];
-        if (taskDict != nil) {
-            NSNumber* status = taskDict[KEY_STATUS];
-            if ([status intValue] == STATUS_FAILED) {
-                NSString *urlString = taskDict[KEY_URL];
-                NSString *savedDir = taskDict[KEY_SAVED_DIR];
-                NSString *fileName = taskDict[KEY_FILE_NAME];
-                NSString *headers = taskDict[KEY_HEADERS];
+        if (_initialized) {
+            NSString *taskId = call.arguments[KEY_TASK_ID];
+            NSDictionary* taskDict = [self loadTaskWithId:taskId];
+            if (taskDict != nil) {
+                NSNumber* status = taskDict[KEY_STATUS];
+                if ([status intValue] == STATUS_FAILED) {
+                    NSString *urlString = taskDict[KEY_URL];
+                    NSString *savedDir = taskDict[KEY_SAVED_DIR];
+                    NSString *fileName = taskDict[KEY_FILE_NAME];
+                    NSString *headers = taskDict[KEY_HEADERS];
 
-                NSString *newTaskId = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
+                    NSString *newTaskId = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
 
-                [_progressOfTask setObject:@(0) forKey:newTaskId];
+                    [_progressOfTask setObject:@(0) forKey:newTaskId];
 
-                __weak id weakSelf = self;
-                dispatch_sync(_databaseQueue, ^{
-                    [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_ENQUEUED resumable:NO];
-                });
-                result(newTaskId);
-                [self sendUpdateProgressForTaskId:newTaskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
+                    __weak id weakSelf = self;
+                    dispatch_sync(_databaseQueue, ^{
+                        [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_ENQUEUED resumable:NO];
+                    });
+                    result(newTaskId);
+                    [self sendUpdateProgressForTaskId:newTaskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
+                } else {
+                    result([FlutterError errorWithCode:@"invalid_status"
+                                               message:@"only failed task can be retried"
+                                               details:nil]);
+                }
             } else {
-                result([FlutterError errorWithCode:@"invalid_status"
-                                           message:@"only failed task can be retried"
+                result([FlutterError errorWithCode:@"invalid_task_id"
+                                           message:@"not found task corresponding to given task id"
                                            details:nil]);
             }
         } else {
-            result([FlutterError errorWithCode:@"invalid_task_id"
-                                       message:@"not found task corresponding to given task id"
+            result([FlutterError errorWithCode:@"not_initialized"
+                                       message:@"initialize() must be called first"
+                                       details:nil]);
+        }
+    } else if ([@"open" isEqualToString:call.method]) {
+        if (_initialized) {
+            NSString *taskId = call.arguments[KEY_TASK_ID];
+            NSDictionary* taskDict = [self loadTaskWithId:taskId];
+            if (taskDict != nil) {
+                NSNumber* status = taskDict[KEY_STATUS];
+                if ([status intValue] == STATUS_COMPLETE) {
+                    NSString *urlString = taskDict[KEY_URL];
+                    NSString *savedDir = taskDict[KEY_SAVED_DIR];
+                    NSString *fileName = taskDict[KEY_FILE_NAME];
+                    NSString *downloadedFileName;
+                    if ([NULL isEqualToString: fileName]) {
+                        downloadedFileName = [NSURL URLWithString:urlString].lastPathComponent;
+                    } else {
+                        downloadedFileName = fileName;
+                    }
+                    NSURL *savedDirURL = [NSURL fileURLWithPath:savedDir];
+                    NSURL *downloadedFileURL = [savedDirURL URLByAppendingPathComponent:downloadedFileName];
+
+                    BOOL success = [self openDocumentWithURL:downloadedFileURL];
+                    result([NSNumber numberWithBool:success]);
+                } else {
+                    result([FlutterError errorWithCode:@"invalid_status"
+                                               message:@"only success task can be opened"
+                                               details:nil]);
+                }
+            } else {
+                result([FlutterError errorWithCode:@"invalid_task_id"
+                                           message:@"not found task corresponding to given task id"
+                                           details:nil]);
+            }
+        } else {
+            result([FlutterError errorWithCode:@"not_initialized"
+                                       message:@"initialize() must be called first"
                                        details:nil]);
         }
     } else {
@@ -216,9 +262,9 @@
     }
 }
 
-- (void) addNewTask: (NSString*) taskId url: (NSString*) url status: (int) status progress: (int) progress filename: (NSString*) filename savedDir: (NSString*) savedDir headers: (NSString*) headers resumable: (BOOL) resumable showNotification: (BOOL) showNotification clickToOpenDownloadedFile: (BOOL) clickToOpenDownloadedFile
+- (void) addNewTask: (NSString*) taskId url: (NSString*) url status: (int) status progress: (int) progress filename: (NSString*) filename savedDir: (NSString*) savedDir headers: (NSString*) headers resumable: (BOOL) resumable showNotification: (BOOL) showNotification openFileFromNotification: (BOOL) openFileFromNotification
 {
-    NSString *query = [NSString stringWithFormat:@"INSERT INTO task (task_id,url,status,progress,file_name,saved_dir,headers,resumable,show_notification,click_to_open_downloaded_file) VALUES (\"%@\",\"%@\",%d,%d,\"%@\",\"%@\",\"%@\",%d,%d,%d)", taskId, url, status, progress, filename, savedDir, headers, resumable ? 1 : 0, showNotification ? 1 : 0, clickToOpenDownloadedFile ? 1 : 0];
+    NSString *query = [NSString stringWithFormat:@"INSERT INTO task (task_id,url,status,progress,file_name,saved_dir,headers,resumable,show_notification,open_file_from_notification) VALUES (\"%@\",\"%@\",%d,%d,\"%@\",\"%@\",\"%@\",%d,%d,%d)", taskId, url, status, progress, filename, savedDir, headers, resumable ? 1 : 0, showNotification ? 1 : 0, openFileFromNotification ? 1 : 0];
     [_dbManager executeQuery:query];
     if (_dbManager.affectedRows != 0) {
         NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
@@ -280,8 +326,8 @@
     NSString *headers = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"headers"]];
     int resumable = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"resumable"]] intValue];
     int showNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"show_notification"]] intValue];
-    int clickToOpenDownloadedFile = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"click_to_open_downloaded_file"]] intValue];
-    return [NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, headers, KEY_HEADERS, savedDir, KEY_SAVED_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, [NSNumber numberWithBool:(showNotification == 1)], KEY_SHOW_NOTIFICATION, [NSNumber numberWithBool:(clickToOpenDownloadedFile == 1)], KEY_CLICK_TO_OPEN_DOWNLOADED_FILE, nil];
+    int openFileFromNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"open_file_from_notification"]] intValue];
+    return [NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, headers, KEY_HEADERS, savedDir, KEY_SAVED_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, [NSNumber numberWithBool:(showNotification == 1)], KEY_SHOW_NOTIFICATION, [NSNumber numberWithBool:(openFileFromNotification == 1)], KEY_OPEN_FILE_FROM_NOTIFICATION, nil];
 }
 
 - (NSArray*)loadAllTasks
@@ -382,7 +428,7 @@
                 NSString *savedDir = task[KEY_SAVED_DIR];
                 NSString *fileName = task[KEY_FILE_NAME];
                 NSString *destinationFilename;
-                if ([fileName isEqual:[NSNull null]]) {
+                if ([NULL isEqualToString: fileName]) {
                     destinationFilename = download.originalRequest.URL.lastPathComponent;
                 } else {
                     destinationFilename = fileName;
@@ -457,6 +503,22 @@
     [_flutterChannel invokeMethod:@"updateProgress" arguments:info];
 }
 
+- (BOOL)openDocumentWithURL:(NSURL*)url {
+    NSLog(@"try to open file in url: %@", url);
+    BOOL result = NO;
+    UIDocumentInteractionController* tmpDocController = [UIDocumentInteractionController
+                                                         interactionControllerWithURL:url];
+    if (tmpDocController)
+    {
+        NSLog(@"initialize UIDocumentInteractionController successfully");
+        tmpDocController.delegate = self;
+        result = [tmpDocController presentPreviewAnimated:YES];
+    }
+    return result;
+}
+
+
+
 # pragma FlutterPlugin
 - (BOOL)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void (^)(void))completionHandler {
     self.backgroundTransferCompletionHandler = completionHandler;
@@ -488,10 +550,6 @@
         if (([lastProgress intValue] == 0 || (progress > [lastProgress intValue] + STEP_UPDATE) || progress == 100) && progress != [lastProgress intValue]) {
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_RUNNING) andProgress:@(progress)];
             _progressOfTask[taskId] = @(progress);
-            __weak id weakSelf = self;
-            dispatch_sync(_databaseQueue, ^{
-                [weakSelf updateTask:taskId status:STATUS_RUNNING progress:progress];
-            });
         }
     }
 }
@@ -504,7 +562,7 @@
     NSString *fileName = task[KEY_FILE_NAME];
 
     NSString *destinationFilename;
-    if ([fileName isEqual:[NSNull null]]) {
+    if ([NULL isEqualToString: fileName]) {
         destinationFilename = downloadTask.originalRequest.URL.lastPathComponent;
     } else {
         destinationFilename = fileName;
@@ -586,6 +644,28 @@
             }
         }
     }];
+}
+
+# pragma UIDocumentInteractionControllerDelegate
+
+- (UIViewController *)documentInteractionControllerViewControllerForPreview:(UIDocumentInteractionController *)controller {
+    return [UIApplication sharedApplication].delegate.window.rootViewController;
+}
+
+- (void)documentInteractionController:(UIDocumentInteractionController *)controller willBeginSendingToApplication:(NSString *)application
+{
+    NSLog(@"Send the document to app %@  ...", application);
+}
+
+- (void)documentInteractionController:(UIDocumentInteractionController *)controller didEndSendingToApplication:(NSString *)application
+{
+    NSLog(@"Finished sending the document to app %@  ...", application);
+
+}
+
+- (void)documentInteractionControllerDidDismissOpenInMenu:(UIDocumentInteractionController *)controller
+{
+    NSLog(@"Finished previewing the document");
 }
 
 @end

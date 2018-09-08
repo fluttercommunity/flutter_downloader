@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
-import android.util.Log;
 
 
 import java.io.File;
@@ -19,8 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import androidx.work.BackoffPolicy;
@@ -126,13 +123,13 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                 String filename = call.argument("file_name");
                 String headers = call.argument("headers");
                 boolean showNotification = call.argument("show_notification");
-                boolean clickToOpenDownloadedFile = call.argument("click_to_open_downloaded_file");
-                WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, clickToOpenDownloadedFile, false);
+                boolean openFileFromNotification = call.argument("open_file_from_notification");
+                WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, openFileFromNotification, false);
                 WorkManager.getInstance().enqueue(request);
                 String taskId = request.getId().toString();
                 result.success(taskId);
                 sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0);
-                taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, savedDir, headers, showNotification, clickToOpenDownloadedFile);
+                taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, savedDir, headers, showNotification, openFileFromNotification);
             } else {
                 result.error("not_initialized", "initialize() must be called first", null);
             }
@@ -190,7 +187,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                         String partialFilePath = task.savedDir + File.separator + filename;
                         File partialFile = new File(partialFilePath);
                         if (partialFile.exists()) {
-                            WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.clickToOpenDownloadedFile, true);
+                            WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, true);
                             String newTaskId = request.getId().toString();
                             result.success(newTaskId);
                             sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress);
@@ -214,7 +211,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                 DownloadTask task = taskDao.loadTask(taskId);
                 if (task != null) {
                     if (task.status == DownloadStatus.FAILED) {
-                        WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.clickToOpenDownloadedFile, false);
+                        WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, false);
                         String newTaskId = request.getId().toString();
                         result.success(newTaskId);
                         sendUpdateProgress(newTaskId, DownloadStatus.ENQUEUED, task.progress);
@@ -222,6 +219,35 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                         WorkManager.getInstance().enqueue(request);
                     } else {
                         result.error("invalid_status", "only failed task can be retried", null);
+                    }
+                } else {
+                    result.error("invalid_task_id", "not found task corresponding to given task id", null);
+                }
+            } else {
+                result.error("not_initialized", "initialize() must be called first", null);
+            }
+        } else if (call.method.equals("open")) {
+            if (initialized) {
+                String taskId = call.argument("task_id");
+                DownloadTask task = taskDao.loadTask(taskId);
+                if (task != null) {
+                    if (task.status == DownloadStatus.COMPLETE) {
+                        String fileURL = task.url;
+                        String savedDir = task.savedDir;
+                        String filename = task.filename;
+                        if (filename == null) {
+                            filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
+                        }
+                        String saveFilePath = savedDir + File.separator + filename;
+                        Intent intent = IntentUtils.getOpenFileIntent(context, saveFilePath, task.mimeType);
+                        if (IntentUtils.validateIntent(context, intent)) {
+                            context.startActivity(intent);
+                            result.success(true);
+                        } else {
+                            result.success(false);
+                        }
+                    } else {
+                        result.error("invalid_status", "only success task can be opened", null);
                     }
                 } else {
                     result.error("invalid_task_id", "not found task corresponding to given task id", null);
@@ -245,7 +271,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                 .unregisterReceiver(updateProcessEventReceiver);
     }
 
-    private WorkRequest buildRequest(String url, String savedDir, String filename, String headers, boolean showNotification, boolean clickToOpenDownloadedFile, boolean isResume) {
+    private WorkRequest buildRequest(String url, String savedDir, String filename, String headers, boolean showNotification, boolean openFileFromNotification, boolean isResume) {
         WorkRequest request = new OneTimeWorkRequest.Builder(DownloadWorker.class)
                 .setConstraints(new Constraints.Builder()
                         .setRequiresStorageNotLow(true)
@@ -259,7 +285,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                         .putString(DownloadWorker.ARG_FILE_NAME, filename)
                         .putString(DownloadWorker.ARG_HEADERS, headers)
                         .putBoolean(DownloadWorker.ARG_SHOW_NOTIFICATION, showNotification)
-                        .putBoolean(DownloadWorker.ARG_CLICK_TO_OPEN_DOWNLOADED_FILE, clickToOpenDownloadedFile)
+                        .putBoolean(DownloadWorker.ARG_OPEN_FILE_FROM_NOTIFICATION, openFileFromNotification)
                         .putBoolean(DownloadWorker.ARG_IS_RESUME, isResume)
                         .putString(DownloadWorker.MSG_STARTED, messages.get("started"))
                         .putString(DownloadWorker.MSG_IN_PROGRESS, messages.get("in_progress"))

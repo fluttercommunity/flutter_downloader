@@ -5,14 +5,10 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
-import android.net.Uri;
 import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
-import android.support.v4.content.FileProvider;
 import android.support.v4.content.LocalBroadcastManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -28,7 +24,6 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Iterator;
-import java.util.List;
 
 import androidx.work.Worker;
 
@@ -41,7 +36,7 @@ public class DownloadWorker extends Worker {
     public static final String ARG_HEADERS = "headers";
     public static final String ARG_IS_RESUME = "is_resume";
     public static final String ARG_SHOW_NOTIFICATION = "show_notification";
-    public static final String ARG_CLICK_TO_OPEN_DOWNLOADED_FILE = "click_to_open_downloaded_file";
+    public static final String ARG_OPEN_FILE_FROM_NOTIFICATION = "open_file_from_notification";
     public static final String ARG_MESSAGES = "messages";
 
     public static final String MSG_STARTED = "msg_started";
@@ -92,7 +87,7 @@ public class DownloadWorker extends Worker {
         Log.d(TAG, "DownloadWorker{url=" + url + ",filename=" + filename + ",savedDir=" + savedDir + ",header=" + headers + ",isResume=" + isResume);
 
         showNotification = getInputData().getBoolean(ARG_SHOW_NOTIFICATION, false);
-        clickToOpenDownloadedFile = getInputData().getBoolean(ARG_CLICK_TO_OPEN_DOWNLOADED_FILE, false);
+        clickToOpenDownloadedFile = getInputData().getBoolean(ARG_OPEN_FILE_FROM_NOTIFICATION, false);
 
         DownloadTask task = taskDao.loadTask(getId().toString());
         primaryId = task.primaryId;
@@ -167,6 +162,8 @@ public class DownloadWorker extends Worker {
                 Log.d(TAG, "Content-Length = " + contentLength);
                 Log.d(TAG, "fileName = " + filename);
 
+                taskDao.updateTask(getId().toString(), contentType);
+
                 // opens input stream from the HTTP connection
                 inputStream = httpConn.getInputStream();
 
@@ -199,8 +196,8 @@ public class DownloadWorker extends Worker {
                 int status = (isStopped() || isCancelled()) && task.resumable ? DownloadStatus.PAUSED : DownloadStatus.COMPLETE;
                 PendingIntent pendingIntent = null;
                 if (status == DownloadStatus.COMPLETE && clickToOpenDownloadedFile) {
-                    Intent intent = getOpenFileIntent(saveFilePath, contentType);
-                    if (validateIntent(intent)) {
+                    Intent intent = IntentUtils.getOpenFileIntent(getApplicationContext(), saveFilePath, contentType);
+                    if (IntentUtils.validateIntent(getApplicationContext(), intent)) {
                         Log.d(TAG, "Setting an intent to open the file " + saveFilePath);
                         pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
                     } else {
@@ -324,27 +321,5 @@ public class DownloadWorker extends Worker {
         intent.putExtra(EXTRA_STATUS, status);
         intent.putExtra(EXTRA_PROGRESS, progress);
         LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
-    }
-
-    private Intent getOpenFileIntent(String path, String contentType) {
-        File file = new File(path);
-        Uri uri = FileProvider.getUriForFile(getApplicationContext(), getApplicationContext().getPackageName() + ".flutter_downloader.provider", file);
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(uri, contentType);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        return intent;
-    }
-
-    private boolean validateIntent(Intent intent) {
-        PackageManager manager = getApplicationContext().getPackageManager();
-        List<ResolveInfo> infos = manager.queryIntentActivities(intent, 0);
-        if (infos.size() > 0) {
-            //Then there is an Application(s) can handle this intent
-            return true;
-        } else {
-            //No Application can handle this intent
-            return false;
-        }
     }
 }

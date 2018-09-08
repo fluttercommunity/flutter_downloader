@@ -20,8 +20,9 @@ public class TaskDao {
             TaskContract.TaskEntry.COLUMN_NAME_FILE_NAME,
             TaskContract.TaskEntry.COLUMN_NAME_SAVED_DIR,
             TaskContract.TaskEntry.COLUMN_NAME_HEADERS,
+            TaskContract.TaskEntry.COLUMN_NAME_MIME_TYPE,
             TaskContract.TaskEntry.COLUMN_NAME_RESUMABLE,
-            TaskContract.TaskEntry.COLUMN_NAME_CLICK_TO_OPEN_DOWNLOADED_FILE,
+            TaskContract.TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION,
             TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION
     };
 
@@ -30,7 +31,7 @@ public class TaskDao {
     }
 
     public void insertOrUpdateNewTask(String taskId, String url, int status, int progress, String fileName,
-                                       String savedDir, String headers, boolean showNotification, boolean clickToOpenDownloadedFile) {
+                                       String savedDir, String headers, boolean showNotification, boolean openFileFromNotification) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
 
         ContentValues values = new ContentValues();
@@ -41,8 +42,9 @@ public class TaskDao {
         values.put(TaskContract.TaskEntry.COLUMN_NAME_FILE_NAME, fileName);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_SAVED_DIR, savedDir);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_HEADERS, headers);
+        values.put(TaskContract.TaskEntry.COLUMN_NAME_MIME_TYPE, "unknown");
         values.put(TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION, showNotification ? 1 : 0);
-        values.put(TaskContract.TaskEntry.COLUMN_NAME_CLICK_TO_OPEN_DOWNLOADED_FILE, clickToOpenDownloadedFile ? 1 : 0);
+        values.put(TaskContract.TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION, openFileFromNotification ? 1 : 0);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_RESUMABLE, 0);
 
         db.insertWithOnConflict(TaskContract.TaskEntry.TABLE_NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE);
@@ -148,6 +150,23 @@ public class TaskDao {
         }
     }
 
+    public void updateTask(String taskId, String mimeType) {
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+        ContentValues values = new ContentValues();
+        values.put(TaskContract.TaskEntry.COLUMN_NAME_MIME_TYPE, mimeType);
+
+        db.beginTransaction();
+        try {
+            db.update(TaskContract.TaskEntry.TABLE_NAME, values, TaskContract.TaskEntry.COLUMN_NAME_TASK_ID + " = ?", new String[]{taskId});
+            db.setTransactionSuccessful();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            db.endTransaction();
+        }
+    }
+
     private DownloadTask parseCursor(Cursor cursor) {
         int primaryId = cursor.getInt(cursor.getColumnIndexOrThrow(BaseColumns._ID));
         String taskId = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_TASK_ID));
@@ -157,10 +176,11 @@ public class TaskDao {
         String filename = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_FILE_NAME));
         String savedDir = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_SAVED_DIR));
         String headers = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_HEADERS));
+        String mimeType = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_MIME_TYPE));
         int resumable = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_RESUMABLE));
         int showNotification = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION));
-        int clickToOpenDownloadedFile = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_CLICK_TO_OPEN_DOWNLOADED_FILE));
-        return new DownloadTask(primaryId, taskId, status, progress, url, filename, savedDir, headers, resumable == 1, showNotification == 1, clickToOpenDownloadedFile == 1);
+        int clickToOpenDownloadedFile = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION));
+        return new DownloadTask(primaryId, taskId, status, progress, url, filename, savedDir, headers, mimeType, resumable == 1, showNotification == 1, clickToOpenDownloadedFile == 1);
     }
 
 }

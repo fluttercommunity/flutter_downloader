@@ -40,6 +40,10 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
 //      'link': 'http://www.kmvportal.co.in/Course/MAD/Android%20Book.pdf'
 //    },
     {
+      'name': 'Miss. Dang Thi Thu Thao',
+      'link': 'http://phunutieudung.vn/wp-content/uploads/2016/05/hoahauthuthao1.jpg'
+    },
+    {
       'name': 'Android Programming Cookbook',
       'link':
           'http://enos.itcollege.ee/~jpoial/allalaadimised/reading/Android-Programming-Cookbook.pdf'
@@ -84,55 +88,74 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       appBar: new AppBar(
         title: new Text(widget.title),
       ),
-      body: _isLoading
-          ? new Center(
-              child: new CircularProgressIndicator(),
-            )
-          : new Container(
-              child: new ListView(
-                children: _tasks
-                    .map((task) => new Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: new Stack(
-                            children: <Widget>[
-                              new Container(
-                                width: double.infinity,
-                                height: 64.0,
-                                child: new Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
+      body: Builder(
+          builder: (context) => _isLoading
+              ? new Center(
+                  child: new CircularProgressIndicator(),
+                )
+              : new Container(
+                  child: new ListView(
+                    children: _tasks
+                        .map((task) => new Container(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: InkWell(
+                                onTap:
+                                    task.status == DownloadTaskStatus.complete
+                                        ? () {
+                                            _openDownloadedFile(task)
+                                                .then((success) {
+                                              if (!success) {
+                                                Scaffold.of(context)
+                                                    .showSnackBar(SnackBar(content: Text('Cannot open this file')));
+                                              }
+                                            });
+                                          }
+                                        : null,
+                                child: new Stack(
                                   children: <Widget>[
-                                    new Expanded(
-                                      child: new Text(
-                                        task.name,
-                                        maxLines: 1,
-                                        softWrap: true,
-                                        overflow: TextOverflow.ellipsis,
+                                    new Container(
+                                      width: double.infinity,
+                                      height: 64.0,
+                                      child: new Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: <Widget>[
+                                          new Expanded(
+                                            child: new Text(
+                                              task.name,
+                                              maxLines: 1,
+                                              softWrap: true,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          new Padding(
+                                            padding: const EdgeInsets.only(
+                                                left: 8.0),
+                                            child: _buildActionForTask(task),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    new Padding(
-                                      padding: const EdgeInsets.only(left: 8.0),
-                                      child: _buildActionForTask(task),
-                                    ),
-                                  ],
+                                    task.status == DownloadTaskStatus.running ||
+                                            task.status ==
+                                                DownloadTaskStatus.paused
+                                        ? new Positioned(
+                                            left: 0.0,
+                                            right: 0.0,
+                                            bottom: 0.0,
+                                            child: new LinearProgressIndicator(
+                                              value: task.progress / 100,
+                                            ),
+                                          )
+                                        : new Container()
+                                  ].where((child) => child != null).toList(),
                                 ),
                               ),
-                              task.status == DownloadTaskStatus.running ||
-                                      task.status == DownloadTaskStatus.paused
-                                  ? new Positioned(
-                                      left: 0.0,
-                                      right: 0.0,
-                                      bottom: 0.0,
-                                      child: new LinearProgressIndicator(
-                                        value: task.progress / 100,
-                                      ),
-                                    )
-                                  : new Container()
-                            ].where((child) => child != null).toList(),
-                          ),
-                        ))
-                    .toList(),
-              ),
-            ),
+                            ))
+                        .toList(),
+                  ),
+                )),
     );
   }
 
@@ -206,7 +229,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         url: task.link,
         savedDir: _localPath,
         showNotification: true,
-        clickToOpenDownloadedFile: false);
+        openFileFromNotification: false);
   }
 
   void _cancelDownload(_TaskInfo task) async {
@@ -225,6 +248,10 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void _retryDownload(_TaskInfo task) async {
     String newTaskId = await FlutterDownloader.retry(taskId: task.taskId);
     task.taskId = newTaskId;
+  }
+
+  Future<bool> _openDownloadedFile(_TaskInfo task) {
+    return FlutterDownloader.open(taskId: task.taskId);
   }
 
   Future<Null> _prepare() async {
