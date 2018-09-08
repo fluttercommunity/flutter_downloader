@@ -308,8 +308,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   Future<Null> _prepare() async {
     final tasks = await FlutterDownloader.loadTasks();
 
-    final successTasks = await FlutterDownloader.loadTasksWithRawQuery(query: 'SELECT * FROM task WHERE status=3');
-
     int count = 0;
     _tasks = [];
     _items = [];

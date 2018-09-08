@@ -122,10 +122,15 @@ final tasks = await FlutterDownloader.loadTasks();
 final tasks = await FlutterDownloader.loadTasksWithRawQuery(query: query);
 ````
 
-- Note: In order to parse data into DownloadTask successfully, you should load data with all fields from DB (in the other word, use: `SELECT *` )
-- Note: the following is the schema of `task` table where this plugin store tasks information
+- Note: In order to parse data into `DownloadTask` object successfully, you should load data with all fields from DB (in the other word, use: `SELECT *` ). For example:
 
+````sqlite3
+SELECT * FROM task WHERE status=3
 ````
+
+- Note: the following is the schema of `task` table where this plugin stores tasks information
+
+````sqlite3
 CREATE TABLE `task` (
 	`id`	INTEGER PRIMARY KEY AUTOINCREMENT,
 	`task_id`	VARCHAR ( 256 ),
