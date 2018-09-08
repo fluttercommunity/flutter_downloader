@@ -35,13 +35,9 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   final _documents = [
-//    {
-//      'name': 'Beginning Android Application Development',
-//      'link': 'http://www.kmvportal.co.in/Course/MAD/Android%20Book.pdf'
-//    },
     {
-      'name': 'Miss. Dang Thi Thu Thao',
-      'link': 'http://phunutieudung.vn/wp-content/uploads/2016/05/hoahauthuthao1.jpg'
+      'name': 'Learning Android Studio',
+      'link': 'http://barbra-coco.dyndns.org/student/learning_android_studio.pdf'
     },
     {
       'name': 'Android Programming Cookbook',
@@ -60,7 +56,44 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     }
   ];
 
+  final _images = [
+    {
+      'name': 'Arches National Park',
+      'link':
+          'https://upload.wikimedia.org/wikipedia/commons/6/60/The_Organ_at_Arches_National_Park_Utah_Corrected.jpg'
+    },
+    {
+      'name': 'Canyonlands National Park',
+      'link':
+          'https://upload.wikimedia.org/wikipedia/commons/7/78/Canyonlands_National_Park%E2%80%A6Needles_area_%286294480744%29.jpg'
+    },
+    {
+      'name': 'Death Valley National Park',
+      'link':
+          'https://upload.wikimedia.org/wikipedia/commons/b/b2/Sand_Dunes_in_Death_Valley_National_Park.jpg'
+    },
+    {
+      'name': 'Gates of the Arctic National Park and Preserve',
+      'link':
+          'https://upload.wikimedia.org/wikipedia/commons/e/e4/GatesofArctic.jpg'
+    }
+  ];
+
+  final _videos = [
+    {
+      'name': 'Big Buck Bunny',
+      'link':
+          'https://www.sample-videos.com/video/mp4/720/big_buck_bunny_720p_30mb.mp4'
+    },
+    {
+      'name': 'Star Trails',
+      'link':
+          'http://mirrors.standaloneinstaller.com/video-sample/star_trails.mp4'
+    }
+  ];
+
   List<_TaskInfo> _tasks;
+  List<_ItemHolder> _items;
   bool _isLoading;
   String _localPath;
 
@@ -95,64 +128,82 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                 )
               : new Container(
                   child: new ListView(
-                    children: _tasks
-                        .map((task) => new Container(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16.0),
-                              child: InkWell(
-                                onTap:
-                                    task.status == DownloadTaskStatus.complete
-                                        ? () {
-                                            _openDownloadedFile(task)
-                                                .then((success) {
-                                              if (!success) {
-                                                Scaffold.of(context)
-                                                    .showSnackBar(SnackBar(content: Text('Cannot open this file')));
-                                              }
-                                            });
-                                          }
-                                        : null,
-                                child: new Stack(
-                                  children: <Widget>[
-                                    new Container(
-                                      width: double.infinity,
-                                      height: 64.0,
-                                      child: new Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: <Widget>[
-                                          new Expanded(
-                                            child: new Text(
-                                              task.name,
-                                              maxLines: 1,
-                                              softWrap: true,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          new Padding(
-                                            padding: const EdgeInsets.only(
-                                                left: 8.0),
-                                            child: _buildActionForTask(task),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    task.status == DownloadTaskStatus.running ||
-                                            task.status ==
-                                                DownloadTaskStatus.paused
-                                        ? new Positioned(
-                                            left: 0.0,
-                                            right: 0.0,
-                                            bottom: 0.0,
-                                            child: new LinearProgressIndicator(
-                                              value: task.progress / 100,
-                                            ),
-                                          )
-                                        : new Container()
-                                  ].where((child) => child != null).toList(),
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    children: _items
+                        .map((item) => item.task == null
+                            ? new Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0, vertical: 8.0),
+                                child: Text(
+                                  item.name,
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue,
+                                      fontSize: 18.0),
                                 ),
-                              ),
-                            ))
+                              )
+                            : new Container(
+                                padding: const EdgeInsets.only(
+                                    left: 16.0, right: 8.0),
+                                child: InkWell(
+                                  onTap: item.task.status ==
+                                          DownloadTaskStatus.complete
+                                      ? () {
+                                          _openDownloadedFile(item.task)
+                                              .then((success) {
+                                            if (!success) {
+                                              Scaffold.of(context).showSnackBar(
+                                                  SnackBar(
+                                                      content: Text(
+                                                          'Cannot open this file')));
+                                            }
+                                          });
+                                        }
+                                      : null,
+                                  child: new Stack(
+                                    children: <Widget>[
+                                      new Container(
+                                        width: double.infinity,
+                                        height: 64.0,
+                                        child: new Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: <Widget>[
+                                            new Expanded(
+                                              child: new Text(
+                                                item.name,
+                                                maxLines: 1,
+                                                softWrap: true,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            new Padding(
+                                              padding: const EdgeInsets.only(
+                                                  left: 8.0),
+                                              child: _buildActionForTask(
+                                                  item.task),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      item.task.status ==
+                                                  DownloadTaskStatus.running ||
+                                              item.task.status ==
+                                                  DownloadTaskStatus.paused
+                                          ? new Positioned(
+                                              left: 0.0,
+                                              right: 0.0,
+                                              bottom: 0.0,
+                                              child:
+                                                  new LinearProgressIndicator(
+                                                value: item.task.progress / 100,
+                                              ),
+                                            )
+                                          : new Container()
+                                    ].where((child) => child != null).toList(),
+                                  ),
+                                ),
+                              ))
                         .toList(),
                   ),
                 )),
@@ -203,11 +254,9 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     } else if (task.status == DownloadTaskStatus.failed) {
       return Row(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
           new Text('Failed', style: new TextStyle(color: Colors.red)),
-          SizedBox(
-            width: 4.0,
-          ),
           RawMaterialButton(
             onPressed: () {
               _retryDownload(task);
@@ -216,6 +265,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
               Icons.refresh,
               color: Colors.green,
             ),
+            shape: new CircleBorder(),
+            constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
           )
         ],
       );
@@ -257,10 +308,37 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   Future<Null> _prepare() async {
     final tasks = await FlutterDownloader.loadTasks();
 
-    _tasks = _documents
-        .map((document) =>
-            _TaskInfo(name: document['name'], link: document['link']))
-        .toList();
+    int count = 0;
+    _tasks = [];
+    _items = [];
+
+    _tasks.addAll(_documents.map((document) =>
+        _TaskInfo(name: document['name'], link: document['link'])));
+
+    _items.add(_ItemHolder(name: 'Documents'));
+    for (int i = count; i < _tasks.length; i++) {
+      _items.add(_ItemHolder(name: _tasks[i].name, task: _tasks[i]));
+      count++;
+    }
+
+    _tasks.addAll(_images
+        .map((image) => _TaskInfo(name: image['name'], link: image['link'])));
+
+    _items.add(_ItemHolder(name: 'Images'));
+    for (int i = count; i < _tasks.length; i++) {
+      _items.add(_ItemHolder(name: _tasks[i].name, task: _tasks[i]));
+      count++;
+    }
+
+    _tasks.addAll(_videos
+        .map((video) => _TaskInfo(name: video['name'], link: video['link'])));
+
+    _items.add(_ItemHolder(name: 'Videos'));
+    for (int i = count; i < _tasks.length; i++) {
+      _items.add(_ItemHolder(name: _tasks[i].name, task: _tasks[i]));
+      count++;
+    }
+
     tasks?.forEach((task) {
       for (_TaskInfo info in _tasks) {
         if (info.link == task.url) {
@@ -293,4 +371,11 @@ class _TaskInfo {
   DownloadTaskStatus status = DownloadTaskStatus.undefined;
 
   _TaskInfo({this.name, this.link});
+}
+
+class _ItemHolder {
+  final String name;
+  final _TaskInfo task;
+
+  _ItemHolder({this.name, this.task});
 }
