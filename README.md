@@ -146,5 +146,13 @@ To retry a failed task:
 FlutterDownloader.retry(taskId: taskId);
 ````
 
+To open and preview a downloaded file:
+
+````dart
+FlutterDownloader.open(taskId: taskId);
+````
+
+- Note: in Android, you can only open a downloaded file if it is placed in the external storage and there's at least one application that can read that file type on your device.
+
 [1]: https://developer.android.com/topic/libraries/architecture/workmanager
 [2]: https://developer.apple.com/documentation/foundation/nsurlsessiondownloadtask?language=objc
