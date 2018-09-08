@@ -36,6 +36,7 @@
     BOOL _initialized;
     dispatch_queue_t _databaseQueue;
     NSMutableDictionary<NSString*, NSNumber*> *_progressOfTask;
+    NSString *_allFilesDownloadedMsg;
 }
 
 @end
@@ -53,6 +54,9 @@
     NSLog(@"methodCallHandler: %@", call.method);
     if ([@"initialize" isEqualToString:call.method]) {
         NSNumber *maxConcurrentTasks = call.arguments[KEY_MAX_CONCURRENT_TASKS];
+        NSDictionary *messages = call.arguments[KEY_MESSAGES];
+
+        _allFilesDownloadedMsg = messages[@"all_finished"];
 
         NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:[NSString stringWithFormat:@"%@.download.background.%f", NSBundle.mainBundle.bundleIdentifier, [[NSDate date] timeIntervalSince1970]]];
         sessionConfiguration.HTTPMaximumConnectionsPerHost = [maxConcurrentTasks intValue];
@@ -638,7 +642,7 @@
 
                     // Show a local notification when all downloads are over.
                     UILocalNotification *localNotification = [[UILocalNotification alloc] init];
-                    localNotification.alertBody = @"All files have been downloaded!";
+                    localNotification.alertBody = _allFilesDownloadedMsg;
                     [[UIApplication sharedApplication] presentLocalNotificationNow:localNotification];
                 }];
             }

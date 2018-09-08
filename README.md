@@ -98,7 +98,7 @@ final taskId = await FlutterDownloader.enqueue(
   url: 'your download link', 
   savedDir: 'the path of directory where you want to save downloaded files', 
   showNotification: true, // show download progress in status bar (for Android)
-  clickToOpenDownloadedFile: true, // click on notification to open downloaded file (for Android)
+  openFileFromNotification: true, // click on notification to open downloaded file (for Android)
 );
 ````
 
@@ -140,11 +140,15 @@ To resume a task:
 FlutterDownloader.resume(taskId: taskId);
 ````
 
+- Note: `resume()` will return a new `taskId` corresponding to a new background task that is created to continue the download process. You should replace the original `taskId` (that is marked as `paused` status) by this new `taskId` to continue tracking the download progress.
+
 To retry a failed task:
 
 ````dart
 FlutterDownloader.retry(taskId: taskId);
 ````
+
+- Note: `retry()` will return a new `taskId` (like `resume()`)
 
 To open and preview a downloaded file:
 

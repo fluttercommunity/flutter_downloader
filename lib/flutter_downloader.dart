@@ -54,7 +54,8 @@ enum DownloadMessage {
   canceled,
   failed,
   complete,
-  paused
+  paused,
+  all_finished
 }
 
 class FlutterDownloader {
@@ -71,6 +72,7 @@ class FlutterDownloader {
     dict['failed'] = messages[DownloadMessage.failed] ?? 'Download failed';
     dict['complete'] = messages[DownloadMessage.complete] ?? 'Download complete';
     dict['paused'] = messages[DownloadMessage.paused] ?? 'Download paused';
+    dict['all_finished'] = messages[DownloadMessage.all_finished] ?? 'All files have been downloaded';
     return await platform.invokeMethod('initialize', {'max_concurrent_tasks': maxConcurrentTasks, 'messages': dict});
   }
 
