@@ -466,10 +466,14 @@
 - (void)applicationWillTerminate:(nonnull UIApplication *)application
 {
     NSLog(@"applicationWillTerminate:");
-    [self cancelAllTasks];
+    for (NSString* key in _progressOfTask) {
+        [self updateTask:key status:STATUS_CANCELED progress:-1];
+    }
     _session = nil;
     _flutterChannel = nil;
     _dbManager = nil;
+    _databaseQueue = nil;
+    _progressOfTask = nil;
 }
 
 # pragma NSURLSessionTaskDelegate
