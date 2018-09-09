@@ -45,3 +45,12 @@
 * fix bugs: SQLite leak
 * new feature: support configuration of the maximum of concurrent download tasks
 * upgrade WorkManager to v1.0.0-alpha08
+
+## 1.0.0
+
+* **NEW** features: initialize, loadTasksWithRawQuery, pause, resume, retry, open
+* **IMPORTANT**: the plugin must be initialized by `initialize()` at first
+* **BREAKING CHANGE**: `clickToOpenDownloadedFile` now renames to `openFileFromNotification` (to prevent confusing from `open` feature)
+* full support SQLite on both Android and iOS side, the plugin now itself manages its states persistently and exposes `loadTasksWithRawQuery' api that helps developers to load tasks from SQLite database with customized conditions
+* support localizing Android notification messages with `messages` parameter of `initialize()` method
+* full support opening and previewing downloaded file with `open()` method   
