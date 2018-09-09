@@ -116,7 +116,7 @@ FlutterDownloader.registerCallback((id, status, progress) {
 final tasks = await FlutterDownloader.loadTasks();
 ````
 
-#### Load tasks with a condition:
+#### Load tasks with conditions:
 
 ````dart
 final tasks = await FlutterDownloader.loadTasksWithRawQuery(query: query);

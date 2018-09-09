@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
-import 'dart:convert';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
 void main() {
@@ -11,21 +11,27 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    final platform = Theme.of(context).platform;
+
     return new MaterialApp(
       title: 'Flutter Demo',
       theme: new ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: new MyHomePage(title: 'Downloader'),
+      home: new MyHomePage(
+        title: 'Downloader',
+        platform: platform,
+      ),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+  final TargetPlatform platform;
+
+  MyHomePage({Key key, this.title, this.platform}) : super(key: key);
 
   final String title;
 
@@ -37,7 +43,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   final _documents = [
     {
       'name': 'Learning Android Studio',
-      'link': 'http://barbra-coco.dyndns.org/student/learning_android_studio.pdf'
+      'link':
+          'http://barbra-coco.dyndns.org/student/learning_android_studio.pdf'
     },
     {
       'name': 'Android Programming Cookbook',
@@ -95,6 +102,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   List<_TaskInfo> _tasks;
   List<_ItemHolder> _items;
   bool _isLoading;
+  bool _permissisonReady;
   String _localPath;
 
   @override
@@ -112,6 +120,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     });
 
     _isLoading = true;
+    _permissisonReady = false;
+
     _prepare();
   }
 
@@ -126,87 +136,132 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
               ? new Center(
                   child: new CircularProgressIndicator(),
                 )
-              : new Container(
-                  child: new ListView(
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    children: _items
-                        .map((item) => item.task == null
-                            ? new Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 8.0),
-                                child: Text(
-                                  item.name,
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue,
-                                      fontSize: 18.0),
-                                ),
-                              )
-                            : new Container(
-                                padding: const EdgeInsets.only(
-                                    left: 16.0, right: 8.0),
-                                child: InkWell(
-                                  onTap: item.task.status ==
-                                          DownloadTaskStatus.complete
-                                      ? () {
-                                          _openDownloadedFile(item.task)
-                                              .then((success) {
-                                            if (!success) {
-                                              Scaffold.of(context).showSnackBar(
-                                                  SnackBar(
-                                                      content: Text(
-                                                          'Cannot open this file')));
+              : _permissisonReady
+                  ? new Container(
+                      child: new ListView(
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        children: _items
+                            .map((item) => item.task == null
+                                ? new Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0, vertical: 8.0),
+                                    child: Text(
+                                      item.name,
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue,
+                                          fontSize: 18.0),
+                                    ),
+                                  )
+                                : new Container(
+                                    padding: const EdgeInsets.only(
+                                        left: 16.0, right: 8.0),
+                                    child: InkWell(
+                                      onTap: item.task.status ==
+                                              DownloadTaskStatus.complete
+                                          ? () {
+                                              _openDownloadedFile(item.task)
+                                                  .then((success) {
+                                                if (!success) {
+                                                  Scaffold.of(context)
+                                                      .showSnackBar(SnackBar(
+                                                          content: Text(
+                                                              'Cannot open this file')));
+                                                }
+                                              });
                                             }
-                                          });
-                                        }
-                                      : null,
-                                  child: new Stack(
-                                    children: <Widget>[
-                                      new Container(
-                                        width: double.infinity,
-                                        height: 64.0,
-                                        child: new Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
-                                          children: <Widget>[
-                                            new Expanded(
-                                              child: new Text(
-                                                item.name,
-                                                maxLines: 1,
-                                                softWrap: true,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
+                                          : null,
+                                      child: new Stack(
+                                        children: <Widget>[
+                                          new Container(
+                                            width: double.infinity,
+                                            height: 64.0,
+                                            child: new Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.center,
+                                              children: <Widget>[
+                                                new Expanded(
+                                                  child: new Text(
+                                                    item.name,
+                                                    maxLines: 1,
+                                                    softWrap: true,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                new Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                          left: 8.0),
+                                                  child: _buildActionForTask(
+                                                      item.task),
+                                                ),
+                                              ],
                                             ),
-                                            new Padding(
-                                              padding: const EdgeInsets.only(
-                                                  left: 8.0),
-                                              child: _buildActionForTask(
-                                                  item.task),
-                                            ),
-                                          ],
-                                        ),
+                                          ),
+                                          item.task.status ==
+                                                      DownloadTaskStatus
+                                                          .running ||
+                                                  item.task.status ==
+                                                      DownloadTaskStatus.paused
+                                              ? new Positioned(
+                                                  left: 0.0,
+                                                  right: 0.0,
+                                                  bottom: 0.0,
+                                                  child:
+                                                      new LinearProgressIndicator(
+                                                    value: item.task.progress /
+                                                        100,
+                                                  ),
+                                                )
+                                              : new Container()
+                                        ]
+                                            .where((child) => child != null)
+                                            .toList(),
                                       ),
-                                      item.task.status ==
-                                                  DownloadTaskStatus.running ||
-                                              item.task.status ==
-                                                  DownloadTaskStatus.paused
-                                          ? new Positioned(
-                                              left: 0.0,
-                                              right: 0.0,
-                                              bottom: 0.0,
-                                              child:
-                                                  new LinearProgressIndicator(
-                                                value: item.task.progress / 100,
-                                              ),
-                                            )
-                                          : new Container()
-                                    ].where((child) => child != null).toList(),
-                                  ),
-                                ),
-                              ))
-                        .toList(),
-                  ),
-                )),
+                                    ),
+                                  ))
+                            .toList(),
+                      ),
+                    )
+                  : new Container(
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24.0),
+                              child: Text(
+                                'Please grant accessing storage permission to continue -_-',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    color: Colors.blueGrey, fontSize: 18.0),
+                              ),
+                            ),
+                            SizedBox(
+                              height: 32.0,
+                            ),
+                            FlatButton(
+                                onPressed: () {
+                                  _checkPermission().then((hasGranted) {
+                                    setState(() {
+                                      _permissisonReady = hasGranted;
+                                    });
+                                  });
+                                },
+                                child: Text(
+                                  'Retry',
+                                  style: TextStyle(
+                                      color: Colors.blue,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 20.0),
+                                ))
+                          ],
+                        ),
+                      ),
+                    )),
     );
   }
 
@@ -305,6 +360,26 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     return FlutterDownloader.open(taskId: task.taskId);
   }
 
+  Future<bool> _checkPermission() async {
+    if (widget.platform == TargetPlatform.android) {
+      PermissionStatus permission = await PermissionHandler()
+          .checkPermissionStatus(PermissionGroup.storage);
+      if (permission != PermissionStatus.granted) {
+        Map<PermissionGroup, PermissionStatus> permissions =
+            await PermissionHandler()
+                .requestPermissions([PermissionGroup.storage]);
+        if (permissions[PermissionGroup.storage] == PermissionStatus.granted) {
+          return true;
+        }
+      } else {
+        return true;
+      }
+    } else {
+      return true;
+    }
+    return false;
+  }
+
   Future<Null> _prepare() async {
     final tasks = await FlutterDownloader.loadTasks();
 
@@ -349,17 +424,27 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       }
     });
 
-    _localPath = await _findLocalPath();
+    _permissisonReady = await _checkPermission();
+
+    _localPath = (await _findLocalPath()) + '/Download';
+
+    final savedDir = Directory(_localPath);
+    bool hasExisted = await savedDir.exists();
+    if (!hasExisted) {
+      savedDir.create();
+    }
 
     setState(() {
       _isLoading = false;
     });
   }
-}
 
-Future<String> _findLocalPath() async {
-  final directory = await getApplicationDocumentsDirectory();
-  return directory.path;
+  Future<String> _findLocalPath() async {
+    final directory = widget.platform == TargetPlatform.android
+        ? await getExternalStorageDirectory()
+        : await getApplicationDocumentsDirectory();
+    return directory.path;
+  }
 }
 
 class _TaskInfo {
