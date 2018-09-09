@@ -60,6 +60,16 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       'name': 'Objective-C Programming (Pre-Course Workbook',
       'link':
           'https://www.bignerdranch.com/documents/objective-c-prereading-assignment.pdf'
+    },
+    {
+      'name': 'Authentication Test',
+      'link': 'https://postman-echo.com/basic-auth',
+      'headers': {'Authorization': 'Basic cG9zdG1hbjpwYXNzd29yZA=='}
+    },
+    {
+      'name': 'Authentication Test - wrong pw',
+      'link': 'https://postman-echo.com/basic-auth',
+      'headers': {'Authorization': 'Basic xxx'}
     }
   ];
 
@@ -268,6 +278,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   Widget _buildActionForTask(_TaskInfo task) {
     if (task.status == DownloadTaskStatus.undefined) {
       return new RawMaterialButton(
+        key: new Key('download-${task.name}'),
         onPressed: () {
           _requestDownload(task);
         },
@@ -277,6 +288,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       );
     } else if (task.status == DownloadTaskStatus.running) {
       return new RawMaterialButton(
+        key: new Key('pause-${task.name}'),
         onPressed: () {
           _pauseDownload(task);
         },
@@ -289,6 +301,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       );
     } else if (task.status == DownloadTaskStatus.paused) {
       return new RawMaterialButton(
+        key: new Key('resume-${task.name}'),
         onPressed: () {
           _resumeDownload(task);
         },
@@ -302,17 +315,23 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     } else if (task.status == DownloadTaskStatus.complete) {
       return new Text(
         'Ready',
+        key: Key('ready-${task.name}'),
         style: new TextStyle(color: Colors.green),
       );
     } else if (task.status == DownloadTaskStatus.canceled) {
-      return new Text('Canceled', style: new TextStyle(color: Colors.red));
+      return new Text('Canceled',
+          key: Key('canceled-${task.name}'),
+          style: TextStyle(color: Colors.red));
     } else if (task.status == DownloadTaskStatus.failed) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          new Text('Failed', style: new TextStyle(color: Colors.red)),
+          new Text('Failed',
+              key: new Key('failed-${task.name}'),
+              style: new TextStyle(color: Colors.red)),
           RawMaterialButton(
+            key: new Key('retry-${task.name}'),
             onPressed: () {
               _retryDownload(task);
             },
@@ -335,6 +354,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         url: task.link,
         savedDir: _localPath,
         showNotification: true,
+        headers: task.headers,
         openFileFromNotification: false);
   }
 
@@ -387,8 +407,10 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     _tasks = [];
     _items = [];
 
-    _tasks.addAll(_documents.map((document) =>
-        _TaskInfo(name: document['name'], link: document['link'])));
+    _tasks.addAll(_documents.map((document) => _TaskInfo(
+        name: document['name'],
+        link: document['link'],
+        headers: document['headers'])));
 
     _items.add(_ItemHolder(name: 'Documents'));
     for (int i = count; i < _tasks.length; i++) {
@@ -450,12 +472,13 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
 class _TaskInfo {
   final String name;
   final String link;
+  final Map<String, String> headers;
 
   String taskId;
   int progress = 0;
   DownloadTaskStatus status = DownloadTaskStatus.undefined;
 
-  _TaskInfo({this.name, this.link});
+  _TaskInfo({this.name, this.link, this.headers});
 }
 
 class _ItemHolder {
