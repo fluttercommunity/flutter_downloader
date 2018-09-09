@@ -101,7 +101,7 @@ class FlutterDownloader {
       headerBuilder.write('{');
       headerBuilder.writeAll(
           headers.entries
-              .map((entry) => '\"${entry.key}\": \"${entry.value}\"'),
+              .map((entry) => '${entry.key}: ${entry.value}'),
           ',');
       headerBuilder.write('}');
     }
