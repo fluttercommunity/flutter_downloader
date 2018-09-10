@@ -1,13 +1,14 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:path_provider/path_provider.dart';
-import 'package:flutter_downloader/flutter_downloader.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   FlutterDownloader.initialize(maxConcurrentTasks: 3);
-  runApp(new MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -15,12 +16,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final platform = Theme.of(context).platform;
 
-    return new MaterialApp(
+    return MaterialApp(
       title: 'Flutter Demo',
-      theme: new ThemeData(
+      theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: new MyHomePage(
+      home: MyHomePage(
         title: 'Downloader',
         platform: platform,
       ),
@@ -36,7 +37,7 @@ class MyHomePage extends StatefulWidget {
   final String title;
 
   @override
-  _MyHomePageState createState() => new _MyHomePageState();
+  _MyHomePageState createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
@@ -137,22 +138,22 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return new Scaffold(
-      appBar: new AppBar(
-        title: new Text(widget.title),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
       ),
       body: Builder(
           builder: (context) => _isLoading
-              ? new Center(
-                  child: new CircularProgressIndicator(),
+              ? Center(
+                  child: CircularProgressIndicator(),
                 )
               : _permissisonReady
-                  ? new Container(
-                      child: new ListView(
+                  ? Container(
+                      child: ListView(
                         padding: const EdgeInsets.symmetric(vertical: 16.0),
                         children: _items
                             .map((item) => item.task == null
-                                ? new Container(
+                                ? Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 16.0, vertical: 8.0),
                                     child: Text(
@@ -163,7 +164,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                                           fontSize: 18.0),
                                     ),
                                   )
-                                : new Container(
+                                : Container(
                                     padding: const EdgeInsets.only(
                                         left: 16.0, right: 8.0),
                                     child: InkWell(
@@ -181,17 +182,17 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                                               });
                                             }
                                           : null,
-                                      child: new Stack(
+                                      child: Stack(
                                         children: <Widget>[
-                                          new Container(
+                                          Container(
                                             width: double.infinity,
                                             height: 64.0,
-                                            child: new Row(
+                                            child: Row(
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.center,
                                               children: <Widget>[
-                                                new Expanded(
-                                                  child: new Text(
+                                                Expanded(
+                                                  child: Text(
                                                     item.name,
                                                     maxLines: 1,
                                                     softWrap: true,
@@ -199,7 +200,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                                                         TextOverflow.ellipsis,
                                                   ),
                                                 ),
-                                                new Padding(
+                                                Padding(
                                                   padding:
                                                       const EdgeInsets.only(
                                                           left: 8.0),
@@ -214,17 +215,17 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                                                           .running ||
                                                   item.task.status ==
                                                       DownloadTaskStatus.paused
-                                              ? new Positioned(
+                                              ? Positioned(
                                                   left: 0.0,
                                                   right: 0.0,
                                                   bottom: 0.0,
                                                   child:
-                                                      new LinearProgressIndicator(
+                                                      LinearProgressIndicator(
                                                     value: item.task.progress /
                                                         100,
                                                   ),
                                                 )
-                                              : new Container()
+                                              : Container()
                                         ]
                                             .where((child) => child != null)
                                             .toList(),
@@ -234,7 +235,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                             .toList(),
                       ),
                     )
-                  : new Container(
+                  : Container(
                       child: Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -277,49 +278,49 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
 
   Widget _buildActionForTask(_TaskInfo task) {
     if (task.status == DownloadTaskStatus.undefined) {
-      return new RawMaterialButton(
-        key: new Key('download-${task.name}'),
+      return RawMaterialButton(
+        key: Key('download-${task.name}'),
         onPressed: () {
           _requestDownload(task);
         },
-        child: new Icon(Icons.file_download),
-        shape: new CircleBorder(),
-        constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
+        child: Icon(Icons.file_download),
+        shape: CircleBorder(),
+        constraints: BoxConstraints(minHeight: 32.0, minWidth: 32.0),
       );
     } else if (task.status == DownloadTaskStatus.running) {
-      return new RawMaterialButton(
-        key: new Key('pause-${task.name}'),
+      return RawMaterialButton(
+        key: Key('pause-${task.name}'),
         onPressed: () {
           _pauseDownload(task);
         },
-        child: new Icon(
+        child: Icon(
           Icons.pause,
           color: Colors.red,
         ),
-        shape: new CircleBorder(),
-        constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
+        shape: CircleBorder(),
+        constraints: BoxConstraints(minHeight: 32.0, minWidth: 32.0),
       );
     } else if (task.status == DownloadTaskStatus.paused) {
-      return new RawMaterialButton(
-        key: new Key('resume-${task.name}'),
+      return RawMaterialButton(
+        key: Key('resume-${task.name}'),
         onPressed: () {
           _resumeDownload(task);
         },
-        child: new Icon(
+        child: Icon(
           Icons.play_arrow,
           color: Colors.green,
         ),
-        shape: new CircleBorder(),
-        constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
+        shape: CircleBorder(),
+        constraints: BoxConstraints(minHeight: 32.0, minWidth: 32.0),
       );
     } else if (task.status == DownloadTaskStatus.complete) {
-      return new Text(
+      return Text(
         'Ready',
         key: Key('ready-${task.name}'),
-        style: new TextStyle(color: Colors.green),
+        style: TextStyle(color: Colors.green),
       );
     } else if (task.status == DownloadTaskStatus.canceled) {
-      return new Text('Canceled',
+      return Text('Canceled',
           key: Key('canceled-${task.name}'),
           style: TextStyle(color: Colors.red));
     } else if (task.status == DownloadTaskStatus.failed) {
@@ -327,11 +328,11 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          new Text('Failed',
-              key: new Key('failed-${task.name}'),
-              style: new TextStyle(color: Colors.red)),
+          Text('Failed',
+              key: Key('failed-${task.name}'),
+              style: TextStyle(color: Colors.red)),
           RawMaterialButton(
-            key: new Key('retry-${task.name}'),
+            key: Key('retry-${task.name}'),
             onPressed: () {
               _retryDownload(task);
             },
@@ -339,8 +340,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
               Icons.refresh,
               color: Colors.green,
             ),
-            shape: new CircleBorder(),
-            constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
+            shape: CircleBorder(),
+            constraints: BoxConstraints(minHeight: 32.0, minWidth: 32.0),
           )
         ],
       );
