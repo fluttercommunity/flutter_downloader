@@ -19,6 +19,8 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 <p>
     <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/add_sqlite_1.png?raw=true" />
+</p>
+<p style="margin-top:30;">
     <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/add_sqlite_2.png?raw=true" />
 </p>
 
@@ -124,13 +126,13 @@ final tasks = await FlutterDownloader.loadTasksWithRawQuery(query: query);
 
 - Note: In order to parse data into `DownloadTask` object successfully, you should load data with all fields from DB (in the other word, use: `SELECT *` ). For example:
 
-````sqlite3
+````SQL
 SELECT * FROM task WHERE status=3
 ````
 
 - Note: the following is the schema of `task` table where this plugin stores tasks information
 
-````sqlite3
+````SQL
 CREATE TABLE `task` (
 	`id`	INTEGER PRIMARY KEY AUTOINCREMENT,
 	`task_id`	VARCHAR ( 256 ),
