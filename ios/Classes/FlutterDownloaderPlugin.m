@@ -55,16 +55,19 @@
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSLog(@"methodCallHandler: %@", call.method);
     if ([@"initialize" isEqualToString:call.method]) {
-        NSNumber *maxConcurrentTasks = call.arguments[KEY_MAX_CONCURRENT_TASKS];
-        NSDictionary *messages = call.arguments[KEY_MESSAGES];
+        if (!_initialized) {
+            NSNumber *maxConcurrentTasks = call.arguments[KEY_MAX_CONCURRENT_TASKS];
+            NSDictionary *messages = call.arguments[KEY_MESSAGES];
 
-        _allFilesDownloadedMsg = messages[@"all_finished"];
+            _allFilesDownloadedMsg = messages[@"all_finished"];
 
-        NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:[NSString stringWithFormat:@"%@.download.background.%f", NSBundle.mainBundle.bundleIdentifier, [[NSDate date] timeIntervalSince1970]]];
-        sessionConfiguration.HTTPMaximumConnectionsPerHost = [maxConcurrentTasks intValue];
-        _session = [NSURLSession sessionWithConfiguration:sessionConfiguration delegate:self delegateQueue:nil];
-        NSLog(@"init NSURLSession with id: %@", [[_session configuration] identifier]);
-        _initialized = YES;
+            NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:[NSString stringWithFormat:@"%@.download.background.%f", NSBundle.mainBundle.bundleIdentifier, [[NSDate date] timeIntervalSince1970]]];
+            sessionConfiguration.HTTPMaximumConnectionsPerHost = [maxConcurrentTasks intValue];
+            _session = [NSURLSession sessionWithConfiguration:sessionConfiguration delegate:self delegateQueue:nil];
+            NSLog(@"init NSURLSession with id: %@", [[_session configuration] identifier]);
+            _initialized = YES;
+        }
+        result([NSNull null]);
     } else if ([@"enqueue" isEqualToString:call.method]) {
         if (_initialized) {
             NSString *urlString = call.arguments[KEY_URL];
