@@ -107,15 +107,18 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
 
     @Override
     public void onMethodCall(MethodCall call, MethodChannel.Result result) {
-        if (call.method.equals("initialize") && !initialized) {
-            int maximumConcurrentTask = call.argument("max_concurrent_tasks");
-            messages = call.argument("messages");
+        if (call.method.equals("initialize")) {
+            if (!initialized) {
+                int maximumConcurrentTask = call.argument("max_concurrent_tasks");
+                messages = call.argument("messages");
 
-            WorkManager.initialize(context, new Configuration.Builder()
-                    .setExecutor(Executors.newFixedThreadPool(maximumConcurrentTask))
-                    .build());
+                WorkManager.initialize(context, new Configuration.Builder()
+                        .setExecutor(Executors.newFixedThreadPool(maximumConcurrentTask))
+                        .build());
 
-            initialized = true;
+                initialized = true;
+            }
+            result.success(null);
         } else if (call.method.equals("enqueue")) {
             if (initialized) {
                 String url = call.argument("url");
