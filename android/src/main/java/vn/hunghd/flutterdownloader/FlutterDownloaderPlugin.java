@@ -234,7 +234,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                 String taskId = call.argument("task_id");
                 DownloadTask task = taskDao.loadTask(taskId);
                 if (task != null) {
-                    if (task.status == DownloadStatus.FAILED) {
+                    if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
                         WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, false);
                         String newTaskId = request.getId().toString();
                         result.success(newTaskId);
@@ -242,7 +242,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
                         taskDao.updateTask(taskId, newTaskId, DownloadStatus.ENQUEUED, task.progress, false);
                         WorkManager.getInstance().enqueue(request);
                     } else {
-                        result.error("invalid_status", "only failed task can be retried", null);
+                        result.error("invalid_status", "only failed and canceled task can be retried", null);
                     }
                 } else {
                     result.error("invalid_task_id", "not found task corresponding to given task id", null);

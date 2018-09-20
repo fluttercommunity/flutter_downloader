@@ -494,7 +494,7 @@
             NSDictionary* taskDict = [self loadTaskWithId:taskId];
             if (taskDict != nil) {
                 NSNumber* status = taskDict[KEY_STATUS];
-                if ([status intValue] == STATUS_FAILED) {
+                if ([status intValue] == STATUS_FAILED || [status intValue] == STATUS_CANCELED) {
                     NSString *urlString = taskDict[KEY_URL];
                     NSString *savedDir = taskDict[KEY_SAVED_DIR];
                     NSString *fileName = taskDict[KEY_FILE_NAME];
@@ -518,7 +518,7 @@
                     [self sendUpdateProgressForTaskId:newTaskId inStatus:@(STATUS_ENQUEUED) andProgress:@(0)];
                 } else {
                     result([FlutterError errorWithCode:@"invalid_status"
-                                               message:@"only failed task can be retried"
+                                               message:@"only failed and canceled task can be retried"
                                                details:nil]);
                 }
             } else {

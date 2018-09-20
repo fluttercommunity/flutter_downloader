@@ -34,5 +34,5 @@ android {
 }
 
 dependencies {
-    api "android.arch.work:work-runtime:1.0.0-alpha08"
+    api "android.arch.work:work-runtime:1.0.0-alpha09"
 }
