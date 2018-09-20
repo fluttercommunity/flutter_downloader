@@ -1,3 +1,7 @@
+## 1.0.2 - 20.09.2018
+
+* Fixed Flutter Community badge.
+
 ## 1.0.1 - 20.09.2018
 
 * Moved package to [Flutter Community](https://github.com/fluttercommunity)
