@@ -4,7 +4,7 @@ version: 1.0.0
 authors:
  - Flutter Community <community@flutter.zone>
  - Hung Duy Ha <hunghd.yb@gmail.com>
-homepage: https://github.com/hnvn/flutter_downloader
+homepage: https://github.com/fluttercommunity/flutter_downloader
 maintainer: Hung Duy Ha (@hnvn)
 
 environment:
