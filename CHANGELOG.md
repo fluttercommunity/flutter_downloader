@@ -1,3 +1,7 @@
+## 1.0.3 - 29.09.2018
+
+* Android: upgrade compile sdk version to 28
+
 ## 1.0.2 - 20.09.2018
 
 * Fixed Flutter Community badge.
