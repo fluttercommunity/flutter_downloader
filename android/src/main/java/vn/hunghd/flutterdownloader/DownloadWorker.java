@@ -26,6 +26,7 @@ import java.net.URL;
 import java.util.Iterator;
 
 import androidx.work.Worker;
+import androidx.work.WorkerParameters;
 
 public class DownloadWorker extends Worker {
     public static final String UPDATE_PROCESS_EVENT = "vn.hunghd.flutterdownloader.UPDATE_PROCESS_EVENT";
@@ -63,6 +64,11 @@ public class DownloadWorker extends Worker {
     private int lastProgress = 0;
     private int primaryId;
     private String msgStarted, msgInProgress, msgCanceled, msgFailed, msgPaused, msgComplete;
+
+    public DownloadWorker(@NonNull Context context,
+                          @NonNull WorkerParameters params) {
+        super(context, params);
+    }
 
     @NonNull
     @Override

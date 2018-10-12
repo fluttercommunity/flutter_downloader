@@ -34,6 +34,7 @@ android {
 }
 
 dependencies {
-    api "android.arch.lifecycle:runtime:1.1.1"
-    api "android.arch.work:work-runtime:1.0.0-alpha09"
+    implementation("android.arch.work:work-runtime:1.0.0-alpha10"){
+        exclude group: 'com.google.guava', module: 'listenablefuture'
+    }
 }
