@@ -1,3 +1,7 @@
+## 1.0.4 -20.10.2018
+
+* Android: upgrade WorkManager to v1.0.0-alpha10
+
 ## 1.0.3 - 29.09.2018
 
 * Android: upgrade compile sdk version to 28
