@@ -1,4 +1,8 @@
-## 1.0.4 -20.10.2018
+## 1.0.5 - 22.10.2018
+
+* Android: re-config dependencies
+
+## 1.0.4 - 20.10.2018
 
 * Android: upgrade WorkManager to v1.0.0-alpha10
 
