@@ -28,13 +28,14 @@ import androidx.work.NetworkType;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
+import io.flutter.app.FlutterActivity;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.PluginRegistry;
 
-public class FlutterDownloaderPlugin implements MethodCallHandler {
+public class FlutterDownloaderPlugin implements MethodCallHandler, Application.ActivityLifecycleCallbacks {
     private static final String CHANNEL = "vn.hunghd/downloader";
     private static final String TAG = "flutter_download_task";
 
@@ -66,43 +67,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
     @SuppressLint("NewApi")
     public static void registerWith(PluginRegistry.Registrar registrar) {
         final FlutterDownloaderPlugin plugin = new FlutterDownloaderPlugin(registrar.context(), registrar.messenger());
-        registrar.activity().getApplication()
-                .registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
-                    @Override
-                    public void onActivityCreated(Activity activity, Bundle bundle) {
-
-                    }
-
-                    @Override
-                    public void onActivityStarted(Activity activity) {
-                        plugin.onStart(activity);
-                    }
-
-                    @Override
-                    public void onActivityResumed(Activity activity) {
-
-                    }
-
-                    @Override
-                    public void onActivityPaused(Activity activity) {
-
-                    }
-
-                    @Override
-                    public void onActivityStopped(Activity activity) {
-                        plugin.onStop(activity);
-                    }
-
-                    @Override
-                    public void onActivitySaveInstanceState(Activity activity, Bundle bundle) {
-
-                    }
-
-                    @Override
-                    public void onActivityDestroyed(Activity activity) {
-
-                    }
-                });
+        registrar.activity().getApplication().registerActivityLifecycleCallbacks(plugin);
     }
 
     @Override
@@ -284,15 +249,44 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
         }
     }
 
-    private void onStart(Context context) {
-        LocalBroadcastManager.getInstance(context)
-                .registerReceiver(updateProcessEventReceiver,
-                        new IntentFilter(DownloadWorker.UPDATE_PROCESS_EVENT));
+    @Override
+    public void onActivityCreated(Activity activity, Bundle bundle) {
+
     }
 
-    private void onStop(Context context) {
-        LocalBroadcastManager.getInstance(context)
-                .unregisterReceiver(updateProcessEventReceiver);
+    @Override
+    public void onActivityStarted(Activity activity) {
+        if (activity instanceof FlutterActivity) {
+            LocalBroadcastManager.getInstance(context).registerReceiver(updateProcessEventReceiver,
+                    new IntentFilter(DownloadWorker.UPDATE_PROCESS_EVENT));
+        }
+    }
+
+    @Override
+    public void onActivityResumed(Activity activity) {
+
+    }
+
+    @Override
+    public void onActivityPaused(Activity activity) {
+
+    }
+
+    @Override
+    public void onActivityStopped(Activity activity) {
+        if (activity instanceof FlutterActivity) {
+            LocalBroadcastManager.getInstance(context).unregisterReceiver(updateProcessEventReceiver);
+        }
+    }
+
+    @Override
+    public void onActivitySaveInstanceState(Activity activity, Bundle bundle) {
+
+    }
+
+    @Override
+    public void onActivityDestroyed(Activity activity) {
+
     }
 
     private WorkRequest buildRequest(String url, String savedDir, String filename, String headers, boolean showNotification, boolean openFileFromNotification, boolean isResume) {
