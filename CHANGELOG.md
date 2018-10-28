@@ -1,3 +1,7 @@
+## 1.0.6 - 28.10.2018
+
+* fix bug related to `filename`
+
 ## 1.0.5 - 22.10.2018
 
 * Android: re-config dependencies

@@ -168,7 +168,7 @@ public class DownloadWorker extends Worker {
                 Log.d(TAG, "Content-Length = " + contentLength);
                 Log.d(TAG, "fileName = " + filename);
 
-                taskDao.updateTask(getId().toString(), contentType);
+                taskDao.updateTask(getId().toString(), filename, contentType);
 
                 // opens input stream from the HTTP connection
                 inputStream = httpConn.getInputStream();

@@ -76,7 +76,7 @@
     return _session;
 }
 
-- (NSString*)downloadTaskWithURL: (NSURL*) url fileName: (NSString*) fileName andSavedDir: (NSString*) savedDir andHeaders: (NSString*) headers
+- (NSURLSessionDownloadTask*)downloadTaskWithURL: (NSURL*) url fileName: (NSString*) fileName andSavedDir: (NSString*) savedDir andHeaders: (NSString*) headers
 {
     NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:url];
     if (headers != nil && [headers length] > 0) {
@@ -91,10 +91,9 @@
         }
     }
     NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithRequest:request];
-    NSString *taskId = [self identifierForTask:task];
     [task resume];
 
-    return taskId;
+    return task;
 }
 
 - (NSString*)identifierForTask:(NSURLSessionDownloadTask*) task
@@ -212,9 +211,9 @@
     NSString *url = dict[KEY_URL];
     NSString *savedDir = dict[KEY_SAVED_DIR];
     NSString *filename = dict[KEY_FILE_NAME];
-    if (filename == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: filename]) {
-        filename = [NSURL URLWithString:url].lastPathComponent;
-    }
+//    if (filename == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: filename]) {
+//        filename = [NSURL URLWithString:url].lastPathComponent;
+//    }
     NSURL *savedDirURL = [NSURL fileURLWithPath:savedDir];
     return [savedDirURL URLByAppendingPathComponent:filename];
 }
@@ -371,7 +370,17 @@
             NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
             NSNumber *openFileFromNotification = call.arguments[KEY_OPEN_FILE_FROM_NOTIFICATION];
 
-            NSString *taskId = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
+            NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
+
+            NSString *taskId = [self identifierForTask:task];
+
+            // if filename is not given, we try to extract it from http response or url
+            if (fileName == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: fileName]) {
+                fileName = task.response.suggestedFilename;
+                if (fileName == nil) {
+                    fileName = [NSURL URLWithString:urlString].lastPathComponent;
+                }
+            }
 
             [_runningTaskById setObject: [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                           urlString, KEY_URL,
@@ -500,14 +509,15 @@
                     NSString *fileName = taskDict[KEY_FILE_NAME];
                     NSString *headers = taskDict[KEY_HEADERS];
 
-                    NSString *newTaskId = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
+                    NSURLSessionDownloadTask *newTask = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
+                    NSString *newTaskId = [self identifierForTask:newTask];
 
                     // update memory-cache
-                    NSMutableDictionary *newTask = [NSMutableDictionary dictionaryWithDictionary:taskDict];
-                    newTask[KEY_STATUS] = @(STATUS_ENQUEUED);
-                    newTask[KEY_PROGRESS] = @(0);
-                    newTask[KEY_RESUMABLE] = @(NO);
-                    [_runningTaskById setObject:newTask forKey:newTaskId];
+                    NSMutableDictionary *newTaskDict = [NSMutableDictionary dictionaryWithDictionary:taskDict];
+                    newTaskDict[KEY_STATUS] = @(STATUS_ENQUEUED);
+                    newTaskDict[KEY_PROGRESS] = @(0);
+                    newTaskDict[KEY_RESUMABLE] = @(NO);
+                    [_runningTaskById setObject:newTaskDict forKey:newTaskId];
                     [_runningTaskById removeObjectForKey:taskId];
 
                     __weak id weakSelf = self;
