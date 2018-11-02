@@ -23,6 +23,8 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 
 import androidx.work.Worker;
@@ -125,16 +127,13 @@ public class DownloadWorker extends Worker {
         HttpURLConnection httpConn = null;
         InputStream inputStream = null;
         FileOutputStream outputStream = null;
-
-        if (filename == null) {
-            filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
-        }
-        String saveFilePath = savedDir + File.separator + filename;
+        String saveFilePath = null;
         long downloadedBytes = 0;
 
         try {
             httpConn = (HttpURLConnection) url.openConnection();
 
+            // setup request headers if it is set
             if (!TextUtils.isEmpty(headers)) {
                 Log.d(TAG, "Headers = " + headers);
                 try {
@@ -148,7 +147,13 @@ public class DownloadWorker extends Worker {
                     e.printStackTrace();
                 }
             }
+
+            // try to continue downloading a file from its partial downloaded data.
             if (isResume) {
+                if (filename == null) {
+                    filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
+                }
+                saveFilePath = savedDir + File.separator + filename;
                 File partialFile = new File(saveFilePath);
                 downloadedBytes = partialFile.length();
                 Log.d(TAG, "Resume download: Range: bytes=" + downloadedBytes + "-");
@@ -163,9 +168,22 @@ public class DownloadWorker extends Worker {
             if ((responseCode == HttpURLConnection.HTTP_OK || (isResume && responseCode == HttpURLConnection.HTTP_PARTIAL)) && !isStopped() && !isCancelled()) {
                 String contentType = httpConn.getContentType();
                 int contentLength = httpConn.getContentLength();
-
                 Log.d(TAG, "Content-Type = " + contentType);
                 Log.d(TAG, "Content-Length = " + contentLength);
+
+                // try to extract filename from HTTP headers if it is not given by user
+                if (!isResume && filename == null) {
+                    String disposition = httpConn.getHeaderField("Content-Disposition");
+                    Log.d(TAG, "Content-Disposition = " + disposition);
+                    if (disposition != null && !disposition.isEmpty()) {
+                        String name = disposition.replaceFirst("(?i)^.*filename=\"?([^\"]+)\"?.*$", "$1");
+                        filename = URLDecoder.decode(name, "ISO-8859-1");
+                    }
+                    if (filename == null || filename.isEmpty()) {
+                        filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
+                    }
+                    saveFilePath = savedDir + File.separator + filename;
+                }
                 Log.d(TAG, "fileName = " + filename);
 
                 taskDao.updateTask(getId().toString(), filename, contentType);
