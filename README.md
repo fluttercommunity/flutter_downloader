@@ -11,7 +11,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 ## iOS integration
 
-#### Required configuration
+### Required configuration
 
 **Note:** following steps requires to open your `ios` project in Xcode.
 
@@ -30,11 +30,11 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 ___
 
-#### Optional configuration
+### Optional configuration
 
 * **Support HTTP request:** if you want to download file with HTTP request, you need to disable Apple Transport Security (ATS) feature. There're two options:
 
-..* Disable ATS for a specific domain only: (add following codes to your `Info.plist` file)
+1. Disable ATS for a specific domain only: (add following codes to your `Info.plist` file)
 
 ````xml
 <key>NSAppTransportSecurity</key>
@@ -57,7 +57,7 @@ ___
 </dict>
 ````
 
-..* Completely disable ATS: (add following codes to your `Info.plist` file)
+2. Completely disable ATS: (add following codes to your `Info.plist` file)
 
 ````xml
 <key>NSAppTransportSecurity</key>
@@ -83,7 +83,7 @@ ___
 
 ## Android integration
 
-#### Required configuration
+### Required configuration
 
 * In order to handle click action on notification to open the downloaded file on Android, you need to add some additional configurations. Add the following codes to your `AndroidManifest.xml`:
 
@@ -104,7 +104,7 @@ ___
  - The downloaded files are only able to be opened if your device has at least an application that can read these file types (mp3, pdf, etc)
 ___
 
-#### Optional configuration
+### Optional configuration
 
 * **Configure maximum number of concurrent tasks:** the plugin depends on `WorkManager` library and `WorkManager` depends on the number of available processor to configure the maximum number of tasks running at a moment. You can setup a fixed number for this configuration by adding following codes to your `AndroidManifest.xml`:
 
