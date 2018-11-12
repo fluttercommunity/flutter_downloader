@@ -12,7 +12,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 ## iOS integration
 
-### Required configuration
+### Required configuration:
 
 **Note:** following steps requires to open your `ios` project in Xcode.
 
@@ -31,7 +31,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 
 
-### Optional configuration
+### Optional configuration:
 
 * **Support HTTP request:** if you want to download file with HTTP request, you need to disable Apple Transport Security (ATS) feature. There're two options:
 
@@ -86,7 +86,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 ## Android integration
 
-### Required configuration
+### Required configuration:
 
 * In order to handle click action on notification to open the downloaded file on Android, you need to add some additional configurations. Add the following codes to your `AndroidManifest.xml`:
 
@@ -108,7 +108,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 
 
-### Optional configuration
+### Optional configuration:
 
 * **Configure maximum number of concurrent tasks:** the plugin depends on `WorkManager` library and `WorkManager` depends on the number of available processor to configure the maximum number of tasks running at a moment. You can setup a fixed number for this configuration by adding following codes to your `AndroidManifest.xml`:
 
@@ -168,6 +168,8 @@ allprojects {
 ````
 
 ## Usage
+
+#### Import package:
 
 ````dart
 import 'package:flutter_downloader/flutter_downloader.dart';
