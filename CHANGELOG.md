@@ -1,3 +1,8 @@
+## 1.1.0 - 12.11.2018
+
+* Android: upgrade `WorkManager` library to version v1.0.0-alpha11
+* **BREAKING CHANGE**: `initialize()` is removed (to deal with the change of the initialization of `WorkManager` in v1.0.0-alpha11). The plugin initializes itself with default configurations. If you would like to change the default configuration, you can follows the instruction in `README.md`
+
 ## 1.0.6 - 28.10.2018
 
 * fix bug related to `filename`

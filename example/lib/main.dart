@@ -6,7 +6,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
 void main() {
-  FlutterDownloader.initialize(maxConcurrentTasks: 3);
   runApp(new MyApp());
 }
 

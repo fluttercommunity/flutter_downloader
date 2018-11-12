@@ -11,7 +11,9 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 ## iOS integration
 
-* Open `ios` project (file `Runner.xcworkspace`) in Xcode.
+#### Required configuration
+
+**Note:** following steps requires to open your `ios` project in Xcode.
 
 * Enable background mode.
 
@@ -26,8 +28,14 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
     <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/add_sqlite_2.png?raw=true" />
 </p>
 
-**Note:** If you want to download file with HTTP request, you need to disable Apple Transport Security (ATS) feature.
-* Disable ATS for a specific domain only: (add following codes to the end of your `Info.plist` file)
+___
+
+#### Optional configuration
+
+* **Support HTTP request:** if you want to download file with HTTP request, you need to disable Apple Transport Security (ATS) feature. There're two options:
+
+..* Disable ATS for a specific domain only: (add following codes to your `Info.plist` file)
+
 ````xml
 <key>NSAppTransportSecurity</key>
 <dict>
@@ -49,7 +57,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 </dict>
 ````
 
-* Completely disable ATS: (add following codes to the end of your `Info.plist` file)
+..* Completely disable ATS: (add following codes to your `Info.plist` file)
 
 ````xml
 <key>NSAppTransportSecurity</key>
@@ -58,11 +66,26 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 </dict>
 ````
 
+* **Configure maximum number of concurrent tasks:** the plugin allows 3 download tasks running at a moment by default (if you enqueue more than 3 tasks, there're only 3 tasks running, other tasks are put in pending state). You can change this number by adding following codes to your `Info.plist` file.
+
+````xml
+<!-- changes this number to configure the maximum number of concurrent tasks -->
+<key>FDMaximumConcurrentTasks</key>
+<integer>5</integer>
+````
+
+* **Localize notification messages:** the plugin will send a notification message to notify user in case all files are downloaded while your application is not running in foreground. This message is English by default. You can localize this message by adding and localizing following message in `Info.plist` file. (you can find the detail of `Info.plist` localization in this [link][3])
+
+````xml
+<key>FDAllFilesDownloadedMessage</key>
+<string>All files have been downloaded</string>
+````
+
 ## Android integration
 
-In order to handle click action on notification to open the downloaded file on Android, you need to add some additional configurations:
+#### Required configuration
 
-* add the following codes to your `AndroidManifest.xml` (inside `application` tag):
+* In order to handle click action on notification to open the downloaded file on Android, you need to add some additional configurations. Add the following codes to your `AndroidManifest.xml`:
 
 ````xml
 <provider
@@ -76,23 +99,48 @@ In order to handle click action on notification to open the downloaded file on A
 </provider>
 ````
 
-* you have to save your downloaded files in external storage (where the other applications have permission to read your files)
+**Note:**
+ - You have to save your downloaded files in external storage (where the other applications have permission to read your files)
+ - The downloaded files are only able to be opened if your device has at least an application that can read these file types (mp3, pdf, etc)
+___
 
-**Note:** The downloaded files are only able to be opened if your device has at least an application that can read these file types (mp3, pdf, etc)
+#### Optional configuration
+
+* **Configure maximum number of concurrent tasks:** the plugin depends on `WorkManager` library and `WorkManager` depends on the number of available processor to configure the maximum number of tasks running at a moment. You can setup a fixed number for this configuration by adding following codes to your `AndroidManifest.xml`:
+
+````xml
+ <provider
+     android:name="androidx.work.impl.WorkManagerInitializer"
+     android:authorities="${applicationId}.workmanager-init"
+     android:enabled="false"
+     android:exported="false" />
+
+ <provider
+     android:name="vn.hunghd.flutterdownloader.FlutterDownloaderInitializer"
+     android:authorities="${applicationId}.flutter-downloader-init"
+     android:exported="false">
+     <!-- changes this number to configure the maximum number of concurrent tasks -->
+     <meta-data
+         android:name="vn.hunghd.flutterdownloader.MAX_CONCURRENT_TASKS"
+         android:value="5" />
+ </provider>
+ ````
+
+* **Localize notification messages:** you can localize notification messages of download progress by localizing following messages. (you can find the detail of localization strings in Android in this [link][4])
+
+````xml
+<string name="flutter_downloader_notification_started">Download started</string>
+<string name="flutter_downloader_notification_in_progress">Download in progress</string>
+<string name="flutter_downloader_notification_canceled">Download canceled</string>
+<string name="flutter_downloader_notification_failed">Download failed</string>
+<string name="flutter_downloader_notification_complete">Download complete</string>
+<string name="flutter_downloader_notification_paused">Download paused</string>
+````
 
 ## Usage
 
 ````dart
 import 'package:flutter_downloader/flutter_downloader.dart';
-````
-
-#### Initialize plugin:
-
-````dart
-FlutterDownloader.initialize(
-  maxConcurrentTasks: 3, // config the maximum number of tasks running at a moment
-  messages: {....} // localize messages for Android notification
-);
 ````
 
 #### Create new download task:
@@ -193,9 +241,11 @@ FlutterDownloader.open(taskId: taskId);
 
 - Note: in Android, you can only open a downloaded file if it is placed in the external storage and there's at least one application that can read that file type on your device.
 
-[1]: https://developer.android.com/topic/libraries/architecture/workmanager
-[2]: https://developer.apple.com/documentation/foundation/nsurlsessiondownloadtask?language=objc
-
 ## Bugs/Requests
 If you encounter any problems feel free to open an issue. If you feel the library is
 missing a feature, please raise a ticket on Github. Pull request are also welcome.
+
+[1]: https://developer.android.com/topic/libraries/architecture/workmanager
+[2]: https://developer.apple.com/documentation/foundation/nsurlsessiondownloadtask?language=objc
+[3]: https://medium.com/@guerrix/info-plist-localization-ad5daaea732a
+[4]: https://developer.android.com/training/basics/supporting-devices/languages

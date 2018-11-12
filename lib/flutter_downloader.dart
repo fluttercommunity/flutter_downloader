@@ -53,41 +53,8 @@ class DownloadTask {
       "DownloadTask(taskId: $taskId, status: $status, progress: $progress, url: $url, filename: $filename, savedDir: $savedDir)";
 }
 
-enum DownloadMessage {
-  started,
-  in_progress,
-  canceled,
-  failed,
-  complete,
-  paused,
-  all_finished
-}
-
 class FlutterDownloader {
   static const platform = const MethodChannel('vn.hunghd/downloader');
-
-  static Future<Null> initialize(
-      {int maxConcurrentTasks = 2,
-      Map<DownloadMessage, String> messages = const {}}) async {
-    if (maxConcurrentTasks < 1) {
-      throw ArgumentError(
-          '\'maxConcurrentTasks\' must be greater than or equal to 1');
-    }
-    Map<String, String> dict = {};
-    dict['started'] = messages[DownloadMessage.started] ?? 'Download started';
-    dict['in_progress'] =
-        messages[DownloadMessage.in_progress] ?? 'Download in progress';
-    dict['canceled'] =
-        messages[DownloadMessage.canceled] ?? 'Download canceled';
-    dict['failed'] = messages[DownloadMessage.failed] ?? 'Download failed';
-    dict['complete'] =
-        messages[DownloadMessage.complete] ?? 'Download complete';
-    dict['paused'] = messages[DownloadMessage.paused] ?? 'Download paused';
-    dict['all_finished'] = messages[DownloadMessage.all_finished] ??
-        'All files have been downloaded';
-    return await platform.invokeMethod('initialize',
-        {'max_concurrent_tasks': maxConcurrentTasks, 'messages': dict});
-  }
 
   static Future<String> enqueue(
       {@required String url,

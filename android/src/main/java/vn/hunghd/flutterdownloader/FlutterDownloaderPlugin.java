@@ -17,11 +17,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import androidx.work.BackoffPolicy;
-import androidx.work.Configuration;
 import androidx.work.Constraints;
 import androidx.work.Data;
 import androidx.work.NetworkType;
@@ -42,8 +40,6 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
     private MethodChannel flutterChannel;
     private TaskDbHelper dbHelper;
     private TaskDao taskDao;
-    private boolean initialized = false;
-    private Map<String, String> messages;
     private Context context;
 
     private final BroadcastReceiver updateProcessEventReceiver = new BroadcastReceiver() {
@@ -72,178 +68,24 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
 
     @Override
     public void onMethodCall(MethodCall call, MethodChannel.Result result) {
-        if (call.method.equals("initialize")) {
-            if (!initialized) {
-                int maximumConcurrentTask = call.argument("max_concurrent_tasks");
-                messages = call.argument("messages");
-
-                WorkManager.initialize(context, new Configuration.Builder()
-                        .setExecutor(Executors.newFixedThreadPool(maximumConcurrentTask))
-                        .build());
-
-                initialized = true;
-            }
-            result.success(null);
-        } else if (call.method.equals("enqueue")) {
-            if (initialized) {
-                String url = call.argument("url");
-                String savedDir = call.argument("saved_dir");
-                String filename = call.argument("file_name");
-                String headers = call.argument("headers");
-                boolean showNotification = call.argument("show_notification");
-                boolean openFileFromNotification = call.argument("open_file_from_notification");
-                WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, openFileFromNotification, false);
-                WorkManager.getInstance().enqueue(request);
-                String taskId = request.getId().toString();
-                result.success(taskId);
-                sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0);
-                taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, savedDir, headers, showNotification, openFileFromNotification);
-            } else {
-                result.error("not_initialized", "initialize() must be called first", null);
-            }
+        if (call.method.equals("enqueue")) {
+            enqueue(call, result);
         } else if (call.method.equals("loadTasks")) {
-            if (initialized) {
-                List<DownloadTask> tasks = taskDao.loadAllTasks();
-                List<Map> array = new ArrayList<>();
-                for (DownloadTask task : tasks) {
-                    Map<String, Object> item = new HashMap<>();
-                    item.put("task_id", task.taskId);
-                    item.put("status", task.status);
-                    item.put("progress", task.progress);
-                    item.put("url", task.url);
-                    item.put("file_name", task.filename);
-                    item.put("saved_dir", task.savedDir);
-                    item.put("time_created", task.timeCreated);
-                    array.add(item);
-                }
-                result.success(array);
-            } else {
-                result.error("not_initialized", "initialize() must be called first", null);
-            }
+            loadTasks(call, result);
         } else if (call.method.equals("loadTasksWithRawQuery")) {
-            if (initialized) {
-                String query = call.argument("query");
-                List<DownloadTask> tasks = taskDao.loadTasksWithRawQuery(query);
-                List<Map> array = new ArrayList<>();
-                for (DownloadTask task : tasks) {
-                    Map<String, Object> item = new HashMap<>();
-                    item.put("task_id", task.taskId);
-                    item.put("status", task.status);
-                    item.put("progress", task.progress);
-                    item.put("url", task.url);
-                    item.put("file_name", task.filename);
-                    item.put("saved_dir", task.savedDir);
-                    item.put("time_created", task.timeCreated);
-                    array.add(item);
-                }
-                result.success(array);
-            } else {
-                result.error("not_initialized", "initialize() must be called first", null);
-            }
+            loadTasksWithRawQuery(call, result);
         } else if (call.method.equals("cancel")) {
-            if (initialized) {
-                String taskId = call.argument("task_id");
-                cancel(taskId);
-                result.success(null);
-            } else {
-                result.error("not_initialized", "initialize() must be called first", null);
-            }
+            cancel(call, result);
         } else if (call.method.equals("cancelAll")) {
-            if (initialized) {
-                cancelAll();
-                result.success(null);
-            } else {
-                result.error("not_initialized", "initialize() must be called first", null);
-            }
+            cancelAll(call, result);
         } else if (call.method.equals("pause")) {
-            if (initialized) {
-                String taskId = call.argument("task_id");
-                pause(taskId);
-                result.success(null);
-            } else {
-                result.error("not_initialized", "initialize() must be called first", null);
-            }
+            pause(call, result);
         } else if (call.method.equals("resume")) {
-            if (initialized) {
-                String taskId = call.argument("task_id");
-                DownloadTask task = taskDao.loadTask(taskId);
-                if (task != null) {
-                    if (task.status == DownloadStatus.PAUSED) {
-                        String filename = task.filename;
-                        if (filename == null) {
-                            filename = task.url.substring(task.url.lastIndexOf("/") + 1, task.url.length());
-                        }
-                        String partialFilePath = task.savedDir + File.separator + filename;
-                        File partialFile = new File(partialFilePath);
-                        if (partialFile.exists()) {
-                            WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, true);
-                            String newTaskId = request.getId().toString();
-                            result.success(newTaskId);
-                            sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress);
-                            taskDao.updateTask(taskId, newTaskId, DownloadStatus.RUNNING, task.progress, false);
-                            WorkManager.getInstance().enqueue(request);
-                        } else {
-                            result.error("invalid_data", "not found partial downloaded data, this task cannot be resumed", null);
-                        }
-                    } else {
-                        result.error("invalid_status", "only paused task can be resumed", null);
-                    }
-                } else {
-                    result.error("invalid_task_id", "not found task corresponding to given task id", null);
-                }
-            } else {
-                result.error("not_initialized", "initialize() must be called first", null);
-            }
+            resume(call, result);
         } else if (call.method.equals("retry")) {
-            if (initialized) {
-                String taskId = call.argument("task_id");
-                DownloadTask task = taskDao.loadTask(taskId);
-                if (task != null) {
-                    if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
-                        WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, false);
-                        String newTaskId = request.getId().toString();
-                        result.success(newTaskId);
-                        sendUpdateProgress(newTaskId, DownloadStatus.ENQUEUED, task.progress);
-                        taskDao.updateTask(taskId, newTaskId, DownloadStatus.ENQUEUED, task.progress, false);
-                        WorkManager.getInstance().enqueue(request);
-                    } else {
-                        result.error("invalid_status", "only failed and canceled task can be retried", null);
-                    }
-                } else {
-                    result.error("invalid_task_id", "not found task corresponding to given task id", null);
-                }
-            } else {
-                result.error("not_initialized", "initialize() must be called first", null);
-            }
+            retry(call, result);
         } else if (call.method.equals("open")) {
-            if (initialized) {
-                String taskId = call.argument("task_id");
-                DownloadTask task = taskDao.loadTask(taskId);
-                if (task != null) {
-                    if (task.status == DownloadStatus.COMPLETE) {
-                        String fileURL = task.url;
-                        String savedDir = task.savedDir;
-                        String filename = task.filename;
-                        if (filename == null) {
-                            filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
-                        }
-                        String saveFilePath = savedDir + File.separator + filename;
-                        Intent intent = IntentUtils.getOpenFileIntent(context, saveFilePath, task.mimeType);
-                        if (IntentUtils.validateIntent(context, intent)) {
-                            context.startActivity(intent);
-                            result.success(true);
-                        } else {
-                            result.success(false);
-                        }
-                    } else {
-                        result.error("invalid_status", "only success task can be opened", null);
-                    }
-                } else {
-                    result.error("invalid_task_id", "not found task corresponding to given task id", null);
-                }
-            } else {
-                result.error("not_initialized", "initialize() must be called first", null);
-            }
+            open(call, result);
         } else {
             result.notImplemented();
         }
@@ -305,29 +147,10 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
                         .putBoolean(DownloadWorker.ARG_SHOW_NOTIFICATION, showNotification)
                         .putBoolean(DownloadWorker.ARG_OPEN_FILE_FROM_NOTIFICATION, openFileFromNotification)
                         .putBoolean(DownloadWorker.ARG_IS_RESUME, isResume)
-                        .putString(DownloadWorker.MSG_STARTED, messages.get("started"))
-                        .putString(DownloadWorker.MSG_IN_PROGRESS, messages.get("in_progress"))
-                        .putString(DownloadWorker.MSG_CANCELED, messages.get("canceled"))
-                        .putString(DownloadWorker.MSG_FAILED, messages.get("failed"))
-                        .putString(DownloadWorker.MSG_PAUSED, messages.get("paused"))
-                        .putString(DownloadWorker.MSG_COMPLETE, messages.get("complete"))
                         .build()
                 )
                 .build();
         return request;
-    }
-
-    private void cancel(String taskId) {
-        WorkManager.getInstance().cancelWorkById(UUID.fromString(taskId));
-    }
-
-    private void cancelAll() {
-        WorkManager.getInstance().cancelAllWorkByTag(TAG);
-    }
-
-    private void pause(String taskId) {
-        taskDao.updateTask(taskId, true);
-        WorkManager.getInstance().cancelWorkById(UUID.fromString(taskId));
     }
 
     private void sendUpdateProgress(String id, int status, int progress) {
@@ -336,5 +159,148 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
         args.put("status", status);
         args.put("progress", progress);
         flutterChannel.invokeMethod("updateProgress", args);
+    }
+
+    private void enqueue(MethodCall call, MethodChannel.Result result) {
+        String url = call.argument("url");
+        String savedDir = call.argument("saved_dir");
+        String filename = call.argument("file_name");
+        String headers = call.argument("headers");
+        boolean showNotification = call.argument("show_notification");
+        boolean openFileFromNotification = call.argument("open_file_from_notification");
+        WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, openFileFromNotification, false);
+        WorkManager.getInstance().enqueue(request);
+        String taskId = request.getId().toString();
+        result.success(taskId);
+        sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0);
+        taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, savedDir, headers, showNotification, openFileFromNotification);
+    }
+
+    private void loadTasks(MethodCall call, MethodChannel.Result result) {
+        List<DownloadTask> tasks = taskDao.loadAllTasks();
+        List<Map> array = new ArrayList<>();
+        for (DownloadTask task : tasks) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("task_id", task.taskId);
+            item.put("status", task.status);
+            item.put("progress", task.progress);
+            item.put("url", task.url);
+            item.put("file_name", task.filename);
+            item.put("saved_dir", task.savedDir);
+            item.put("time_created", task.timeCreated);
+            array.add(item);
+        }
+        result.success(array);
+    }
+
+    private void loadTasksWithRawQuery(MethodCall call, MethodChannel.Result result) {
+        String query = call.argument("query");
+        List<DownloadTask> tasks = taskDao.loadTasksWithRawQuery(query);
+        List<Map> array = new ArrayList<>();
+        for (DownloadTask task : tasks) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("task_id", task.taskId);
+            item.put("status", task.status);
+            item.put("progress", task.progress);
+            item.put("url", task.url);
+            item.put("file_name", task.filename);
+            item.put("saved_dir", task.savedDir);
+            item.put("time_created", task.timeCreated);
+            array.add(item);
+        }
+        result.success(array);
+    }
+
+    private void cancel(MethodCall call, MethodChannel.Result result) {
+        String taskId = call.argument("task_id");
+        WorkManager.getInstance().cancelWorkById(UUID.fromString(taskId));
+        result.success(null);
+    }
+
+    private void cancelAll(MethodCall call, MethodChannel.Result result) {
+        WorkManager.getInstance().cancelAllWorkByTag(TAG);
+        result.success(null);
+    }
+
+    private void pause(MethodCall call, MethodChannel.Result result) {
+        String taskId = call.argument("task_id");
+        taskDao.updateTask(taskId, true);
+        WorkManager.getInstance().cancelWorkById(UUID.fromString(taskId));
+        result.success(null);
+    }
+
+    private void resume(MethodCall call, MethodChannel.Result result) {
+        String taskId = call.argument("task_id");
+        DownloadTask task = taskDao.loadTask(taskId);
+        if (task != null) {
+            if (task.status == DownloadStatus.PAUSED) {
+                String filename = task.filename;
+                if (filename == null) {
+                    filename = task.url.substring(task.url.lastIndexOf("/") + 1, task.url.length());
+                }
+                String partialFilePath = task.savedDir + File.separator + filename;
+                File partialFile = new File(partialFilePath);
+                if (partialFile.exists()) {
+                    WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, true);
+                    String newTaskId = request.getId().toString();
+                    result.success(newTaskId);
+                    sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress);
+                    taskDao.updateTask(taskId, newTaskId, DownloadStatus.RUNNING, task.progress, false);
+                    WorkManager.getInstance().enqueue(request);
+                } else {
+                    result.error("invalid_data", "not found partial downloaded data, this task cannot be resumed", null);
+                }
+            } else {
+                result.error("invalid_status", "only paused task can be resumed", null);
+            }
+        } else {
+            result.error("invalid_task_id", "not found task corresponding to given task id", null);
+        }
+    }
+
+    private void retry(MethodCall call, MethodChannel.Result result) {
+        String taskId = call.argument("task_id");
+        DownloadTask task = taskDao.loadTask(taskId);
+        if (task != null) {
+            if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
+                WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, false);
+                String newTaskId = request.getId().toString();
+                result.success(newTaskId);
+                sendUpdateProgress(newTaskId, DownloadStatus.ENQUEUED, task.progress);
+                taskDao.updateTask(taskId, newTaskId, DownloadStatus.ENQUEUED, task.progress, false);
+                WorkManager.getInstance().enqueue(request);
+            } else {
+                result.error("invalid_status", "only failed and canceled task can be retried", null);
+            }
+        } else {
+            result.error("invalid_task_id", "not found task corresponding to given task id", null);
+        }
+    }
+
+    private void open(MethodCall call, MethodChannel.Result result) {
+        String taskId = call.argument("task_id");
+        DownloadTask task = taskDao.loadTask(taskId);
+        if (task != null) {
+            if (task.status == DownloadStatus.COMPLETE) {
+                String fileURL = task.url;
+                String savedDir = task.savedDir;
+                String filename = task.filename;
+                if (filename == null) {
+                    filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
+                }
+                String saveFilePath = savedDir + File.separator + filename;
+                Intent intent = IntentUtils.getOpenFileIntent(context, saveFilePath, task.mimeType);
+                if (IntentUtils.validateIntent(context, intent)) {
+                    context.startActivity(intent);
+                    result.success(true);
+                } else {
+                    result.success(false);
+                }
+            } else {
+                result.error("invalid_status", "only success task can be opened", null);
+            }
+        } else {
+            result.error("invalid_task_id", "not found task corresponding to given task id", null);
+        }
     }
 }

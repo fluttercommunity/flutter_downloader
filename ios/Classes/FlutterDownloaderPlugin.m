@@ -19,8 +19,6 @@
 #define KEY_STATUS @"status"
 #define KEY_HEADERS @"headers"
 #define KEY_RESUMABLE @"resumable"
-#define KEY_MAX_CONCURRENT_TASKS @"max_concurrent_tasks"
-#define KEY_MESSAGES @"messages"
 #define KEY_SHOW_NOTIFICATION @"show_notification"
 #define KEY_OPEN_FILE_FROM_NOTIFICATION @"open_file_from_notification"
 #define KEY_QUERY @"query"
@@ -38,7 +36,6 @@
     FlutterMethodChannel *_flutterChannel;
     NSURLSession *_session;
     DBManager *_dbManager;
-    BOOL _initialized;
     dispatch_queue_t _databaseQueue;
     NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById;
     NSString *_allFilesDownloadedMsg;
@@ -54,7 +51,10 @@
         _flutterChannel = [FlutterMethodChannel
                            methodChannelWithName:@"vn.hunghd/downloader"
                            binaryMessenger:messenger];
+
         NSBundle *frameworkBundle = [NSBundle bundleForClass:FlutterDownloaderPlugin.class];
+
+        // initialize Database
         NSURL *bundleUrl = [[frameworkBundle resourceURL] URLByAppendingPathComponent:@"FlutterDownloaderDatabase.bundle"];
         NSBundle *resourceBundle = [NSBundle bundleWithURL:bundleUrl];
         NSString *dbPath = [resourceBundle pathForResource:@"download_tasks" ofType:@"sql"];
@@ -62,7 +62,24 @@
         _databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
         _dbManager = [[DBManager alloc] initWithDatabaseFilePath:dbPath];
         _runningTaskById = [[NSMutableDictionary alloc] init];
-        _initialized = NO;
+
+        // init NSURLSession
+        NSBundle *mainBundle = [NSBundle mainBundle];
+        NSNumber *maxConcurrentTasks = [mainBundle objectForInfoDictionaryKey:@"FDMaximumConcurrentTasks"];
+        if (maxConcurrentTasks == nil) {
+            maxConcurrentTasks = @3;
+        }
+        NSLog(@"MAXIMUM_CONCURRENT_TASKS = %@", maxConcurrentTasks);
+        NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:[NSString stringWithFormat:@"%@.download.background.%f", NSBundle.mainBundle.bundleIdentifier, [[NSDate date] timeIntervalSince1970]]];
+        sessionConfiguration.HTTPMaximumConnectionsPerHost = [maxConcurrentTasks intValue];
+        _session = [NSURLSession sessionWithConfiguration:sessionConfiguration delegate:self delegateQueue:nil];
+        NSLog(@"init NSURLSession with id: %@", [[_session configuration] identifier]);
+
+        _allFilesDownloadedMsg = [mainBundle objectForInfoDictionaryKey:@"FDAllFilesDownloadedMessage"];
+        if (_allFilesDownloadedMsg == nil) {
+            _allFilesDownloadedMsg = @"All files have been downloaded";
+        }
+        NSLog(@"AllFilesDownloadedMessage: %@", _allFilesDownloadedMsg);
     }
 
     return self;
@@ -336,6 +353,188 @@
     return [NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, headers, KEY_HEADERS, savedDir, KEY_SAVED_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, [NSNumber numberWithBool:(showNotification == 1)], KEY_SHOW_NOTIFICATION, [NSNumber numberWithBool:(openFileFromNotification == 1)], KEY_OPEN_FILE_FROM_NOTIFICATION, @(timeCreated), KEY_TIME_CREATED, nil];
 }
 
+# pragma mark - FlutterDownloader
+
+- (void)enqueueMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    NSString *urlString = call.arguments[KEY_URL];
+    NSString *savedDir = call.arguments[KEY_SAVED_DIR];
+    NSString *fileName = call.arguments[KEY_FILE_NAME];
+    NSString *headers = call.arguments[KEY_HEADERS];
+    NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
+    NSNumber *openFileFromNotification = call.arguments[KEY_OPEN_FILE_FROM_NOTIFICATION];
+
+    NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
+
+    NSString *taskId = [self identifierForTask:task];
+
+    // if filename is not given, we try to extract it from http response or url
+    if (fileName == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: fileName]) {
+        fileName = task.response.suggestedFilename;
+        if (fileName == nil) {
+            fileName = [NSURL URLWithString:urlString].lastPathComponent;
+        }
+    }
+
+    [_runningTaskById setObject: [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                                  urlString, KEY_URL,
+                                  fileName, KEY_FILE_NAME,
+                                  savedDir, KEY_SAVED_DIR,
+                                  headers, KEY_HEADERS,
+                                  showNotification, KEY_SHOW_NOTIFICATION,
+                                  openFileFromNotification, KEY_OPEN_FILE_FROM_NOTIFICATION,
+                                  @(NO), KEY_RESUMABLE,
+                                  @(STATUS_ENQUEUED), KEY_STATUS,
+                                  @(0), KEY_PROGRESS, nil]
+                         forKey:taskId];
+
+    __weak id weakSelf = self;
+    dispatch_sync(_databaseQueue, ^{
+        [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:savedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
+    });
+    result(taskId);
+    [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
+}
+
+- (void)loadTasksMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    __weak id weakSelf = self;
+    dispatch_sync(_databaseQueue, ^{
+        NSArray* tasks = [weakSelf loadAllTasks];
+        result(tasks);
+    });
+}
+
+- (void)loadTasksWithRawQueryMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    NSString *query = call.arguments[KEY_QUERY];
+    __weak id weakSelf = self;
+    dispatch_sync(_databaseQueue, ^{
+        NSArray* tasks = [weakSelf loadTasksWithRawQuery:query];
+        result(tasks);
+    });
+}
+
+- (void)cancelMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    NSString *taskId = call.arguments[KEY_TASK_ID];
+    [self cancelTaskWithId:taskId];
+    result([NSNull null]);
+}
+
+- (void)cancelAllMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    [self cancelAllTasks];
+    result([NSNull null]);
+}
+
+- (void)pauseMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    NSString *taskId = call.arguments[KEY_TASK_ID];
+    [self pauseTaskWithId:taskId];
+    result([NSNull null]);
+}
+
+- (void)resumeMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    NSString *taskId = call.arguments[KEY_TASK_ID];
+    NSDictionary* taskDict = [self loadTaskWithId:taskId];
+    if (taskDict != nil) {
+        NSNumber* status = taskDict[KEY_STATUS];
+        if ([status intValue] == STATUS_PAUSED) {
+            NSURL *partialFileURL = [self fileUrlFromDict:taskDict];
+
+            NSLog(@"Try to load resume data at url: %@", partialFileURL);
+
+            NSData *resumeData = [NSData dataWithContentsOfURL:partialFileURL];
+
+            if (resumeData != nil) {
+                NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithResumeData:resumeData];
+                NSString *newTaskId = [self identifierForTask:task];
+                [task resume];
+
+                // update memory-cache, assign a new taskId for paused task
+                NSMutableDictionary *newTask = [NSMutableDictionary dictionaryWithDictionary:taskDict];
+                newTask[KEY_STATUS] = @(STATUS_RUNNING);
+                newTask[KEY_RESUMABLE] = @(NO);
+                [_runningTaskById setObject:newTask forKey:newTaskId];
+                [_runningTaskById removeObjectForKey:taskId];
+
+                result(newTaskId);
+
+                __weak id weakSelf = self;
+                dispatch_sync(_databaseQueue, ^{
+                    [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_RUNNING resumable:NO];
+                    NSDictionary *task = [weakSelf loadTaskWithId:newTaskId];
+                    NSNumber *progress = task[KEY_PROGRESS];
+                    [weakSelf sendUpdateProgressForTaskId:newTaskId inStatus:@(STATUS_RUNNING) andProgress:progress];
+                });
+            } else {
+                result([FlutterError errorWithCode:@"invalid_data"
+                                           message:@"not found resume data, this task cannot be resumed"
+                                           details:nil]);
+            }
+        } else {
+            result([FlutterError errorWithCode:@"invalid_status"
+                                       message:@"only paused task can be resumed"
+                                       details:nil]);
+        }
+    } else {
+        result(ERROR_INVALID_TASK_ID);
+    }
+}
+
+- (void)retryMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    NSString *taskId = call.arguments[KEY_TASK_ID];
+    NSDictionary* taskDict = [self loadTaskWithId:taskId];
+    if (taskDict != nil) {
+        NSNumber* status = taskDict[KEY_STATUS];
+        if ([status intValue] == STATUS_FAILED || [status intValue] == STATUS_CANCELED) {
+            NSString *urlString = taskDict[KEY_URL];
+            NSString *savedDir = taskDict[KEY_SAVED_DIR];
+            NSString *fileName = taskDict[KEY_FILE_NAME];
+            NSString *headers = taskDict[KEY_HEADERS];
+
+            NSURLSessionDownloadTask *newTask = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
+            NSString *newTaskId = [self identifierForTask:newTask];
+
+            // update memory-cache
+            NSMutableDictionary *newTaskDict = [NSMutableDictionary dictionaryWithDictionary:taskDict];
+            newTaskDict[KEY_STATUS] = @(STATUS_ENQUEUED);
+            newTaskDict[KEY_PROGRESS] = @(0);
+            newTaskDict[KEY_RESUMABLE] = @(NO);
+            [_runningTaskById setObject:newTaskDict forKey:newTaskId];
+            [_runningTaskById removeObjectForKey:taskId];
+
+            __weak id weakSelf = self;
+            dispatch_sync(_databaseQueue, ^{
+                [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_ENQUEUED resumable:NO];
+            });
+            result(newTaskId);
+            [self sendUpdateProgressForTaskId:newTaskId inStatus:@(STATUS_ENQUEUED) andProgress:@(0)];
+        } else {
+            result([FlutterError errorWithCode:@"invalid_status"
+                                       message:@"only failed and canceled task can be retried"
+                                       details:nil]);
+        }
+    } else {
+        result(ERROR_INVALID_TASK_ID);
+    }
+}
+
+- (void)openMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    NSString *taskId = call.arguments[KEY_TASK_ID];
+    NSDictionary* taskDict = [self loadTaskWithId:taskId];
+    if (taskDict != nil) {
+        NSNumber* status = taskDict[KEY_STATUS];
+        if ([status intValue] == STATUS_COMPLETE) {
+            NSURL *downloadedFileURL = [self fileUrlFromDict:taskDict];
+
+            BOOL success = [self openDocumentWithURL:downloadedFileURL];
+            result([NSNumber numberWithBool:success]);
+        } else {
+            result([FlutterError errorWithCode:@"invalid_status"
+                                       message:@"only success task can be opened"
+                                       details:nil]);
+        }
+    } else {
+        result(ERROR_INVALID_TASK_ID);
+    }
+}
+
 # pragma mark - FlutterPlugin
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
@@ -347,218 +546,24 @@
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSLog(@"methodCallHandler: %@", call.method);
-    if ([@"initialize" isEqualToString:call.method]) {
-        if (!_initialized) {
-            NSNumber *maxConcurrentTasks = call.arguments[KEY_MAX_CONCURRENT_TASKS];
-            NSDictionary *messages = call.arguments[KEY_MESSAGES];
-
-            _allFilesDownloadedMsg = messages[@"all_finished"];
-
-            NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:[NSString stringWithFormat:@"%@.download.background.%f", NSBundle.mainBundle.bundleIdentifier, [[NSDate date] timeIntervalSince1970]]];
-            sessionConfiguration.HTTPMaximumConnectionsPerHost = [maxConcurrentTasks intValue];
-            _session = [NSURLSession sessionWithConfiguration:sessionConfiguration delegate:self delegateQueue:nil];
-            NSLog(@"init NSURLSession with id: %@", [[_session configuration] identifier]);
-            _initialized = YES;
-        }
-        result([NSNull null]);
-    } else if ([@"enqueue" isEqualToString:call.method]) {
-        if (_initialized) {
-            NSString *urlString = call.arguments[KEY_URL];
-            NSString *savedDir = call.arguments[KEY_SAVED_DIR];
-            NSString *fileName = call.arguments[KEY_FILE_NAME];
-            NSString *headers = call.arguments[KEY_HEADERS];
-            NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
-            NSNumber *openFileFromNotification = call.arguments[KEY_OPEN_FILE_FROM_NOTIFICATION];
-
-            NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
-
-            NSString *taskId = [self identifierForTask:task];
-
-            // if filename is not given, we try to extract it from http response or url
-            if (fileName == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: fileName]) {
-                fileName = task.response.suggestedFilename;
-                if (fileName == nil) {
-                    fileName = [NSURL URLWithString:urlString].lastPathComponent;
-                }
-            }
-
-            [_runningTaskById setObject: [NSMutableDictionary dictionaryWithObjectsAndKeys:
-                                          urlString, KEY_URL,
-                                          fileName, KEY_FILE_NAME,
-                                          savedDir, KEY_SAVED_DIR,
-                                          headers, KEY_HEADERS,
-                                          showNotification, KEY_SHOW_NOTIFICATION,
-                                          openFileFromNotification, KEY_OPEN_FILE_FROM_NOTIFICATION,
-                                          @(NO), KEY_RESUMABLE,
-                                          @(STATUS_ENQUEUED), KEY_STATUS,
-                                          @(0), KEY_PROGRESS, nil]
-                                 forKey:taskId];
-
-            __weak id weakSelf = self;
-            dispatch_sync(_databaseQueue, ^{
-                [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:savedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
-            });
-            result(taskId);
-            [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
-        } else {
-            result(ERROR_NOT_INITIALIZED);
-        }
+    if ([@"enqueue" isEqualToString:call.method]) {
+        [self enqueueMethodCall:call result:result];
     } else if ([@"loadTasks" isEqualToString:call.method]) {
-        if (_initialized) {
-            __weak id weakSelf = self;
-            dispatch_sync(_databaseQueue, ^{
-                NSArray* tasks = [weakSelf loadAllTasks];
-                result(tasks);
-            });
-        } else {
-            result(ERROR_NOT_INITIALIZED);
-        }
+        [self loadTasksMethodCall:call result:result];
     } else if ([@"loadTasksWithRawQuery" isEqualToString:call.method]) {
-        if (_initialized) {
-            NSString *query = call.arguments[KEY_QUERY];
-            __weak id weakSelf = self;
-            dispatch_sync(_databaseQueue, ^{
-                NSArray* tasks = [weakSelf loadTasksWithRawQuery:query];
-                result(tasks);
-            });
-        } else {
-            result(ERROR_NOT_INITIALIZED);
-        }
+        [self loadTasksWithRawQueryMethodCall:call result:result];
     } else if ([@"cancel" isEqualToString:call.method]) {
-        if (_initialized) {
-            NSString *taskId = call.arguments[KEY_TASK_ID];
-            [self cancelTaskWithId:taskId];
-            result([NSNull null]);
-        } else {
-            result(ERROR_NOT_INITIALIZED);
-        }
+        [self cancelMethodCall:call result:result];
     } else if ([@"cancelAll" isEqualToString:call.method]) {
-        if (_initialized) {
-            [self cancelAllTasks];
-            result([NSNull null]);
-        } else {
-            result(ERROR_NOT_INITIALIZED);
-        }
+        [self cancelAllMethodCall:call result:result];
     } else if ([@"pause" isEqualToString:call.method]) {
-        if (_initialized) {
-            NSString *taskId = call.arguments[KEY_TASK_ID];
-            [self pauseTaskWithId:taskId];
-            result([NSNull null]);
-        } else {
-            result(ERROR_NOT_INITIALIZED);
-        }
+        [self pauseMethodCall:call result:result];
     } else if ([@"resume" isEqualToString:call.method]) {
-        if (_initialized) {
-            NSString *taskId = call.arguments[KEY_TASK_ID];
-            NSDictionary* taskDict = [self loadTaskWithId:taskId];
-            if (taskDict != nil) {
-                NSNumber* status = taskDict[KEY_STATUS];
-                if ([status intValue] == STATUS_PAUSED) {
-                    NSURL *partialFileURL = [self fileUrlFromDict:taskDict];
-
-                    NSLog(@"Try to load resume data at url: %@", partialFileURL);
-
-                    NSData *resumeData = [NSData dataWithContentsOfURL:partialFileURL];
-
-                    if (resumeData != nil) {
-                        NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithResumeData:resumeData];
-                        NSString *newTaskId = [self identifierForTask:task];
-                        [task resume];
-
-                        // update memory-cache, assign a new taskId for paused task
-                        NSMutableDictionary *newTask = [NSMutableDictionary dictionaryWithDictionary:taskDict];
-                        newTask[KEY_STATUS] = @(STATUS_RUNNING);
-                        newTask[KEY_RESUMABLE] = @(NO);
-                        [_runningTaskById setObject:newTask forKey:newTaskId];
-                        [_runningTaskById removeObjectForKey:taskId];
-
-                        result(newTaskId);
-
-                        __weak id weakSelf = self;
-                        dispatch_sync(_databaseQueue, ^{
-                            [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_RUNNING resumable:NO];
-                            NSDictionary *task = [weakSelf loadTaskWithId:newTaskId];
-                            NSNumber *progress = task[KEY_PROGRESS];
-                            [weakSelf sendUpdateProgressForTaskId:newTaskId inStatus:@(STATUS_RUNNING) andProgress:progress];
-                        });
-                    } else {
-                        result([FlutterError errorWithCode:@"invalid_data"
-                                                   message:@"not found resume data, this task cannot be resumed"
-                                                   details:nil]);
-                    }
-                } else {
-                    result([FlutterError errorWithCode:@"invalid_status"
-                                               message:@"only paused task can be resumed"
-                                               details:nil]);
-                }
-            } else {
-                result(ERROR_INVALID_TASK_ID);
-            }
-        } else {
-            result(ERROR_NOT_INITIALIZED);
-        }
+        [self resumeMethodCall:call result:result];
     } else if ([@"retry" isEqualToString:call.method]) {
-        if (_initialized) {
-            NSString *taskId = call.arguments[KEY_TASK_ID];
-            NSDictionary* taskDict = [self loadTaskWithId:taskId];
-            if (taskDict != nil) {
-                NSNumber* status = taskDict[KEY_STATUS];
-                if ([status intValue] == STATUS_FAILED || [status intValue] == STATUS_CANCELED) {
-                    NSString *urlString = taskDict[KEY_URL];
-                    NSString *savedDir = taskDict[KEY_SAVED_DIR];
-                    NSString *fileName = taskDict[KEY_FILE_NAME];
-                    NSString *headers = taskDict[KEY_HEADERS];
-
-                    NSURLSessionDownloadTask *newTask = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
-                    NSString *newTaskId = [self identifierForTask:newTask];
-
-                    // update memory-cache
-                    NSMutableDictionary *newTaskDict = [NSMutableDictionary dictionaryWithDictionary:taskDict];
-                    newTaskDict[KEY_STATUS] = @(STATUS_ENQUEUED);
-                    newTaskDict[KEY_PROGRESS] = @(0);
-                    newTaskDict[KEY_RESUMABLE] = @(NO);
-                    [_runningTaskById setObject:newTaskDict forKey:newTaskId];
-                    [_runningTaskById removeObjectForKey:taskId];
-
-                    __weak id weakSelf = self;
-                    dispatch_sync(_databaseQueue, ^{
-                        [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_ENQUEUED resumable:NO];
-                    });
-                    result(newTaskId);
-                    [self sendUpdateProgressForTaskId:newTaskId inStatus:@(STATUS_ENQUEUED) andProgress:@(0)];
-                } else {
-                    result([FlutterError errorWithCode:@"invalid_status"
-                                               message:@"only failed and canceled task can be retried"
-                                               details:nil]);
-                }
-            } else {
-                result(ERROR_INVALID_TASK_ID);
-            }
-        } else {
-            result(ERROR_NOT_INITIALIZED);
-        }
+        [self retryMethodCall:call result:result];
     } else if ([@"open" isEqualToString:call.method]) {
-        if (_initialized) {
-            NSString *taskId = call.arguments[KEY_TASK_ID];
-            NSDictionary* taskDict = [self loadTaskWithId:taskId];
-            if (taskDict != nil) {
-                NSNumber* status = taskDict[KEY_STATUS];
-                if ([status intValue] == STATUS_COMPLETE) {
-                    NSURL *downloadedFileURL = [self fileUrlFromDict:taskDict];
-
-                    BOOL success = [self openDocumentWithURL:downloadedFileURL];
-                    result([NSNumber numberWithBool:success]);
-                } else {
-                    result([FlutterError errorWithCode:@"invalid_status"
-                                               message:@"only success task can be opened"
-                                               details:nil]);
-                }
-            } else {
-                result(ERROR_INVALID_TASK_ID);
-            }
-        } else {
-            result(ERROR_NOT_INITIALIZED);
-        }
+        [self openMethodCall:call result:result];
     } else {
         result(FlutterMethodNotImplemented);
     }

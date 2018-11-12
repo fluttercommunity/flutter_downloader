@@ -5,6 +5,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.v4.app.NotificationCompat;
@@ -24,7 +25,6 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 
 import androidx.work.Worker;
@@ -40,14 +40,6 @@ public class DownloadWorker extends Worker {
     public static final String ARG_IS_RESUME = "is_resume";
     public static final String ARG_SHOW_NOTIFICATION = "show_notification";
     public static final String ARG_OPEN_FILE_FROM_NOTIFICATION = "open_file_from_notification";
-    public static final String ARG_MESSAGES = "messages";
-
-    public static final String MSG_STARTED = "msg_started";
-    public static final String MSG_IN_PROGRESS = "msg_in_progress";
-    public static final String MSG_CANCELED = "msg_canceled";
-    public static final String MSG_FAILED = "msg_failed";
-    public static final String MSG_PAUSED = "msg_paused";
-    public static final String MSG_COMPLETE = "msg_complete";
 
     public static final String EXTRA_ID = "id";
     public static final String EXTRA_PROGRESS = "progress";
@@ -85,12 +77,13 @@ public class DownloadWorker extends Worker {
         String headers = getInputData().getString(ARG_HEADERS);
         boolean isResume = getInputData().getBoolean(ARG_IS_RESUME, false);
 
-        msgStarted = getInputData().getString(MSG_STARTED);
-        msgInProgress = getInputData().getString(MSG_IN_PROGRESS);
-        msgCanceled = getInputData().getString(MSG_CANCELED);
-        msgFailed = getInputData().getString(MSG_FAILED);
-        msgPaused = getInputData().getString(MSG_PAUSED);
-        msgComplete = getInputData().getString(MSG_COMPLETE);
+        Resources res = getApplicationContext().getResources();
+        msgStarted = res.getString(R.string.flutter_downloader_notification_started);
+        msgInProgress = res.getString(R.string.flutter_downloader_notification_in_progress);
+        msgCanceled = res.getString(R.string.flutter_downloader_notification_canceled);
+        msgFailed = res.getString(R.string.flutter_downloader_notification_failed);
+        msgPaused = res.getString(R.string.flutter_downloader_notification_paused);
+        msgComplete = res.getString(R.string.flutter_downloader_notification_complete);
 
         Log.d(TAG, "DownloadWorker{url=" + url + ",filename=" + filename + ",savedDir=" + savedDir + ",header=" + headers + ",isResume=" + isResume);
 
@@ -165,7 +158,7 @@ public class DownloadWorker extends Worker {
             int responseCode = httpConn.getResponseCode();
 
             // always check HTTP response code first
-            if ((responseCode == HttpURLConnection.HTTP_OK || (isResume && responseCode == HttpURLConnection.HTTP_PARTIAL)) && !isStopped() && !isCancelled()) {
+            if ((responseCode == HttpURLConnection.HTTP_OK || (isResume && responseCode == HttpURLConnection.HTTP_PARTIAL)) && !isStopped()) {
                 String contentType = httpConn.getContentType();
                 int contentLength = httpConn.getContentLength();
                 Log.d(TAG, "Content-Type = " + contentType);
@@ -197,7 +190,7 @@ public class DownloadWorker extends Worker {
                 long count = downloadedBytes;
                 int bytesRead = -1;
                 byte[] buffer = new byte[BUFFER_SIZE];
-                while ((bytesRead = inputStream.read(buffer)) != -1 && !isStopped() && !isCancelled()) {
+                while ((bytesRead = inputStream.read(buffer)) != -1 && !isStopped()) {
                     count += bytesRead;
                     int progress = (int) ((count * 100) / (contentLength + downloadedBytes));
                     outputStream.write(buffer, 0, bytesRead);
@@ -216,8 +209,8 @@ public class DownloadWorker extends Worker {
                 }
 
                 DownloadTask task = taskDao.loadTask(getId().toString());
-                int progress = (isStopped() || isCancelled()) && task.resumable ? lastProgress : 100;
-                int status = (isStopped() || isCancelled()) && task.resumable ? DownloadStatus.PAUSED : DownloadStatus.COMPLETE;
+                int progress = isStopped() && task.resumable ? lastProgress : 100;
+                int status = isStopped() && task.resumable ? DownloadStatus.PAUSED : DownloadStatus.COMPLETE;
                 PendingIntent pendingIntent = null;
                 if (status == DownloadStatus.COMPLETE && clickToOpenDownloadedFile) {
                     Intent intent = IntentUtils.getOpenFileIntent(getApplicationContext(), saveFilePath, contentType);
@@ -231,13 +224,13 @@ public class DownloadWorker extends Worker {
                 updateNotification(context, filename, status, progress, pendingIntent);
                 taskDao.updateTask(getId().toString(), status, progress);
 
-                Log.d(TAG, isStopped() || isCancelled() ? "Download canceled" : "File downloaded");
+                Log.d(TAG, isStopped() ? "Download canceled" : "File downloaded");
             } else {
                 DownloadTask task = taskDao.loadTask(getId().toString());
-                int status = isStopped() || isCancelled() ? ((task.resumable) ? DownloadStatus.PAUSED : DownloadStatus.CANCELED) : DownloadStatus.FAILED;
+                int status = isStopped() ? ((task.resumable) ? DownloadStatus.PAUSED : DownloadStatus.CANCELED) : DownloadStatus.FAILED;
                 updateNotification(context, filename, status, -1, null);
                 taskDao.updateTask(getId().toString(), status, lastProgress);
-                Log.d(TAG, isStopped() || isCancelled() ? "Download canceled" : "Server replied HTTP code: " + responseCode);
+                Log.d(TAG, isStopped() ? "Download canceled" : "Server replied HTTP code: " + responseCode);
             }
         } catch (IOException e) {
             updateNotification(context, filename == null ? fileURL : filename, DownloadStatus.FAILED, -1, null);
