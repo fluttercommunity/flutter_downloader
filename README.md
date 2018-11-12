@@ -9,6 +9,7 @@ A plugin for creating and managing download tasks. Supports iOS and Android.
 This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownloadTask`][2] in iOS to run download task in background mode.
 
 
+
 ## iOS integration
 
 ### Required configuration
@@ -28,7 +29,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
     <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/add_sqlite_2.png?raw=true" />
 </p>
 
-___
+
 
 ### Optional configuration
 
@@ -81,6 +82,8 @@ ___
 <string>All files have been downloaded</string>
 ````
 
+
+
 ## Android integration
 
 ### Required configuration
@@ -102,7 +105,8 @@ ___
 **Note:**
  - You have to save your downloaded files in external storage (where the other applications have permission to read your files)
  - The downloaded files are only able to be opened if your device has at least an application that can read these file types (mp3, pdf, etc)
-___
+
+
 
 ### Optional configuration
 
@@ -135,6 +139,32 @@ ___
 <string name="flutter_downloader_notification_failed">Download failed</string>
 <string name="flutter_downloader_notification_complete">Download complete</string>
 <string name="flutter_downloader_notification_paused">Download paused</string>
+````
+
+* **Firebase integration:** there's a conflict problem between `WorkManager` and `Firebase` library (related to `Guava` library). The problem is expected to be resolved in new version of `Guava` and `Gradle` build tools. For now, you can work around it by adding some codes to your `build.gradle` (in `android` folder).
+
+````gradle
+allprojects {
+    ...
+
+    configurations.all {
+        exclude group: 'com.google.guava', module: 'failureaccess'
+
+        resolutionStrategy {
+            eachDependency { details ->
+                if('guava' == details.requested.name) {
+                    details.useVersion '27.0-android'
+                }
+                if ('com.android.support' == details.requested.group) {
+                    if (!requested.name.startsWith("multidex")) {
+                        details.useVersion '28.0.0'
+                    }
+                }
+            }
+        }
+    }
+}
+
 ````
 
 ## Usage
