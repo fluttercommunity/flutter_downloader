@@ -1,3 +1,7 @@
+## 1.1.1 - 12.11.2018
+
+* correct `README` instruction
+
 ## 1.1.0 - 12.11.2018
 
 * Android: upgrade `WorkManager` library to version v1.0.0-alpha11

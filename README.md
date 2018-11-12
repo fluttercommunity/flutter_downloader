@@ -130,7 +130,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
  </provider>
  ````
 
-* **Localize notification messages:** you can localize notification messages of download progress by localizing following messages. (you can find the detail of localization strings in Android in this [link][4])
+* **Localize notification messages:** you can localize notification messages of download progress by localizing following messages. (you can find the detail of string localization in Android in this [link][4])
 
 ````xml
 <string name="flutter_downloader_notification_started">Download started</string>
@@ -154,11 +154,6 @@ allprojects {
             eachDependency { details ->
                 if('guava' == details.requested.name) {
                     details.useVersion '27.0-android'
-                }
-                if ('com.android.support' == details.requested.group) {
-                    if (!requested.name.startsWith("multidex")) {
-                        details.useVersion '28.0.0'
-                    }
                 }
             }
         }
