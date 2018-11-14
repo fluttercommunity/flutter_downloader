@@ -25,7 +25,6 @@ public class FlutterDownloaderInitializer extends ContentProvider {
 
     @Override
     public boolean onCreate() {
-        WorkManagerInitializer
         int maximumConcurrentTask = getMaxConcurrentTaskMetadata(getContext());
         WorkManager.initialize(getContext(), new Configuration.Builder()
                 .setExecutor(Executors.newFixedThreadPool(maximumConcurrentTask))

@@ -605,6 +605,7 @@
 
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL:(NSURL *)location
 {
+    NSLog(@"URLSession:downloadTask:didFinishDownloadingToURL:");
     NSString *taskId = [self identifierForTask:downloadTask ofSession:session];
     NSDictionary *task = [self loadTaskWithId:taskId];
     NSURL *destinationURL = [self fileUrlFromDict:task];
@@ -639,13 +640,23 @@
 
 -(void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error
 {
-    if (error != nil) {
-        NSLog(@"Download completed with error: %@", [error localizedDescription]);
+    NSLog(@"URLSession:task:didCompleteWithError:");
+    NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *) task.response;
+    long httpStatusCode = (long)[httpResponse statusCode];
+    NSLog(@"HTTP status code: %ld", httpStatusCode);
+    bool isSuccess = (httpStatusCode >= 200 && httpStatusCode < 300);
+    if (error != nil || !isSuccess) {
+        NSLog(@"Download completed with error: %@", error != nil ? [error localizedDescription] : @(httpStatusCode));
         NSString *taskId = [self identifierForTask:task ofSession:session];
-        NSDictionary *task = [self loadTaskWithId:taskId];
-        NSNumber *resumable = task[KEY_RESUMABLE];
+        NSDictionary *taskInfo = [self loadTaskWithId:taskId];
+        NSNumber *resumable = taskInfo[KEY_RESUMABLE];
         if (![resumable boolValue]) {
-            int status = [error code] == -999 ? STATUS_CANCELED : STATUS_FAILED;
+            int status;
+            if (error != nil) {
+                status = [error code] == -999 ? STATUS_CANCELED : STATUS_FAILED;
+            } else {
+                status = STATUS_FAILED;
+            }
             [_runningTaskById removeObjectForKey:taskId];
             [self sendUpdateProgressForTaskId:taskId inStatus:@(status) andProgress:@(-1)];
             __weak id weakSelf = self;

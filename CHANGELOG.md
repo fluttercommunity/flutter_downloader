@@ -1,3 +1,8 @@
+## 1.1.2 - 14.11.2018
+
+* Android: fix typo error
+* iOS: catch HTTP status code in case of error
+
 ## 1.1.1 - 12.11.2018
 
 * correct `README` instruction
