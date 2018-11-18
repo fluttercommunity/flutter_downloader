@@ -1,3 +1,7 @@
+## 1.1.3 - 18.11.2019
+
+* Android: fix bug NullPointerException of `saveFilePath`
+
 ## 1.1.2 - 14.11.2018
 
 * Android: fix typo error

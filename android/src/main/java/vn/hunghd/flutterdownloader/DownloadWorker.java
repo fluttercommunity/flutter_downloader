@@ -164,16 +164,18 @@ public class DownloadWorker extends Worker {
                 Log.d(TAG, "Content-Type = " + contentType);
                 Log.d(TAG, "Content-Length = " + contentLength);
 
-                // try to extract filename from HTTP headers if it is not given by user
-                if (!isResume && filename == null) {
-                    String disposition = httpConn.getHeaderField("Content-Disposition");
-                    Log.d(TAG, "Content-Disposition = " + disposition);
-                    if (disposition != null && !disposition.isEmpty()) {
-                        String name = disposition.replaceFirst("(?i)^.*filename=\"?([^\"]+)\"?.*$", "$1");
-                        filename = URLDecoder.decode(name, "ISO-8859-1");
-                    }
-                    if (filename == null || filename.isEmpty()) {
-                        filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
+                if (!isResume) {
+                    // try to extract filename from HTTP headers if it is not given by user
+                    if (filename == null) {
+                        String disposition = httpConn.getHeaderField("Content-Disposition");
+                        Log.d(TAG, "Content-Disposition = " + disposition);
+                        if (disposition != null && !disposition.isEmpty()) {
+                            String name = disposition.replaceFirst("(?i)^.*filename=\"?([^\"]+)\"?.*$", "$1");
+                            filename = URLDecoder.decode(name, "ISO-8859-1");
+                        }
+                        if (filename == null || filename.isEmpty()) {
+                            filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
+                        }
                     }
                     saveFilePath = savedDir + File.separator + filename;
                 }
