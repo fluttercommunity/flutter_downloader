@@ -10,6 +10,9 @@ import android.support.v4.content.FileProvider;
 import java.io.File;
 import java.util.List;
 
+import android.util.Log;
+import android.os.Build;
+
 public class IntentUtils {
 
     public static synchronized Intent getOpenFileIntent(Context context, String path, String contentType) {
