@@ -10,13 +10,27 @@ import android.support.v4.content.FileProvider;
 import java.io.File;
 import java.util.List;
 
+import android.util.Log;
+import android.os.Build;
+
 public class IntentUtils {
 
     public static synchronized Intent getOpenFileIntent(Context context, String path, String contentType) {
         File file = new File(path);
-        Uri uri = FileProvider.getUriForFile(context, context.getPackageName() + ".flutter_downloader.provider", file);
         Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(uri, contentType);
+
+        if (Build.VERSION.SDK_INT >= 24) {
+            Uri apkURI = FileProvider.getUriForFile(
+                    context,
+                    context.getPackageName() + ".flutter_downloader.provider", file);
+            intent.setDataAndType(apkURI,
+                    "application/vnd.android.package-archive");
+        } else {
+            Log.d("INTENT-PROJ", "build version <24");
+            intent.setDataAndType(Uri.fromFile(file),
+                    "application/vnd.android.package-archive");
+        }
+
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         return intent;
