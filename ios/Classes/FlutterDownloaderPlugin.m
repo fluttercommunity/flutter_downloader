@@ -36,14 +36,17 @@
     FlutterMethodChannel *_flutterChannel;
     NSURLSession *_session;
     DBManager *_dbManager;
-    dispatch_queue_t _databaseQueue;
     NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById;
     NSString *_allFilesDownloadedMsg;
 }
 
+@property(nonatomic, strong) dispatch_queue_t databaseQueue;
+
 @end
 
 @implementation FlutterDownloaderPlugin
+
+@synthesize databaseQueue;
 
 - (instancetype)initWithBinaryMessenger: (NSObject<FlutterBinaryMessenger>*) messenger;
 {
@@ -59,7 +62,7 @@
         NSBundle *resourceBundle = [NSBundle bundleWithURL:bundleUrl];
         NSString *dbPath = [resourceBundle pathForResource:@"download_tasks" ofType:@"sql"];
         NSLog(@"database path: %@", dbPath);
-        _databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
+        databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
         _dbManager = [[DBManager alloc] initWithDatabaseFilePath:dbPath];
         _runningTaskById = [[NSMutableDictionary alloc] init];
 
@@ -123,10 +126,16 @@
     return [NSString stringWithFormat: @"%@.%lu", [[session configuration] identifier], [task taskIdentifier]];
 }
 
+- (void)updateRunningTaskById:(NSString*)taskId progress:(int)progress status:(int)status resumable:(BOOL)resumable {
+    _runningTaskById[taskId][KEY_PROGRESS] = @(progress);
+    _runningTaskById[taskId][KEY_STATUS] = @(status);
+    _runningTaskById[taskId][KEY_RESUMABLE] = @(resumable);
+}
+
 - (void)pauseTaskWithId: (NSString*)taskId
 {
     NSLog(@"pause task with id: %@", taskId);
-    __weak id weakSelf = self;
+    __typeof__(self) __weak weakSelf = self;
     [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
         for (NSURLSessionDownloadTask *download in downloads) {
             NSURLSessionTaskState state = download.state;
@@ -149,13 +158,11 @@
                     NSLog(@"save partial downloaded data to a file: %s", success ? "success" : "failure");
                 }];
 
-                _runningTaskById[taskId][KEY_PROGRESS] = @(progress);
-                _runningTaskById[taskId][KEY_STATUS] = @(STATUS_PAUSED);
-                _runningTaskById[taskId][KEY_RESUMABLE] = @(YES);
-
+                [weakSelf updateRunningTaskById:taskId progress:progress status:STATUS_PAUSED resumable:YES];
+                
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_PAUSED) andProgress:@(progress)];
 
-                dispatch_sync(_databaseQueue, ^{
+                dispatch_sync([weakSelf databaseQueue], ^{
                     [weakSelf updateTask:taskId status:STATUS_PAUSED progress:progress resumable:YES];
                 });
                 return;
@@ -167,7 +174,7 @@
 - (void)cancelTaskWithId: (NSString*)taskId
 {
     NSLog(@"cancel task with id: %@", taskId);
-    __weak id weakSelf = self;
+    __typeof__(self) __weak weakSelf = self;
     [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
         for (NSURLSessionDownloadTask *download in downloads) {
             NSURLSessionTaskState state = download.state;
@@ -175,7 +182,7 @@
             if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
                 [download cancel];
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                dispatch_sync(_databaseQueue, ^{
+                dispatch_sync([weakSelf databaseQueue], ^{
                     [weakSelf updateTask:taskId status:STATUS_CANCELED progress:-1];
                 });
                 return;
@@ -185,7 +192,7 @@
 }
 
 - (void)cancelAllTasks {
-    __weak id weakSelf = self;
+    __typeof__(self) __weak weakSelf = self;
     [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
         for (NSURLSessionDownloadTask *download in downloads) {
             NSURLSessionTaskState state = download.state;
@@ -193,7 +200,7 @@
                 [download cancel];
                 NSString *taskId = [self identifierForTask:download];
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                dispatch_sync(_databaseQueue, ^{
+                dispatch_sync([weakSelf databaseQueue], ^{
                     [weakSelf updateTask:taskId status:STATUS_CANCELED progress:-1];
                 });
             }
@@ -295,6 +302,16 @@
     }
 }
 
+- (void) deleteTask: (NSString*) taskId {
+    NSString *query = [NSString stringWithFormat:@"DELETE FROM task WHERE task_id=\"%@\"", taskId];
+    [_dbManager executeQuery:query];
+    if (_dbManager.affectedRows != 0) {
+        NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
+    } else {
+        NSLog(@"Could not execute the query.");
+    }
+}
+
 - (NSArray*)loadAllTasks
 {
     NSString *query = @"SELECT * FROM task";
@@ -387,8 +404,8 @@
                                   @(0), KEY_PROGRESS, nil]
                          forKey:taskId];
 
-    __weak id weakSelf = self;
-    dispatch_sync(_databaseQueue, ^{
+    __typeof__(self) __weak weakSelf = self;
+    dispatch_sync(databaseQueue, ^{
         [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:savedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
     });
     result(taskId);
@@ -396,8 +413,8 @@
 }
 
 - (void)loadTasksMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
-    __weak id weakSelf = self;
-    dispatch_sync(_databaseQueue, ^{
+    __typeof__(self) __weak weakSelf = self;
+    dispatch_sync(databaseQueue, ^{
         NSArray* tasks = [weakSelf loadAllTasks];
         result(tasks);
     });
@@ -405,8 +422,8 @@
 
 - (void)loadTasksWithRawQueryMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString *query = call.arguments[KEY_QUERY];
-    __weak id weakSelf = self;
-    dispatch_sync(_databaseQueue, ^{
+    __typeof__(self) __weak weakSelf = self;
+    dispatch_sync(databaseQueue, ^{
         NSArray* tasks = [weakSelf loadTasksWithRawQuery:query];
         result(tasks);
     });
@@ -455,8 +472,8 @@
 
                 result(newTaskId);
 
-                __weak id weakSelf = self;
-                dispatch_sync(_databaseQueue, ^{
+                __typeof__(self) __weak weakSelf = self;
+                dispatch_sync([self databaseQueue], ^{
                     [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_RUNNING resumable:NO];
                     NSDictionary *task = [weakSelf loadTaskWithId:newTaskId];
                     NSNumber *progress = task[KEY_PROGRESS];
@@ -499,8 +516,8 @@
             [_runningTaskById setObject:newTaskDict forKey:newTaskId];
             [_runningTaskById removeObjectForKey:taskId];
 
-            __weak id weakSelf = self;
-            dispatch_sync(_databaseQueue, ^{
+            __typeof__(self) __weak weakSelf = self;
+            dispatch_sync([self databaseQueue], ^{
                 [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_ENQUEUED resumable:NO];
             });
             result(newTaskId);
@@ -535,6 +552,52 @@
     }
 }
 
+- (void)removeMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    NSString *taskId = call.arguments[KEY_TASK_ID];
+    Boolean shouldDeleteContent = [call.arguments[@"should_delete_content"] boolValue];
+    NSDictionary* taskDict = [self loadTaskWithId:taskId];
+    if (taskDict != nil) {
+        NSNumber* status = taskDict[KEY_STATUS];
+        if ([status intValue] == STATUS_ENQUEUED || [status intValue] == STATUS_RUNNING) {
+            __typeof__(self) __weak weakSelf = self;
+            [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
+                for (NSURLSessionDownloadTask *download in downloads) {
+                    NSURLSessionTaskState state = download.state;
+                    NSString *taskIdValue = [weakSelf identifierForTask:download];
+                    if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
+                        [download cancel];
+                        [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
+                        dispatch_sync([weakSelf databaseQueue], ^{
+                            [weakSelf deleteTask:taskId];
+                        });
+                        return;
+                    }
+                };
+            }];
+        } else {
+            [self deleteTask:taskId];
+        }
+        if (shouldDeleteContent) {
+            NSURL *destinationURL = [self fileUrlFromDict:taskDict];
+            
+            NSError *error;
+            NSFileManager *fileManager = [NSFileManager defaultManager];
+            
+            if ([fileManager fileExistsAtPath:[destinationURL path]]) {
+                [fileManager removeItemAtURL:destinationURL error:&error];
+                if (error == nil) {
+                    NSLog(@"delete content file sucesfully");
+                } else {
+                    NSLog(@"cannot delete content file: %@", [error localizedDescription]);
+                }
+            }
+        }
+        result([NSNull null]);
+    } else {
+        result(ERROR_INVALID_TASK_ID);
+    }
+}
+
 # pragma mark - FlutterPlugin
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
@@ -564,6 +627,8 @@
         [self retryMethodCall:call result:result];
     } else if ([@"open" isEqualToString:call.method]) {
         [self openMethodCall:call result:result];
+    } else if ([@"remove" isEqualToString:call.method]) {
+        [self removeMethodCall:call result:result];
     } else {
         result(FlutterMethodNotImplemented);
     }
@@ -583,7 +648,7 @@
     _session = nil;
     _flutterChannel = nil;
     _dbManager = nil;
-    _databaseQueue = nil;
+    databaseQueue = nil;
     _runningTaskById = nil;
 }
 
@@ -623,16 +688,16 @@
                                         toURL:destinationURL
                                         error:&error];
 
-    __weak id weakSelf = self;
+    __typeof__(self) __weak weakSelf = self;
     if (success) {
         [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_COMPLETE) andProgress:@100];
-        dispatch_sync(_databaseQueue, ^{
+        dispatch_sync(databaseQueue, ^{
             [weakSelf updateTask:taskId status:STATUS_COMPLETE progress:100];
         });
     } else {
         NSLog(@"Unable to copy temp file. Error: %@", [error localizedDescription]);
         [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_FAILED) andProgress:@(-1)];
-        dispatch_sync(_databaseQueue, ^{
+        dispatch_sync(databaseQueue, ^{
             [weakSelf updateTask:taskId status:STATUS_FAILED progress:-1];
         });
     }
@@ -659,8 +724,8 @@
             }
             [_runningTaskById removeObjectForKey:taskId];
             [self sendUpdateProgressForTaskId:taskId inStatus:@(status) andProgress:@(-1)];
-            __weak id weakSelf = self;
-            dispatch_sync(_databaseQueue, ^{
+            __typeof__(self) __weak weakSelf = self;
+            dispatch_sync(databaseQueue, ^{
                 [weakSelf updateTask:taskId status:status progress:-1];
             });
         }

@@ -125,6 +125,12 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   }
 
   @override
+  void dispose() {
+    FlutterDownloader.registerCallback(null);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return new Scaffold(
       appBar: new AppBar(
@@ -299,9 +305,26 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
       );
     } else if (task.status == DownloadTaskStatus.complete) {
-      return new Text(
-        'Ready',
-        style: new TextStyle(color: Colors.green),
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          new Text(
+            'Ready',
+            style: new TextStyle(color: Colors.green),
+          ),
+          RawMaterialButton(
+            onPressed: () {
+              _delete(task);
+            },
+            child: Icon(
+              Icons.delete_forever,
+              color: Colors.red,
+            ),
+            shape: new CircleBorder(),
+            constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
+          )
+        ],
       );
     } else if (task.status == DownloadTaskStatus.canceled) {
       return new Text('Canceled', style: new TextStyle(color: Colors.red));
@@ -357,6 +380,12 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
 
   Future<bool> _openDownloadedFile(_TaskInfo task) {
     return FlutterDownloader.open(taskId: task.taskId);
+  }
+
+  void _delete(_TaskInfo task) async {
+    await FlutterDownloader.remove(taskId: task.taskId, shouldDeleteContent: true);
+    await _prepare();
+    setState(() {});
   }
 
   Future<bool> _checkPermission() async {

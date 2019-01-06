@@ -1,4 +1,10 @@
-## 1.1.3 - 18.11.2019
+## 1.1.4 - 06.11.2019
+
+* add `remove()` feature to delete task (in DB) and downloaded file as well (optional).
+* support clean up callback by setting callback as `null` in `registerCallback()`
+* Android: upgrade `WorkManager` to version 1.0.0-beta01
+
+## 1.1.3 - 18.11.2018
 
 * Android: fix bug NullPointerException of `saveFilePath`
 

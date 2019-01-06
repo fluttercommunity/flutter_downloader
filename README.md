@@ -189,6 +189,8 @@ FlutterDownloader.registerCallback((id, status, progress) {
 });
 ````
 
+- Note: set `callback` as `null` to remove listener. You should clean up callback to prevent from leaking references.
+
 #### Load all tasks:
 
 ````dart
@@ -259,6 +261,12 @@ FlutterDownloader.retry(taskId: taskId);
 ````
 
 - Note: `retry()` will return a new `taskId` (like `resume()`)
+
+#### Remove a task:
+
+```dart
+FlutterDownloader.remove(taskId: taskId, shouldDeleteContent:false);
+```
 
 #### Open and preview a downloaded file:
 

@@ -2,7 +2,7 @@
 /// * author: hunghd
 /// * email: hunghd.yb@gmail.com
 ///
-/// A plugin provides capability of creating and managing background download
+/// A plugin provides the capability of creating and managing background download
 /// tasks. This plugin depends on native api to run background tasks, so these
 /// tasks aren't restricted by the limitation of Dart codes (in term of running
 /// background tasks out of scope of a Flutter application). Using native api
@@ -302,6 +302,29 @@ class FlutterDownloader {
     }
   }
 
+
+  //TODO: implement this feature in Android and iOS side.
+
+  ///
+  /// Delete a download task from DB. If the given task is running, it is canceled
+  /// as well. If the task is completed and `shouldDeleteContent` is `true`,
+  /// the downloaded file will be deleted.
+  ///
+  /// **parameters:**
+  ///
+  /// * `taskId`: unique identifier of a download task
+  /// * `shouldDeleteContent`: if the task is completed, set `true` to let the
+  /// plugin remove the downloaded file. The default value is `false`.
+  ///
+  static Future<Null> remove({@required String taskId, bool shouldDeleteContent = false}) async {
+    try {
+      return await platform.invokeMethod('remove', {'task_id': taskId, 'should_delete_content': shouldDeleteContent});
+    } on PlatformException catch (e) {
+      print(e.message);
+      return null;
+    }
+  }
+
   ///
   /// Open and preview a downloaded file
   ///
@@ -340,14 +363,25 @@ class FlutterDownloader {
   /// * `callback`: a function of [DownloadCallback] type which is called whenever
   /// the status or progress value of a download task has been changed.
   ///
+  /// **Note:**
+  ///
+  /// set `callback` as `null` to remove listener. You should clean up callback
+  /// to prevent from leaking references.
+  ///
   static registerCallback(DownloadCallback callback) {
-    platform.setMethodCallHandler((MethodCall call) {
-      if (call.method == 'updateProgress') {
-        String id = call.arguments['task_id'];
-        int status = call.arguments['status'];
-        int process = call.arguments['progress'];
-        callback(id, DownloadTaskStatus._internal(status), process);
-      }
-    });
+    if (callback != null) {
+      // remove previous setting
+      platform.setMethodCallHandler(null);
+      platform.setMethodCallHandler((MethodCall call) {
+        if (call.method == 'updateProgress') {
+          String id = call.arguments['task_id'];
+          int status = call.arguments['status'];
+          int process = call.arguments['progress'];
+          callback(id, DownloadTaskStatus._internal(status), process);
+        }
+      });
+    } else {
+      platform.setMethodCallHandler(null);
+    }
   }
 }

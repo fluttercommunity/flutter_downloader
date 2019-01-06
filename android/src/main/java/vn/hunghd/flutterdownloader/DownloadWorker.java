@@ -103,14 +103,14 @@ public class DownloadWorker extends Worker {
             cleanUp();
             dbHelper = null;
             taskDao = null;
-            return Result.SUCCESS;
+            return Result.success();
         } catch (Exception e) {
             updateNotification(context, filename == null ? url : filename, DownloadStatus.FAILED, -1, null);
             taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
             e.printStackTrace();
             dbHelper = null;
             taskDao = null;
-            return Result.FAILURE;
+            return Result.failure();
         }
     }
 

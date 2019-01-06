@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.LocalBroadcastManager;
 
 
@@ -86,7 +87,9 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
             retry(call, result);
         } else if (call.method.equals("open")) {
             open(call, result);
-        } else {
+        } else if (call.method.equals("remove")) {
+            remove(call, result);
+        }  else {
             result.notImplemented();
         }
     }
@@ -299,6 +302,36 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
             } else {
                 result.error("invalid_status", "only success task can be opened", null);
             }
+        } else {
+            result.error("invalid_task_id", "not found task corresponding to given task id", null);
+        }
+    }
+
+    private void remove(MethodCall call, MethodChannel.Result result) {
+        String taskId = call.argument("task_id");
+        boolean shouldDeleteContent = call.argument("should_delete_content");
+        DownloadTask task = taskDao.loadTask(taskId);
+        if (task != null) {
+            if (task.status == DownloadStatus.ENQUEUED || task.status == DownloadStatus.RUNNING) {
+                WorkManager.getInstance().cancelWorkById(UUID.fromString(taskId));
+            }
+            if (shouldDeleteContent) {
+                String filename = task.filename;
+                if (filename == null) {
+                    filename = task.url.substring(task.url.lastIndexOf("/") + 1, task.url.length());
+                }
+
+                String saveFilePath = task.savedDir + File.separator + filename;
+                File tempFile = new File(saveFilePath);
+                if (tempFile.exists()) {
+                    tempFile.delete();
+                }
+            }
+            taskDao.deleteTask(taskId);
+
+            NotificationManagerCompat.from(context).cancel(task.primaryId);
+
+            result.success(null);
         } else {
             result.error("invalid_task_id", "not found task corresponding to given task id", null);
         }

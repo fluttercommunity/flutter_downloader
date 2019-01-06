@@ -193,6 +193,22 @@ public class TaskDao {
         }
     }
 
+    public void deleteTask(String taskId) {
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+        db.beginTransaction();
+        try {
+            String whereClause = TaskContract.TaskEntry.COLUMN_NAME_TASK_ID + " = ?";
+            String[] whereArgs = new String[]{taskId};
+            db.delete(TaskContract.TaskEntry.TABLE_NAME, whereClause, whereArgs);
+            db.setTransactionSuccessful();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            db.endTransaction();
+        }
+    }
+
     private DownloadTask parseCursor(Cursor cursor) {
         int primaryId = cursor.getInt(cursor.getColumnIndexOrThrow(BaseColumns._ID));
         String taskId = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_TASK_ID));
