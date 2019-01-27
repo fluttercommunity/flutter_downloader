@@ -357,6 +357,9 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         url: task.link,
         savedDir: _localPath,
         showNotification: true,
+        headers: {
+          "auth": "test_for_sql_encoding"
+        },
         openFileFromNotification: false);
   }
 

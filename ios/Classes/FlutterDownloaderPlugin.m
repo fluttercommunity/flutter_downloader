@@ -249,8 +249,27 @@
 
 # pragma mark - Database Accessing
 
+- (NSString*) replaceQuotes: (NSString*) origin revert: (BOOL)revert
+{
+    if ( origin == (NSString *)[NSNull null] )
+    {
+        return @"";
+    }
+    NSString *old = @"\"";
+    NSString *new = @"%22";
+    if(revert) {
+        new = @"\"";
+        old = @"%22";
+    }
+    return [origin stringByReplacingOccurrencesOfString:old withString:new];
+}
+
 - (void) addNewTask: (NSString*) taskId url: (NSString*) url status: (int) status progress: (int) progress filename: (NSString*) filename savedDir: (NSString*) savedDir headers: (NSString*) headers resumable: (BOOL) resumable showNotification: (BOOL) showNotification openFileFromNotification: (BOOL) openFileFromNotification
 {
+    url = [self replaceQuotes: url revert: false];
+    filename = [self replaceQuotes: filename revert: false];
+    savedDir = [self replaceQuotes: savedDir revert: false];
+    headers = [self replaceQuotes: headers revert: false];
     NSString *query = [NSString stringWithFormat:@"INSERT INTO task (task_id,url,status,progress,file_name,saved_dir,headers,resumable,show_notification,open_file_from_notification,time_created) VALUES (\"%@\",\"%@\",%d,%d,\"%@\",\"%@\",\"%@\",%d,%d,%d,%ld)", taskId, url, status, progress, filename, savedDir, headers, resumable ? 1 : 0, showNotification ? 1 : 0, openFileFromNotification ? 1 : 0, [self currentTimeInMilliseconds]];
     [_dbManager executeQuery:query];
     if (_dbManager.affectedRows != 0) {
@@ -363,6 +382,10 @@
     NSString *filename = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"file_name"]];
     NSString *savedDir = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"saved_dir"]];
     NSString *headers = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"headers"]];
+    url = [self replaceQuotes:url revert:true];
+    filename = [self replaceQuotes:filename revert:true];
+    savedDir = [self replaceQuotes:savedDir revert:true];
+    headers = [self replaceQuotes:headers revert:true];
     int resumable = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"resumable"]] intValue];
     int showNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"show_notification"]] intValue];
     int openFileFromNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"open_file_from_notification"]] intValue];
