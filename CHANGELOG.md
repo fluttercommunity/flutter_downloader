@@ -1,4 +1,9 @@
-## 1.1.4 - 06.11.2019
+## 1.1.5 - 27.01.2019
+
+* Android: upgrade `WorkManager` to version 1.0.0-beta03
+* fix bugs
+
+## 1.1.4 - 06.01.2019
 
 * add `remove()` feature to delete task (in DB) and downloaded file as well (optional).
 * support clean up callback by setting callback as `null` in `registerCallback()`

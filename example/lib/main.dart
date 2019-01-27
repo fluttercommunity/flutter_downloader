@@ -355,12 +355,12 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void _requestDownload(_TaskInfo task) async {
     task.taskId = await FlutterDownloader.enqueue(
         url: task.link,
-        savedDir: _localPath,
-        showNotification: true,
         headers: {
           "auth": "test_for_sql_encoding"
         },
-        openFileFromNotification: false);
+        savedDir: _localPath,
+        showNotification: true,
+        openFileFromNotification: true);
   }
 
   void _cancelDownload(_TaskInfo task) async {

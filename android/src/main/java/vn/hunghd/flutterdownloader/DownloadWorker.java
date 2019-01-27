@@ -212,7 +212,7 @@ public class DownloadWorker extends Worker {
 
                 DownloadTask task = taskDao.loadTask(getId().toString());
                 int progress = isStopped() && task.resumable ? lastProgress : 100;
-                int status = isStopped() && task.resumable ? DownloadStatus.PAUSED : DownloadStatus.COMPLETE;
+                int status = isStopped() ? (task.resumable ? DownloadStatus.PAUSED : DownloadStatus.CANCELED) : DownloadStatus.COMPLETE;
                 PendingIntent pendingIntent = null;
                 if (status == DownloadStatus.COMPLETE && clickToOpenDownloadedFile) {
                     Intent intent = IntentUtils.getOpenFileIntent(getApplicationContext(), saveFilePath, contentType);
@@ -229,7 +229,7 @@ public class DownloadWorker extends Worker {
                 Log.d(TAG, isStopped() ? "Download canceled" : "File downloaded");
             } else {
                 DownloadTask task = taskDao.loadTask(getId().toString());
-                int status = isStopped() ? ((task.resumable) ? DownloadStatus.PAUSED : DownloadStatus.CANCELED) : DownloadStatus.FAILED;
+                int status = isStopped() ? (task.resumable ? DownloadStatus.PAUSED : DownloadStatus.CANCELED) : DownloadStatus.FAILED;
                 updateNotification(context, filename, status, -1, null);
                 taskDao.updateTask(getId().toString(), status, lastProgress);
                 Log.d(TAG, isStopped() ? "Download canceled" : "Server replied HTTP code: " + responseCode);

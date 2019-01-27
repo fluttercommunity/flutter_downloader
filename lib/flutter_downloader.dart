@@ -302,9 +302,6 @@ class FlutterDownloader {
     }
   }
 
-
-  //TODO: implement this feature in Android and iOS side.
-
   ///
   /// Delete a download task from DB. If the given task is running, it is canceled
   /// as well. If the task is completed and `shouldDeleteContent` is `true`,
