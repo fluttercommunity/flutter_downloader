@@ -33,47 +33,44 @@ public class FlutterDownloaderInitializer extends ContentProvider {
     }
 
     @Nullable
-    @android.support.annotation.Nullable
     @Override
     public Cursor query(
-            @NonNull @android.support.annotation.NonNull Uri uri,
-            @Nullable @android.support.annotation.Nullable String[] strings,
-            @Nullable @android.support.annotation.Nullable String s,
-            @Nullable @android.support.annotation.Nullable String[] strings1,
-            @Nullable @android.support.annotation.Nullable String s1) {
+            @NonNull Uri uri,
+            @Nullable String[] strings,
+            @Nullable String s,
+            @Nullable String[] strings1,
+            @Nullable String s1) {
         return null;
     }
 
     @Nullable
-    @android.support.annotation.Nullable
     @Override
-    public String getType(@NonNull @android.support.annotation.NonNull Uri uri) {
+    public String getType(@NonNull Uri uri) {
         return null;
     }
 
     @Nullable
-    @android.support.annotation.Nullable
     @Override
     public Uri insert(
-            @NonNull @android.support.annotation.NonNull Uri uri,
-            @Nullable @android.support.annotation.Nullable ContentValues contentValues) {
+            @NonNull Uri uri,
+            @Nullable ContentValues contentValues) {
         return null;
     }
 
     @Override
     public int delete(
-            @NonNull @android.support.annotation.NonNull Uri uri,
-            @Nullable @android.support.annotation.Nullable String s,
-            @Nullable @android.support.annotation.Nullable String[] strings) {
+            @NonNull Uri uri,
+            @Nullable String s,
+            @Nullable String[] strings) {
         return 0;
     }
 
     @Override
     public int update(
-            @NonNull @android.support.annotation.NonNull Uri uri,
-            @Nullable @android.support.annotation.Nullable ContentValues contentValues,
-            @Nullable @android.support.annotation.Nullable String s,
-            @Nullable @android.support.annotation.Nullable String[] strings) {
+            @NonNull Uri uri,
+            @Nullable ContentValues contentValues,
+            @Nullable String s,
+            @Nullable String[] strings) {
         return 0;
     }
 

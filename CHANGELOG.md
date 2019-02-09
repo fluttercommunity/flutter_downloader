@@ -1,3 +1,8 @@
+## 1.1.6 - 09.02.2019
+
+* Android: upgrade `WorkManager` to version 1.0.0-beta05
+* Android: migrate to AndroidX
+
 ## 1.1.5 - 27.01.2019
 
 * Android: upgrade `WorkManager` to version 1.0.0-beta03

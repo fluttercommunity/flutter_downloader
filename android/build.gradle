@@ -8,7 +8,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.2.0'
+        classpath 'com.android.tools.build:gradle:3.3.1'
     }
 }
 
@@ -34,8 +34,10 @@ android {
 }
 
 dependencies {
-    implementation('android.arch.work:work-runtime:1.0.0-beta03') {
+    implementation('android.arch.work:work-runtime:1.0.0-beta05') {
         exclude group: 'com.google.guava', module: 'listenablefuture'
     }
     implementation 'androidx.concurrent:concurrent-futures:1.0.0-alpha03'
+    implementation 'androidx.annotation:annotation:1.0.1'
+    implementation 'androidx.core:core:1.0.1'
 }
