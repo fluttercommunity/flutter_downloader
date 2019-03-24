@@ -5,11 +5,13 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.Build;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -213,8 +215,9 @@ public class DownloadWorker extends Worker {
                 DownloadTask task = taskDao.loadTask(getId().toString());
                 int progress = isStopped() && task.resumable ? lastProgress : 100;
                 int status = isStopped() ? (task.resumable ? DownloadStatus.PAUSED : DownloadStatus.CANCELED) : DownloadStatus.COMPLETE;
+                int storage = ContextCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
                 PendingIntent pendingIntent = null;
-                if (status == DownloadStatus.COMPLETE && clickToOpenDownloadedFile) {
+                if (status == DownloadStatus.COMPLETE && clickToOpenDownloadedFile && storage == PackageManager.PERMISSION_GRANTED) {
                     Intent intent = IntentUtils.getOpenFileIntent(getApplicationContext(), saveFilePath, contentType);
                     if (IntentUtils.validateIntent(getApplicationContext(), intent)) {
                         Log.d(TAG, "Setting an intent to open the file " + saveFilePath);

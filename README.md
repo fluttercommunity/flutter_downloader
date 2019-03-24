@@ -141,25 +141,10 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 <string name="flutter_downloader_notification_paused">Download paused</string>
 ````
 
-* **Firebase integration:** there's a conflict problem between `WorkManager` and `Firebase` library (related to `Guava` library). The problem is expected to be resolved in new version of `Guava` and `Gradle` build tools. For now, you can work around it by adding some codes to your `build.gradle` (in `android` folder).
+* **PackageInstaller:** in order to open APK files, your application needs `REQUEST_INSTALL_PACKAGES` permission. Add following codes in your `AndroidManifest.xml`:
 
-````gradle
-allprojects {
-    ...
-
-    configurations.all {
-        exclude group: 'com.google.guava', module: 'failureaccess'
-
-        resolutionStrategy {
-            eachDependency { details ->
-                if('guava' == details.requested.name) {
-                    details.useVersion '27.0-android'
-                }
-            }
-        }
-    }
-}
-
+````xml
+<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 ````
 
 ## Usage
