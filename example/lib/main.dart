@@ -382,7 +382,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   }
 
   Future<bool> _openDownloadedFile(_TaskInfo task) {
-    return FlutterDownloader.open(taskId: task.taskId, title: "Title (Optional)");
+    return FlutterDownloader.open(taskId: task.taskId, title: task.name);
   }
 
   void _delete(_TaskInfo task) async {
