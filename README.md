@@ -256,10 +256,12 @@ FlutterDownloader.remove(taskId: taskId, shouldDeleteContent:false);
 #### Open and preview a downloaded file:
 
 ````dart
-FlutterDownloader.open(taskId: taskId);
+FlutterDownloader.open(taskId: taskId, title: "Title (Optional)");
 ````
 
-- Note: in Android, you can only open a downloaded file if it is placed in the external storage and there's at least one application that can read that file type on your device.
+**Note:**
+ - In Android, you can only open a downloaded file if it is placed in the external storage and there's at least one application that can read that file type on your device.
+ - The title option is only supported in iOS.
 
 ## Bugs/Requests
 If you encounter any problems feel free to open an issue. If you feel the library is
