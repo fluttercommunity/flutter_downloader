@@ -27,7 +27,8 @@ import 'package:flutter/services.dart';
 /// * `progress`: current progress value of a download task, the value is in
 /// range of 0 and 100
 ///
-typedef void DownloadCallback(String id, DownloadTaskStatus status, int progress);
+typedef void DownloadCallback(
+    String id, DownloadTaskStatus status, int progress);
 
 ///
 /// A class defines a set of possible statuses of a download task
@@ -124,7 +125,8 @@ class FlutterDownloader {
       String fileName,
       Map<String, String> headers,
       bool showNotification = true,
-      bool openFileFromNotification = true}) async {
+      bool openFileFromNotification = true,
+      bool requiresStorageNotLow = true}) async {
     StringBuffer headerBuilder = StringBuffer();
     if (headers != null) {
       headerBuilder.write('{');
@@ -142,6 +144,7 @@ class FlutterDownloader {
         'headers': headerBuilder.toString(),
         'show_notification': showNotification,
         'open_file_from_notification': openFileFromNotification,
+        'requires_storage_not_low': requiresStorageNotLow,
       });
       print('Download task is enqueued with id($taskId)');
       return taskId;
@@ -199,7 +202,8 @@ class FlutterDownloader {
   static Future<List<DownloadTask>> loadTasksWithRawQuery(
       {@required String query}) async {
     try {
-      List<dynamic> result = await platform.invokeMethod('loadTasksWithRawQuery', {'query': query});
+      List<dynamic> result = await platform
+          .invokeMethod('loadTasksWithRawQuery', {'query': query});
       print('Loaded tasks: $result');
       return result
           .map((item) => new DownloadTask(
@@ -272,9 +276,15 @@ class FlutterDownloader {
   /// An unique identifier of a new download task that is created to continue
   /// the partial download progress
   ///
-  static Future<String> resume({@required String taskId}) async {
+  static Future<String> resume({
+    @required String taskId,
+    bool requiresStorageNotLow = true,
+  }) async {
     try {
-      return await platform.invokeMethod('resume', {'task_id': taskId});
+      return await platform.invokeMethod('resume', {
+        'task_id': taskId,
+        'requires_storage_not_low': requiresStorageNotLow,
+      });
     } on PlatformException catch (e) {
       print(e.message);
       return null;
@@ -293,9 +303,15 @@ class FlutterDownloader {
   /// An unique identifier of a new download task that is created to start the
   /// failed download progress from the beginning
   ///
-  static Future<String> retry({@required String taskId}) async {
+  static Future<String> retry({
+    @required String taskId,
+    bool requiresStorageNotLow = true,
+  }) async {
     try {
-      return await platform.invokeMethod('retry', {'task_id': taskId});
+      return await platform.invokeMethod('retry', {
+        'task_id': taskId,
+        'requires_storage_not_low': requiresStorageNotLow,
+      });
     } on PlatformException catch (e) {
       print(e.message);
       return null;
@@ -313,9 +329,11 @@ class FlutterDownloader {
   /// * `shouldDeleteContent`: if the task is completed, set `true` to let the
   /// plugin remove the downloaded file. The default value is `false`.
   ///
-  static Future<Null> remove({@required String taskId, bool shouldDeleteContent = false}) async {
+  static Future<Null> remove(
+      {@required String taskId, bool shouldDeleteContent = false}) async {
     try {
-      return await platform.invokeMethod('remove', {'task_id': taskId, 'should_delete_content': shouldDeleteContent});
+      return await platform.invokeMethod('remove',
+          {'task_id': taskId, 'should_delete_content': shouldDeleteContent});
     } on PlatformException catch (e) {
       print(e.message);
       return null;
