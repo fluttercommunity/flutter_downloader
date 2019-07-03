@@ -134,10 +134,10 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
 
     }
 
-    private WorkRequest buildRequest(String url, String savedDir, String filename, String headers, boolean showNotification, boolean openFileFromNotification, boolean isResume) {
+    private WorkRequest buildRequest(String url, String savedDir, String filename, String headers, boolean showNotification, boolean openFileFromNotification, boolean isResume, boolean requiresStorageNotLow) {
         WorkRequest request = new OneTimeWorkRequest.Builder(DownloadWorker.class)
                 .setConstraints(new Constraints.Builder()
-                        .setRequiresStorageNotLow(true)
+                        .setRequiresStorageNotLow(requiresStorageNotLow)
                         .setRequiredNetworkType(NetworkType.CONNECTED)
                         .build())
                 .addTag(TAG)
@@ -171,7 +171,8 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
         String headers = call.argument("headers");
         boolean showNotification = call.argument("show_notification");
         boolean openFileFromNotification = call.argument("open_file_from_notification");
-        WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, openFileFromNotification, false);
+        boolean requiresStorageNotLow = call.argument("requires_storage_not_low");
+        WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, openFileFromNotification, false, requiresStorageNotLow);
         WorkManager.getInstance().enqueue(request);
         String taskId = request.getId().toString();
         result.success(taskId);
@@ -235,6 +236,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
     private void resume(MethodCall call, MethodChannel.Result result) {
         String taskId = call.argument("task_id");
         DownloadTask task = taskDao.loadTask(taskId);
+        boolean requiresStorageNotLow = call.argument("requires_storage_not_low");
         if (task != null) {
             if (task.status == DownloadStatus.PAUSED) {
                 String filename = task.filename;
@@ -244,7 +246,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
                 String partialFilePath = task.savedDir + File.separator + filename;
                 File partialFile = new File(partialFilePath);
                 if (partialFile.exists()) {
-                    WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, true);
+                    WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, true, requiresStorageNotLow);
                     String newTaskId = request.getId().toString();
                     result.success(newTaskId);
                     sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress);
@@ -264,9 +266,10 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
     private void retry(MethodCall call, MethodChannel.Result result) {
         String taskId = call.argument("task_id");
         DownloadTask task = taskDao.loadTask(taskId);
+        boolean requiresStorageNotLow = call.argument("requires_storage_not_low");
         if (task != null) {
             if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
-                WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, false);
+                WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, false, requiresStorageNotLow);
                 String newTaskId = request.getId().toString();
                 result.success(newTaskId);
                 sendUpdateProgress(newTaskId, DownloadStatus.ENQUEUED, task.progress);
