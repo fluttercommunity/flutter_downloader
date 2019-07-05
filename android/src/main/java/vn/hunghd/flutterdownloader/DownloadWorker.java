@@ -8,11 +8,13 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.Build;
+
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -37,6 +39,7 @@ public class DownloadWorker extends Worker {
 
     public static final String ARG_URL = "url";
     public static final String ARG_FILE_NAME = "file_name";
+    public static final String ARG_MIME_TYPE = "mime_type";
     public static final String ARG_SAVED_DIR = "saved_file";
     public static final String ARG_HEADERS = "headers";
     public static final String ARG_IS_RESUME = "is_resume";
@@ -75,6 +78,7 @@ public class DownloadWorker extends Worker {
 
         String url = getInputData().getString(ARG_URL);
         String filename = getInputData().getString(ARG_FILE_NAME);
+        String mimeType = getInputData().getString(ARG_MIME_TYPE);
         String savedDir = getInputData().getString(ARG_SAVED_DIR);
         String headers = getInputData().getString(ARG_HEADERS);
         boolean isResume = getInputData().getBoolean(ARG_IS_RESUME, false);
@@ -101,7 +105,7 @@ public class DownloadWorker extends Worker {
         taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, 0);
 
         try {
-            downloadFile(context, url, savedDir, filename, headers, isResume);
+            downloadFile(context, url, savedDir, filename, mimeType, headers, isResume);
             cleanUp();
             dbHelper = null;
             taskDao = null;
@@ -116,7 +120,7 @@ public class DownloadWorker extends Worker {
         }
     }
 
-    private void downloadFile(Context context, String fileURL, String savedDir, String filename, String headers, boolean isResume) throws MalformedURLException {
+    private void downloadFile(Context context, String fileURL, String savedDir, String filename, String mimeType, String headers, boolean isResume) throws MalformedURLException {
         URL url = new URL(fileURL);
 
         HttpURLConnection httpConn = null;
@@ -183,7 +187,7 @@ public class DownloadWorker extends Worker {
                 }
                 Log.d(TAG, "fileName = " + filename);
 
-                taskDao.updateTask(getId().toString(), filename, contentType);
+                taskDao.updateTask(getId().toString(), filename, mimeType.isEmpty() ? contentType : mimeType);
 
                 // opens input stream from the HTTP connection
                 inputStream = httpConn.getInputStream();

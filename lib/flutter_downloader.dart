@@ -27,7 +27,8 @@ import 'package:flutter/services.dart';
 /// * `progress`: current progress value of a download task, the value is in
 /// range of 0 and 100
 ///
-typedef void DownloadCallback(String id, DownloadTaskStatus status, int progress);
+typedef void DownloadCallback(
+    String id, DownloadTaskStatus status, int progress);
 
 ///
 /// A class defines a set of possible statuses of a download task
@@ -104,6 +105,8 @@ class FlutterDownloader {
   /// * `savedDir`: absolute path of the directory where downloaded file is saved
   /// * `fileName`: name of downloaded file. If this parameter is not set, the
   /// plugin will try to extract a file name from HTTP headers response or `url`
+  /// * `mimeType`: To provide downloaded file type so that plugin will open
+  /// file with default application associate with it.
   /// * `headers`: HTTP headers
   /// * `showNotification`: sets `true` to show a notification displaying the
   /// download progress (only Android), otherwise, `false` value will disable
@@ -118,13 +121,15 @@ class FlutterDownloader {
   ///
   /// an unique identifier of the new download task
   ///
-  static Future<String> enqueue(
-      {@required String url,
-      @required String savedDir,
-      String fileName,
-      Map<String, String> headers,
-      bool showNotification = true,
-      bool openFileFromNotification = true}) async {
+  static Future<String> enqueue({
+    @required String url,
+    @required String savedDir,
+    String fileName,
+    String mimeType,
+    Map<String, String> headers,
+    bool showNotification = true,
+    bool openFileFromNotification = true,
+  }) async {
     StringBuffer headerBuilder = StringBuffer();
     if (headers != null) {
       headerBuilder.write('{');
@@ -139,6 +144,7 @@ class FlutterDownloader {
         'url': url,
         'saved_dir': savedDir,
         'file_name': fileName,
+        'mime_type': mimeType,
         'headers': headerBuilder.toString(),
         'show_notification': showNotification,
         'open_file_from_notification': openFileFromNotification,
@@ -199,7 +205,8 @@ class FlutterDownloader {
   static Future<List<DownloadTask>> loadTasksWithRawQuery(
       {@required String query}) async {
     try {
-      List<dynamic> result = await platform.invokeMethod('loadTasksWithRawQuery', {'query': query});
+      List<dynamic> result = await platform
+          .invokeMethod('loadTasksWithRawQuery', {'query': query});
       print('Loaded tasks: $result');
       return result
           .map((item) => new DownloadTask(
@@ -313,9 +320,11 @@ class FlutterDownloader {
   /// * `shouldDeleteContent`: if the task is completed, set `true` to let the
   /// plugin remove the downloaded file. The default value is `false`.
   ///
-  static Future<Null> remove({@required String taskId, bool shouldDeleteContent = false}) async {
+  static Future<Null> remove(
+      {@required String taskId, bool shouldDeleteContent = false}) async {
     try {
-      return await platform.invokeMethod('remove', {'task_id': taskId, 'should_delete_content': shouldDeleteContent});
+      return await platform.invokeMethod('remove',
+          {'task_id': taskId, 'should_delete_content': shouldDeleteContent});
     } on PlatformException catch (e) {
       print(e.message);
       return null;

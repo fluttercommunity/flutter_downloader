@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
+
 import androidx.core.content.FileProvider;
 
 import java.io.File;
@@ -18,6 +19,8 @@ public class IntentUtils {
     public static synchronized Intent getOpenFileIntent(Context context, String path, String contentType) {
         File file = new File(path);
         Intent intent = new Intent(Intent.ACTION_VIEW);
+
+        Log.i("DOWNLOADER", contentType);
 
         if (Build.VERSION.SDK_INT >= 24) {
             Uri uri = FileProvider.getUriForFile(

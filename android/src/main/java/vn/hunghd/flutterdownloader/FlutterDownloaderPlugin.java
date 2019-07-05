@@ -8,9 +8,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+
 import androidx.core.app.NotificationManagerCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-
 
 import java.io.File;
 import java.util.ArrayList;
@@ -27,6 +27,7 @@ import androidx.work.NetworkType;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
+
 import io.flutter.app.FlutterActivity;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;
@@ -89,7 +90,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
             open(call, result);
         } else if (call.method.equals("remove")) {
             remove(call, result);
-        }  else {
+        } else {
             result.notImplemented();
         }
     }
@@ -134,24 +135,20 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
 
     }
 
-    private WorkRequest buildRequest(String url, String savedDir, String filename, String headers, boolean showNotification, boolean openFileFromNotification, boolean isResume) {
+    private WorkRequest buildRequest(String url, String savedDir, String filename, String mimeType, String headers,
+                                     boolean showNotification, boolean openFileFromNotification, boolean isResume) {
         WorkRequest request = new OneTimeWorkRequest.Builder(DownloadWorker.class)
-                .setConstraints(new Constraints.Builder()
-                        .setRequiresStorageNotLow(true)
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .build())
-                .addTag(TAG)
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.SECONDS)
-                .setInputData(new Data.Builder()
-                        .putString(DownloadWorker.ARG_URL, url)
+                .setConstraints(new Constraints.Builder().setRequiresStorageNotLow(true)
+                        .setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .addTag(TAG).setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.SECONDS)
+                .setInputData(new Data.Builder().putString(DownloadWorker.ARG_URL, url)
                         .putString(DownloadWorker.ARG_SAVED_DIR, savedDir)
                         .putString(DownloadWorker.ARG_FILE_NAME, filename)
+                        .putString(DownloadWorker.ARG_MIME_TYPE, mimeType)
                         .putString(DownloadWorker.ARG_HEADERS, headers)
                         .putBoolean(DownloadWorker.ARG_SHOW_NOTIFICATION, showNotification)
                         .putBoolean(DownloadWorker.ARG_OPEN_FILE_FROM_NOTIFICATION, openFileFromNotification)
-                        .putBoolean(DownloadWorker.ARG_IS_RESUME, isResume)
-                        .build()
-                )
+                        .putBoolean(DownloadWorker.ARG_IS_RESUME, isResume).build())
                 .build();
         return request;
     }
@@ -169,14 +166,20 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
         String savedDir = call.argument("saved_dir");
         String filename = call.argument("file_name");
         String headers = call.argument("headers");
+        String mimeType = call.argument("mime_type");
         boolean showNotification = call.argument("show_notification");
         boolean openFileFromNotification = call.argument("open_file_from_notification");
-        WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, openFileFromNotification, false);
+
+        mimeType = mimeType == null || mimeType.isEmpty() ? "" : mimeType;
+
+        WorkRequest request = buildRequest(url, savedDir, filename, mimeType, headers, showNotification, openFileFromNotification,
+                false);
         WorkManager.getInstance().enqueue(request);
         String taskId = request.getId().toString();
         result.success(taskId);
         sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0);
-        taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, savedDir, headers, showNotification, openFileFromNotification);
+        taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, mimeType, savedDir, headers,
+                showNotification, openFileFromNotification);
     }
 
     private void loadTasks(MethodCall call, MethodChannel.Result result) {
@@ -189,6 +192,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
             item.put("progress", task.progress);
             item.put("url", task.url);
             item.put("file_name", task.filename);
+            item.put("mime_type", task.mimeType);
             item.put("saved_dir", task.savedDir);
             item.put("time_created", task.timeCreated);
             array.add(item);
@@ -207,6 +211,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
             item.put("progress", task.progress);
             item.put("url", task.url);
             item.put("file_name", task.filename);
+            item.put("mime_type", task.mimeType);
             item.put("saved_dir", task.savedDir);
             item.put("time_created", task.timeCreated);
             array.add(item);
@@ -244,14 +249,16 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
                 String partialFilePath = task.savedDir + File.separator + filename;
                 File partialFile = new File(partialFilePath);
                 if (partialFile.exists()) {
-                    WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, true);
+                    WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.mimeType, task.headers,
+                            task.showNotification, task.openFileFromNotification, true);
                     String newTaskId = request.getId().toString();
                     result.success(newTaskId);
                     sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress);
                     taskDao.updateTask(taskId, newTaskId, DownloadStatus.RUNNING, task.progress, false);
                     WorkManager.getInstance().enqueue(request);
                 } else {
-                    result.error("invalid_data", "not found partial downloaded data, this task cannot be resumed", null);
+                    result.error("invalid_data", "not found partial downloaded data, this task cannot be resumed",
+                            null);
                 }
             } else {
                 result.error("invalid_status", "only paused task can be resumed", null);
@@ -266,7 +273,8 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
         DownloadTask task = taskDao.loadTask(taskId);
         if (task != null) {
             if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
-                WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, false);
+                WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.mimeType, task.headers,
+                        task.showNotification, task.openFileFromNotification, false);
                 String newTaskId = request.getId().toString();
                 result.success(newTaskId);
                 sendUpdateProgress(newTaskId, DownloadStatus.ENQUEUED, task.progress);
@@ -283,6 +291,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
     private void open(MethodCall call, MethodChannel.Result result) {
         String taskId = call.argument("task_id");
         DownloadTask task = taskDao.loadTask(taskId);
+
         if (task != null) {
             if (task.status == DownloadStatus.COMPLETE) {
                 String fileURL = task.url;
