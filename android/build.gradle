@@ -34,7 +34,9 @@ android {
 }
 
 dependencies {
-    implementation('androidx.work:work-runtime:2.0.0')
+    implementation('androidx.work:work-runtime:2.1.0')
     implementation 'androidx.annotation:annotation:1.0.2'
-    implementation 'androidx.core:core:1.0.1'
+    implementation 'androidx.core:core:1.1.0-rc02'
+    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
+
 }
