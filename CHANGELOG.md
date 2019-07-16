@@ -1,3 +1,9 @@
+## 1.1.8 - 16.07.2019
+
+* Fix bug in iOS: from iOS 8, absolute path to app's sandbox changes every time you relaunch the app, hence `savedDir` path is needed to truncate the changing part before saving it to DB and recreate the absolute path every time it loaded from DB. Currently, the plugin only supports save files in `NSDocumentDirectory`.
+* Fix bug is iOS: setting wrong status of task in case that the application is terminated
+* Android: upgrade dependencies
+
 ## 1.1.7 - 24.03.2019
 
 * Android: upgrade `WorkManager` to version 2.0.0 (AndroidX)

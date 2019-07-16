@@ -235,11 +235,30 @@
     NSString *url = dict[KEY_URL];
     NSString *savedDir = dict[KEY_SAVED_DIR];
     NSString *filename = dict[KEY_FILE_NAME];
+    NSLog(@"savedDir: %@", savedDir);
+    NSLog(@"filename: %@", filename);
 //    if (filename == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: filename]) {
 //        filename = [NSURL URLWithString:url].lastPathComponent;
 //    }
     NSURL *savedDirURL = [NSURL fileURLWithPath:savedDir];
     return [savedDirURL URLByAppendingPathComponent:filename];
+}
+
+- (NSString*)absoluteSavedDirPath:(NSString*)savedDir {
+    return [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:savedDir];
+}
+
+- (NSString*)shortenSavedDirPath:(NSString*)absolutePath {
+    NSLog(@"Absolute savedDir path: %@", absolutePath);
+    if (absolutePath) {
+        NSString* documentDirPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+        NSRange foundRank = [absolutePath rangeOfString:documentDirPath];
+        if (foundRank.length > 0) {
+            // we increase the location of range by one because we want to remove the file separator as well.
+            return [absolutePath substringWithRange:NSMakeRange(foundRank.length + 1, absolutePath.length - documentDirPath.length - 1)];
+        }
+    }
+    return absolutePath;
 }
 
 - (long)currentTimeInMilliseconds
@@ -331,7 +350,9 @@
     NSLog(@"Load tasks successfully");
     NSMutableArray *results = [NSMutableArray new];
     for(NSArray *record in records) {
-        [results addObject:[self taskDictFromRecordArray:record]];
+        NSDictionary *task = [self taskDictFromRecordArray:record];
+        NSLog(@"%@", task);
+        [results addObject:task];
     }
     return results;
 }
@@ -359,7 +380,9 @@
         if (records != nil && [records count] > 0) {
             NSArray *record = [records firstObject];
             NSDictionary *task = [self taskDictFromRecordArray:record];
-            [_runningTaskById setObject:[NSMutableDictionary dictionaryWithDictionary:task] forKey:taskId];
+            if ([task[KEY_STATUS] intValue] < STATUS_COMPLETE) {
+                [_runningTaskById setObject:[NSMutableDictionary dictionaryWithDictionary:task] forKey:taskId];
+            }
             return task;
         }
         return nil;
@@ -373,7 +396,7 @@
     int progress = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"progress"]] intValue];
     NSString *url = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"url"]];
     NSString *filename = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"file_name"]];
-    NSString *savedDir = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"saved_dir"]];
+    NSString *savedDir = [self absoluteSavedDirPath:[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"saved_dir"]]];
     NSString *headers = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"headers"]];
     headers = [self escape:headers revert:true];
     int resumable = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"resumable"]] intValue];
@@ -388,11 +411,12 @@
 - (void)enqueueMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString *urlString = call.arguments[KEY_URL];
     NSString *savedDir = call.arguments[KEY_SAVED_DIR];
+    NSString *shortSavedDir = [self shortenSavedDirPath:savedDir];
     NSString *fileName = call.arguments[KEY_FILE_NAME];
     NSString *headers = call.arguments[KEY_HEADERS];
     NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
     NSNumber *openFileFromNotification = call.arguments[KEY_OPEN_FILE_FROM_NOTIFICATION];
-
+    
     NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
 
     NSString *taskId = [self identifierForTask:task];
@@ -419,7 +443,7 @@
 
     __typeof__(self) __weak weakSelf = self;
     dispatch_sync(databaseQueue, ^{
-        [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:savedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
+        [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:shortSavedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
     });
     result(taskId);
     [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
@@ -656,7 +680,9 @@
 {
     NSLog(@"applicationWillTerminate:");
     for (NSString* key in _runningTaskById) {
-        [self updateTask:key status:STATUS_CANCELED progress:-1];
+        if ([_runningTaskById[key][KEY_STATUS] intValue] < STATUS_COMPLETE) {
+            [self updateTask:key status:STATUS_CANCELED progress:-1];
+        }
     }
     _session = nil;
     _flutterChannel = nil;
@@ -687,7 +713,6 @@
     NSString *taskId = [self identifierForTask:downloadTask ofSession:session];
     NSDictionary *task = [self loadTaskWithId:taskId];
     NSURL *destinationURL = [self fileUrlFromDict:task];
-
     [_runningTaskById removeObjectForKey:taskId];
 
     NSError *error;

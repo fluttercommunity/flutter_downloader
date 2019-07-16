@@ -15,6 +15,7 @@
 
 library flutter_downloader;
 
+import 'dart:io';
 import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:flutter/services.dart';
@@ -27,8 +28,7 @@ import 'package:flutter/services.dart';
 /// * `progress`: current progress value of a download task, the value is in
 /// range of 0 and 100
 ///
-typedef void DownloadCallback(
-    String id, DownloadTaskStatus status, int progress);
+typedef void DownloadCallback(String id, DownloadTaskStatus status, int progress);
 
 ///
 /// A class defines a set of possible statuses of a download task
@@ -127,6 +127,9 @@ class FlutterDownloader {
       bool showNotification = true,
       bool openFileFromNotification = true,
       bool requiresStorageNotLow = true}) async {
+
+    assert(Directory(savedDir).existsSync());
+
     StringBuffer headerBuilder = StringBuffer();
     if (headers != null) {
       headerBuilder.write('{');
@@ -329,8 +332,7 @@ class FlutterDownloader {
   /// * `shouldDeleteContent`: if the task is completed, set `true` to let the
   /// plugin remove the downloaded file. The default value is `false`.
   ///
-  static Future<Null> remove(
-      {@required String taskId, bool shouldDeleteContent = false}) async {
+  static Future<Null> remove({@required String taskId, bool shouldDeleteContent = false}) async {
     try {
       return await platform.invokeMethod('remove',
           {'task_id': taskId, 'should_delete_content': shouldDeleteContent});
@@ -394,6 +396,7 @@ class FlutterDownloader {
           int process = call.arguments['progress'];
           callback(id, DownloadTaskStatus._internal(status), process);
         }
+        return null;
       });
     } else {
       platform.setMethodCallHandler(null);
