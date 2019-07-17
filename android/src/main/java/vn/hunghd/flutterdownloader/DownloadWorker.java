@@ -8,11 +8,13 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.Build;
+
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -27,7 +29,9 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
@@ -116,50 +120,97 @@ public class DownloadWorker extends Worker {
         }
     }
 
-    private void downloadFile(Context context, String fileURL, String savedDir, String filename, String headers, boolean isResume) throws MalformedURLException {
-        URL url = new URL(fileURL);
+    private void setupHeaders(HttpURLConnection conn, String headers) {
+        if (!TextUtils.isEmpty(headers)) {
+            Log.d(TAG, "Headers = " + headers);
+            try {
+                JSONObject json = new JSONObject(headers);
+                for (Iterator<String> it = json.keys(); it.hasNext(); ) {
+                    String key = it.next();
+                    conn.setRequestProperty(key, json.getString(key));
+                }
+                conn.setDoInput(true);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
+    private long setupPartialDownloadedDataHeader(HttpURLConnection conn, String filename, String savedDir) {
+        String saveFilePath = savedDir + File.separator + filename;
+        File partialFile = new File(saveFilePath);
+        long downloadedBytes = partialFile.length();
+        Log.d(TAG, "Resume download: Range: bytes=" + downloadedBytes + "-");
+        conn.setRequestProperty("Accept-Encoding", "identity");
+        conn.setRequestProperty("Range", "bytes=" + downloadedBytes + "-");
+        conn.setDoInput(true);
+        return downloadedBytes;
+    }
+
+    private void downloadFile(Context context, String fileURL, String savedDir, String filename, String headers, boolean isResume) throws IOException {
+        String url = fileURL;
+        URL resourceUrl, base, next;
+        Map<String, Integer> visited;
         HttpURLConnection httpConn = null;
         InputStream inputStream = null;
         FileOutputStream outputStream = null;
-        String saveFilePath = null;
+        String saveFilePath;
+        String location;
         long downloadedBytes = 0;
+        int responseCode;
+        int times;
+
+        visited = new HashMap<>();
 
         try {
-            httpConn = (HttpURLConnection) url.openConnection();
-
-            // setup request headers if it is set
-            if (!TextUtils.isEmpty(headers)) {
-                Log.d(TAG, "Headers = " + headers);
-                try {
-                    JSONObject json = new JSONObject(headers);
-                    for (Iterator<String> it = json.keys(); it.hasNext(); ) {
-                        String key = it.next();
-                        httpConn.setRequestProperty(key, json.getString(key));
-                    }
-                    httpConn.setDoInput(true);
-                } catch (JSONException e) {
-                    e.printStackTrace();
+            // handle redirection logic
+            while (true) {
+                if (!visited.containsKey(url)) {
+                    times = 1;
+                    visited.put(url, times);
+                } else {
+                    times = visited.get(url) + 1;
                 }
+
+                if (times > 3)
+                    throw new IOException("Stuck in redirect loop");
+
+                resourceUrl = new URL(url);
+                Log.d(TAG, "Open connection to " + url);
+                httpConn = (HttpURLConnection) resourceUrl.openConnection();
+
+                httpConn.setConnectTimeout(15000);
+                httpConn.setReadTimeout(15000);
+                httpConn.setInstanceFollowRedirects(false);   // Make the logic below easier to detect redirections
+                httpConn.setRequestProperty("User-Agent", "Mozilla/5.0...");
+
+                // setup request headers if it is set
+                setupHeaders(httpConn, headers);
+                // try to continue downloading a file from its partial downloaded data.
+                if (isResume) {
+                    downloadedBytes = setupPartialDownloadedDataHeader(httpConn, filename, savedDir);
+                }
+
+                responseCode = httpConn.getResponseCode();
+                switch (responseCode)
+                {
+                    case HttpURLConnection.HTTP_MOVED_PERM:
+                    case HttpURLConnection.HTTP_MOVED_TEMP:
+                        Log.d(TAG, "Response with redirection code");
+                        location = httpConn.getHeaderField("Location");
+                        location = URLDecoder.decode(location, "UTF-8");
+                        base = new URL(fileURL);
+                        next = new URL(base, location);  // Deal with relative URLs
+                        url = next.toExternalForm();
+                        Log.d(TAG, "New url: " + url);
+                        continue;
+                }
+
+                break;
             }
 
-            // try to continue downloading a file from its partial downloaded data.
-            if (isResume) {
-                if (filename == null) {
-                    filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
-                }
-                saveFilePath = savedDir + File.separator + filename;
-                File partialFile = new File(saveFilePath);
-                downloadedBytes = partialFile.length();
-                Log.d(TAG, "Resume download: Range: bytes=" + downloadedBytes + "-");
-                httpConn.setRequestProperty("Accept-Encoding", "identity");
-                httpConn.setRequestProperty("Range", "bytes=" + downloadedBytes + "-");
-                httpConn.setDoInput(true);
-            }
             httpConn.connect();
-            int responseCode = httpConn.getResponseCode();
 
-            // always check HTTP response code first
             if ((responseCode == HttpURLConnection.HTTP_OK || (isResume && responseCode == HttpURLConnection.HTTP_PARTIAL)) && !isStopped()) {
                 String contentType = httpConn.getContentType();
                 int contentLength = httpConn.getContentLength();
@@ -176,11 +227,12 @@ public class DownloadWorker extends Worker {
                             filename = URLDecoder.decode(name, "ISO-8859-1");
                         }
                         if (filename == null || filename.isEmpty()) {
-                            filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
+                            filename = url.substring(url.lastIndexOf("/") + 1);
                         }
                     }
-                    saveFilePath = savedDir + File.separator + filename;
                 }
+                saveFilePath = savedDir + File.separator + filename;
+
                 Log.d(TAG, "fileName = " + filename);
 
                 taskDao.updateTask(getId().toString(), filename, contentType);
