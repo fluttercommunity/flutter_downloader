@@ -4,7 +4,7 @@ PODS:
     - Flutter
   - path_provider (0.0.1):
     - Flutter
-  - permission_handler (3.0.0):
+  - permission_handler (3.2.0):
     - Flutter
 
 DEPENDENCIES:
@@ -27,7 +27,7 @@ SPEC CHECKSUMS:
   Flutter: 58dd7d1b27887414a370fcccb9e645c08ffd7a6a
   flutter_downloader: 058b9c41564a90500f67f3e432e3524613a7fd83
   path_provider: f96fff6166a8867510d2c25fdcc346327cc4b259
-  permission_handler: 047f11d44db785922214783da5f7a3cc8874c843
+  permission_handler: d4838243e7d0f4b18911a6422d81e7e6b71ad545
 
 PODFILE CHECKSUM: 1b9df8d859f07d47cc6f43477c116e72a973c68f
 

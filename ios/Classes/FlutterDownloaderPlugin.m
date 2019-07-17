@@ -148,7 +148,7 @@
                 [download cancelByProducingResumeData:^(NSData * _Nullable resumeData) {
                     // Save partial downloaded data to a file
                     NSFileManager *fileManager = [NSFileManager defaultManager];
-                    NSURL *destinationURL = [weakSelf fileUrlFromDict:task];
+                    NSURL *destinationURL = [weakSelf fileUrlOf:taskId taskInfo:task downloadTask:download];
 
                     if ([fileManager fileExistsAtPath:[destinationURL path]]) {
                         [fileManager removeItemAtURL:destinationURL error:nil];
@@ -237,11 +237,41 @@
     NSString *filename = dict[KEY_FILE_NAME];
     NSLog(@"savedDir: %@", savedDir);
     NSLog(@"filename: %@", filename);
-//    if (filename == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: filename]) {
-//        filename = [NSURL URLWithString:url].lastPathComponent;
-//    }
     NSURL *savedDirURL = [NSURL fileURLWithPath:savedDir];
     return [savedDirURL URLByAppendingPathComponent:filename];
+}
+
+- (NSURL*)fileUrlOf:(NSString*)taskId taskInfo:(NSDictionary*)taskInfo downloadTask:(NSURLSessionDownloadTask*)downloadTask {
+    NSString *filename = taskInfo[KEY_FILE_NAME];
+    NSString *suggestedFilename = downloadTask.response.suggestedFilename;
+    NSLog(@"SuggestedFileName: %@", suggestedFilename);
+    
+    // check filename, if it is empty then we try to extract it from http response or url path
+    if (filename == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: filename]) {
+        if (suggestedFilename) {
+            filename = suggestedFilename;
+        } else {
+            filename = downloadTask.currentRequest.URL.lastPathComponent;
+        }
+        
+        NSMutableDictionary *mutableTask = [taskInfo mutableCopy];
+        [mutableTask setObject:filename forKey:KEY_FILE_NAME];
+        
+        // update taskInfo
+        if ([_runningTaskById objectForKey:taskId]) {
+            _runningTaskById[taskId][KEY_FILE_NAME] = filename;
+        }
+        
+        // update DB
+        __typeof__(self) __weak weakSelf = self;
+        dispatch_sync(databaseQueue, ^{
+            [weakSelf updateTask:taskId filename:filename];
+        });
+        
+        return [self fileUrlFromDict:mutableTask];
+    }
+    
+    return [self fileUrlFromDict:taskInfo];
 }
 
 - (NSString*)absoluteSavedDirPath:(NSString*)savedDir {
@@ -294,6 +324,16 @@
 - (void) updateTask: (NSString*) taskId status: (int) status progress: (int) progress
 {
     NSString *query = [NSString stringWithFormat:@"UPDATE task SET status=%d, progress=%d WHERE task_id=\"%@\"", status, progress, taskId];
+    [_dbManager executeQuery:query];
+    if (_dbManager.affectedRows != 0) {
+        NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
+    } else {
+        NSLog(@"Could not execute the query.");
+    }
+}
+
+- (void) updateTask: (NSString*) taskId filename: (NSString*) filename {
+    NSString *query = [NSString stringWithFormat:@"UPDATE task SET file_name=\"%@\" WHERE task_id=\"%@\"", filename, taskId];
     [_dbManager executeQuery:query];
     if (_dbManager.affectedRows != 0) {
         NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
@@ -420,14 +460,6 @@
     NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
 
     NSString *taskId = [self identifierForTask:task];
-
-    // if filename is not given, we try to extract it from http response or url
-    if (fileName == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: fileName]) {
-        fileName = task.response.suggestedFilename;
-        if (fileName == nil) {
-            fileName = [NSURL URLWithString:urlString].lastPathComponent;
-        }
-    }
 
     [_runningTaskById setObject: [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                   urlString, KEY_URL,
@@ -710,11 +742,13 @@
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL:(NSURL *)location
 {
     NSLog(@"URLSession:downloadTask:didFinishDownloadingToURL:");
+    
     NSString *taskId = [self identifierForTask:downloadTask ofSession:session];
     NSDictionary *task = [self loadTaskWithId:taskId];
-    NSURL *destinationURL = [self fileUrlFromDict:task];
+    NSURL *destinationURL = [self fileUrlOf:taskId taskInfo:task downloadTask:downloadTask];
+    
     [_runningTaskById removeObjectForKey:taskId];
-
+    
     NSError *error;
     NSFileManager *fileManager = [NSFileManager defaultManager];
 
