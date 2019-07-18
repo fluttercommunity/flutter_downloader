@@ -1,3 +1,8 @@
+## 1.1.9 - 18.07.2019
+
+* Android: support HTTP redirection
+* iOS: correct getting file name from HTTP response
+
 ## 1.1.8 - 16.07.2019
 
 * Fix bug in iOS: from iOS 8, absolute path to app's sandbox changes every time you relaunch the app, hence `savedDir` path is needed to truncate the changing part before saving it to DB and recreate the absolute path every time it loaded from DB. Currently, the plugin only supports save files in `NSDocumentDirectory`.
