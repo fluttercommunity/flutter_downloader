@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.graphics.BitmapFactory;
 import android.os.Build;
 
 import androidx.annotation.NonNull;
@@ -192,8 +193,7 @@ public class DownloadWorker extends Worker {
                 }
 
                 responseCode = httpConn.getResponseCode();
-                switch (responseCode)
-                {
+                switch (responseCode) {
                     case HttpURLConnection.HTTP_MOVED_PERM:
                     case HttpURLConnection.HTTP_MOVED_TEMP:
                         Log.d(TAG, "Response with redirection code");
@@ -352,7 +352,8 @@ public class DownloadWorker extends Worker {
 
         // Create the notification
         builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_download)
+//                .setSmallIcon(R.drawable.ic_download)
+                .setOnlyAlertOnce(true)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
 
@@ -367,18 +368,38 @@ public class DownloadWorker extends Worker {
             shouldUpdate = true;
             builder.setContentText(progress == 0 ? msgStarted : msgInProgress)
                     .setProgress(100, progress, progress == 0);
+            builder.setOngoing(true)
+                    .setSmallIcon(android.R.drawable.stat_sys_download)
+                    .setLargeIcon(BitmapFactory.decodeResource(getApplicationContext().getResources(),
+                            android.R.drawable.stat_sys_download));
         } else if (status == DownloadStatus.CANCELED) {
             shouldUpdate = true;
             builder.setContentText(msgCanceled).setProgress(0, 0, false);
+            builder.setOngoing(false)
+                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                    .setLargeIcon(BitmapFactory.decodeResource(getApplicationContext().getResources(),
+                            android.R.drawable.stat_sys_download_done));
         } else if (status == DownloadStatus.FAILED) {
             shouldUpdate = true;
             builder.setContentText(msgFailed).setProgress(0, 0, false);
+            builder.setOngoing(false)
+                    .setSmallIcon(android.R.drawable.stat_notify_error)
+                    .setLargeIcon(BitmapFactory.decodeResource(getApplicationContext().getResources(),
+                            android.R.drawable.stat_sys_download_done));
         } else if (status == DownloadStatus.PAUSED) {
             shouldUpdate = true;
             builder.setContentText(msgPaused).setProgress(0, 0, false);
+            builder.setOngoing(false)
+                    .setSmallIcon(android.R.drawable.stat_sys_download)
+                    .setLargeIcon(BitmapFactory.decodeResource(getApplicationContext().getResources(),
+                            android.R.drawable.stat_sys_download));
         } else if (status == DownloadStatus.COMPLETE) {
             shouldUpdate = true;
             builder.setContentText(msgComplete).setProgress(0, 0, false);
+            builder.setOngoing(false)
+                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                    .setLargeIcon(BitmapFactory.decodeResource(getApplicationContext().getResources(),
+                            android.R.drawable.stat_sys_download_done));
         }
 
         // Show the notification
