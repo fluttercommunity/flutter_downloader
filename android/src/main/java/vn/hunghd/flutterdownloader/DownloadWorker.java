@@ -33,6 +33,8 @@ import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
@@ -56,6 +58,8 @@ public class DownloadWorker extends Worker {
     private static final int BUFFER_SIZE = 4096;
     private static final String CHANNEL_ID = "FLUTTER_DOWNLOADER_NOTIFICATION";
     private static final int STEP_UPDATE = 10;
+
+    private final Pattern charsetPattern = Pattern.compile("(?i)\\bcharset=\\s*\"?([^\\s;\"]*)");
 
     private TaskDbHelper dbHelper;
     private TaskDao taskDao;
@@ -198,7 +202,7 @@ public class DownloadWorker extends Worker {
                     case HttpURLConnection.HTTP_MOVED_TEMP:
                         Log.d(TAG, "Response with redirection code");
                         location = httpConn.getHeaderField("Location");
-                        location = URLDecoder.decode(location, "UTF-8");
+                        Log.d(TAG, "Location = " + location);
                         base = new URL(fileURL);
                         next = new URL(base, location);  // Deal with relative URLs
                         url = next.toExternalForm();
@@ -217,6 +221,8 @@ public class DownloadWorker extends Worker {
                 Log.d(TAG, "Content-Type = " + contentType);
                 Log.d(TAG, "Content-Length = " + contentLength);
 
+                String charset = getCharsetFromContentType(contentType);
+                Log.d(TAG, "Charset = " + charset);
                 if (!isResume) {
                     // try to extract filename from HTTP headers if it is not given by user
                     if (filename == null) {
@@ -224,7 +230,7 @@ public class DownloadWorker extends Worker {
                         Log.d(TAG, "Content-Disposition = " + disposition);
                         if (disposition != null && !disposition.isEmpty()) {
                             String name = disposition.replaceFirst("(?i)^.*filename=\"?([^\"]+)\"?.*$", "$1");
-                            filename = URLDecoder.decode(name, "ISO-8859-1");
+                            filename = URLDecoder.decode(name, charset != null ? charset : "ISO-8859-1");
                         }
                         if (filename == null || filename.isEmpty()) {
                             filename = url.substring(url.lastIndexOf("/") + 1);
@@ -416,5 +422,16 @@ public class DownloadWorker extends Worker {
         intent.putExtra(EXTRA_STATUS, status);
         intent.putExtra(EXTRA_PROGRESS, progress);
         LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+    }
+
+    private String getCharsetFromContentType(String contentType) {
+        if (contentType == null)
+            return null;
+
+        Matcher m = charsetPattern.matcher(contentType);
+        if (m.find()) {
+            return m.group(1).trim().toUpperCase();
+        }
+        return null;
     }
 }
