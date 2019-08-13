@@ -25,7 +25,7 @@ public class IntentUtils {
         }
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        if(validateIntent(context, intent)
+        if(validateIntent(context, intent))
             return intent;
         return null;
     }
@@ -43,7 +43,7 @@ public class IntentUtils {
                 mime = URLConnection.guessContentTypeFromStream(new BufferedInputStream(inputFile));
             }
         } catch (Exception ignored){
-            
+
         }
         if(mime!=null) {
             intent = buildIntent(context,file,mime);
@@ -51,7 +51,8 @@ public class IntentUtils {
                 return intent;
         }
         return null;
-//     }
+    }
+    
 //     public static synchronized Intent getOpenFileIntent(Context context, String path, String contentType) {
 //         File file = new File(path);
 //         Intent intent = new Intent(Intent.ACTION_VIEW);
