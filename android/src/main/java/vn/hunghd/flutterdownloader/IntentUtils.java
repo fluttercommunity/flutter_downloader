@@ -14,14 +14,9 @@ import android.util.Log;
 import android.os.Build;
 
 public class IntentUtils {
-    private static final String TYPE_STRING_APK = "application/vnd.android.package-archive";
-
     public static synchronized Intent getOpenFileIntent(Context context, String path, String contentType) {
         File file = new File(path);
         Intent intent = new Intent(Intent.ACTION_VIEW);
-        boolean isApkFile = contentType.startsWith(TYPE_STRING_APK) || path.endsWith(".apk");
-        if(isApkFile)
-            contentType = TYPE_STRING_APK;
         if (Build.VERSION.SDK_INT >= 24) {
             Uri uri = FileProvider.getUriForFile(
                     context,
