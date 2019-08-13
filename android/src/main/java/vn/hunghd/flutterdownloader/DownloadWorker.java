@@ -276,8 +276,8 @@ public class DownloadWorker extends Worker {
                 int storage = ContextCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
                 PendingIntent pendingIntent = null;
                 if (status == DownloadStatus.COMPLETE && clickToOpenDownloadedFile && storage == PackageManager.PERMISSION_GRANTED) {
-                    Intent intent = IntentUtils.getOpenFileIntent(getApplicationContext(), saveFilePath, contentType);
-                    if (IntentUtils.validateIntent(getApplicationContext(), intent)) {
+                    Intent intent = IntentUtils.validatedFileIntent(getApplicationContext(), saveFilePath, contentType);
+                    if (intent != null) {
                         Log.d(TAG, "Setting an intent to open the file " + saveFilePath);
                         pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
                     } else {
