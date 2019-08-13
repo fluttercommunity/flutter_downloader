@@ -25,9 +25,7 @@ public class IntentUtils {
         }
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        if(validateIntent(context, intent))
-            return intent;
-        return null;
+        return intent;
     }
 
     public static synchronized Intent validatedFileIntent(Context context, String path, String contentType) {
