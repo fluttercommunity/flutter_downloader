@@ -5,13 +5,15 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
+import android.os.Build;
+
 import androidx.core.content.FileProvider;
 
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.net.URLConnection;
 import java.util.List;
-
-import android.util.Log;
-import android.os.Build;
 
 public class IntentUtils {
     
