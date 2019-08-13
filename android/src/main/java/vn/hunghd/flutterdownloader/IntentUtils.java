@@ -39,7 +39,7 @@ public class IntentUtils {
         try {
             FileInputStream inputFile = new FileInputStream(path);
             mime = URLConnection.guessContentTypeFromStream(inputFile);
-            if(mime !=null){
+            if(mime==null){
                 mime = URLConnection.guessContentTypeFromStream(new BufferedInputStream(inputFile));
             }
         } catch (Exception ignored){
