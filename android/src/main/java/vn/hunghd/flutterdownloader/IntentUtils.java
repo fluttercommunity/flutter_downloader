@@ -38,9 +38,10 @@ public class IntentUtils {
         String mime = null;
         try {
             FileInputStream inputFile = new FileInputStream(path);
-            mime = URLConnection.guessContentTypeFromStream(inputFile);
+            mime = URLConnection.guessContentTypeFromStream(inputFile);//does not work in some target sdk version
             if(mime==null){
-                mime = URLConnection.guessContentTypeFromStream(new BufferedInputStream(inputFile));
+                mime = URLConnection.guessContentTypeFromName(path);//works fine
+
             }
         } catch (Exception ignored){
 
