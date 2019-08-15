@@ -382,16 +382,16 @@ public class DownloadWorker extends Worker {
             shouldUpdate = true;
             builder.setContentText(msgCanceled).setProgress(0, 0, false);
             builder.setOngoing(false)
-                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                    .setSmallIcon(android.R.drawable.stat_sys_download)
                     .setLargeIcon(BitmapFactory.decodeResource(getApplicationContext().getResources(),
-                            android.R.drawable.stat_sys_download_done));
+                            android.R.drawable.stat_sys_download));
         } else if (status == DownloadStatus.FAILED) {
             shouldUpdate = true;
             builder.setContentText(msgFailed).setProgress(0, 0, false);
             builder.setOngoing(false)
-                    .setSmallIcon(android.R.drawable.stat_notify_error)
+                    .setSmallIcon(android.R.drawable.stat_sys_download)
                     .setLargeIcon(BitmapFactory.decodeResource(getApplicationContext().getResources(),
-                            android.R.drawable.stat_sys_download_done));
+                            android.R.drawable.stat_sys_download));
         } else if (status == DownloadStatus.PAUSED) {
             shouldUpdate = true;
             builder.setContentText(msgPaused).setProgress(0, 0, false);
