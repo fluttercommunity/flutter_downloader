@@ -9,15 +9,15 @@ import android.os.Build;
 
 import androidx.core.content.FileProvider;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.net.URLConnection;
 import java.util.List;
 
 public class IntentUtils {
-    
-    private static Intent buildIntent(Context context, File file, String mime){
+
+    private static Intent buildIntent(Context context, File file, String mime) {
         Intent intent = new Intent(Intent.ACTION_VIEW);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             Uri uri = FileProvider.getUriForFile(context, context.getPackageName() + ".flutter_downloader.provider", file);
@@ -29,25 +29,35 @@ public class IntentUtils {
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         return intent;
     }
-    
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+
     public static synchronized Intent validatedFileIntent(Context context, String path, String contentType) {
         File file = new File(path);
-        Intent intent = buildIntent(context,file,contentType);
-        if(validateIntent(context, intent))
+        Intent intent = buildIntent(context, file, contentType);
+        if (validateIntent(context, intent)) {
             return intent;
-        String mime = null;
-        //RequiresApi(api = Build.VERSION_CODES.KITKAT) The try-with-resources Statement ensures each resource is closed
-        try(FileInputStream inputFile = new FileInputStream(path)) { 
-            mime = URLConnection.guessContentTypeFromStream(inputFile);// fails sometime
-            if(mime==null){
-                mime = URLConnection.guessContentTypeFromName(path); // fallback to check file extension
-            }
-        } catch (Exception ignored){
         }
-        if(mime!=null) {
-            intent = buildIntent(context,file,mime);
-            if(validateIntent(context, intent))
+        String mime = null;
+        FileInputStream inputFile = null;
+        try {
+            inputFile = new FileInputStream(path);
+            mime = URLConnection.guessContentTypeFromStream(inputFile);// fails sometime
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (inputFile != null) {
+                try {
+                    inputFile.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        if (mime == null) {
+            mime = URLConnection.guessContentTypeFromName(path); // fallback to check file extension
+        }
+        if (mime != null) {
+            intent = buildIntent(context, file, mime);
+            if (validateIntent(context, intent))
                 return intent;
         }
         return null;
