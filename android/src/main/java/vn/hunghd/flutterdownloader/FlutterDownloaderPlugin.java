@@ -295,8 +295,8 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
                     filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
                 }
                 String saveFilePath = savedDir + File.separator + filename;
-                Intent intent = IntentUtils.getOpenFileIntent(context, saveFilePath, task.mimeType);
-                if (IntentUtils.validateIntent(context, intent)) {
+                Intent intent = IntentUtils.validatedFileIntent(context, saveFilePath, task.mimeType);
+                if (intent!=null) {
                     context.startActivity(intent);
                     result.success(true);
                 } else {
