@@ -3,6 +3,8 @@ package vn.hunghd.flutterdownloader;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -16,6 +18,7 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -27,7 +30,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.HashMap;
@@ -275,13 +277,19 @@ public class DownloadWorker extends Worker {
                 int status = isStopped() ? (task.resumable ? DownloadStatus.PAUSED : DownloadStatus.CANCELED) : DownloadStatus.COMPLETE;
                 int storage = ContextCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
                 PendingIntent pendingIntent = null;
-                if (status == DownloadStatus.COMPLETE && clickToOpenDownloadedFile && storage == PackageManager.PERMISSION_GRANTED) {
-                    Intent intent = IntentUtils.validatedFileIntent(getApplicationContext(), saveFilePath, contentType);
-                    if (intent != null) {
-                        Log.d(TAG, "Setting an intent to open the file " + saveFilePath);
-                        pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
-                    } else {
-                        Log.d(TAG, "There's no application that can open the file " + saveFilePath);
+                if (status == DownloadStatus.COMPLETE) {
+                    if (isImageOrVideoFile(contentType)) {
+                        addImageOrVideoToGallery(filename, saveFilePath, getContentTypeWithoutCharset(contentType));
+                    }
+
+                    if (clickToOpenDownloadedFile && storage == PackageManager.PERMISSION_GRANTED) {
+                        Intent intent = IntentUtils.validatedFileIntent(getApplicationContext(), saveFilePath, contentType);
+                        if (intent != null) {
+                            Log.d(TAG, "Setting an intent to open the file " + saveFilePath);
+                            pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                        } else {
+                            Log.d(TAG, "There's no application that can open the file " + saveFilePath);
+                        }
                     }
                 }
                 updateNotification(context, filename, status, progress, pendingIntent);
@@ -433,5 +441,34 @@ public class DownloadWorker extends Worker {
             return m.group(1).trim().toUpperCase();
         }
         return null;
+    }
+
+    private String getContentTypeWithoutCharset(String contentType) {
+        if (contentType == null)
+            return null;
+        return contentType.split(";")[0].trim();
+    }
+
+    private boolean isImageOrVideoFile(String contentType) {
+        contentType = getContentTypeWithoutCharset(contentType);
+        return (contentType != null && (contentType.startsWith("image/") || contentType.startsWith("video")));
+    }
+
+    private void addImageOrVideoToGallery(String fileName, String filePath, String contentType) {
+        if (contentType != null && filePath != null && fileName != null) {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Images.Media.TITLE, fileName);
+            values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
+            values.put(MediaStore.Images.Media.DESCRIPTION, "");
+            values.put(MediaStore.Images.Media.MIME_TYPE, contentType);
+            values.put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis());
+            values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis());
+            values.put(MediaStore.Images.Media.DATA, filePath);
+
+            Log.d(TAG, "insert " + values + " to MediaStore");
+
+            ContentResolver contentResolver = getApplicationContext().getContentResolver();
+            contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+        }
     }
 }

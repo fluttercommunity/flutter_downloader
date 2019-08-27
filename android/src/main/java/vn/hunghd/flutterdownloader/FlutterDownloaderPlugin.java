@@ -28,6 +28,7 @@ import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
 import io.flutter.app.FlutterActivity;
+import io.flutter.app.FlutterFragmentActivity;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -101,7 +102,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
 
     @Override
     public void onActivityStarted(Activity activity) {
-        if (activity instanceof FlutterActivity) {
+        if (activity instanceof FlutterActivity || activity instanceof FlutterFragmentActivity) {
             LocalBroadcastManager.getInstance(context).registerReceiver(updateProcessEventReceiver,
                     new IntentFilter(DownloadWorker.UPDATE_PROCESS_EVENT));
         }
