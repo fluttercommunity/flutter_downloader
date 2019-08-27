@@ -120,7 +120,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
 
     @Override
     public void onActivityStopped(Activity activity) {
-        if (activity instanceof FlutterActivity) {
+        if (activity instanceof FlutterActivity || activity instanceof FlutterFragmentActivity) {
             LocalBroadcastManager.getInstance(context).unregisterReceiver(updateProcessEventReceiver);
         }
     }
