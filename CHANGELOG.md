@@ -1,3 +1,7 @@
+## 1.2.0 - 27.08.2019
+
+* Android: support `FlutterFragmentActivity`, fix bug downloaded image/video files not shown in Gallery application, improved HTTP redirection implementation, fix bug cannot open apk file in some cases
+
 ## 1.1.9 - 18.07.2019
 
 * Android: support HTTP redirection
