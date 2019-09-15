@@ -50,6 +50,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
             String id = intent.getStringExtra(DownloadWorker.EXTRA_ID);
             int progress = intent.getIntExtra(DownloadWorker.EXTRA_PROGRESS, 0);
             int status = intent.getIntExtra(DownloadWorker.EXTRA_STATUS, DownloadStatus.UNDEFINED);
+            taskDao.updateTask(id, status, progress);
             sendUpdateProgress(id, status, progress);
         }
     };
