@@ -1,3 +1,7 @@
+## 1.2.2 - 19.09.2019
+
+* Android: fix bugs
+
 ## 1.2.1 - 27.08.2019
 
 * Android: hot-fix unregister `BroadcastReceiver` in case using `FlutterFragmentActivity`
