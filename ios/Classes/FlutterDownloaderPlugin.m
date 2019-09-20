@@ -23,6 +23,7 @@
 #define KEY_OPEN_FILE_FROM_NOTIFICATION @"open_file_from_notification"
 #define KEY_QUERY @"query"
 #define KEY_TIME_CREATED @"time_created"
+#define KEY_TITLE @"title"
 
 #define NULL_VALUE @"<null>"
 
@@ -216,11 +217,15 @@
     [_flutterChannel invokeMethod:@"updateProgress" arguments:info];
 }
 
-- (BOOL)openDocumentWithURL:(NSURL*)url {
+- (BOOL)openDocumentWithURL:(NSURL*)url title: (NSString*) title {
     NSLog(@"try to open file in url: %@", url);
     BOOL result = NO;
     UIDocumentInteractionController* tmpDocController = [UIDocumentInteractionController
                                                          interactionControllerWithURL:url];
+    
+    if (title != (NSString*) [NSNull null] && ![NULL_VALUE isEqualToString: title]) {
+        tmpDocController.name = title;
+    }
     if (tmpDocController)
     {
         NSLog(@"initialize UIDocumentInteractionController successfully");
@@ -603,13 +608,14 @@
 
 - (void)openMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString *taskId = call.arguments[KEY_TASK_ID];
+    NSString *title = call.arguments[KEY_TITLE];
     NSDictionary* taskDict = [self loadTaskWithId:taskId];
     if (taskDict != nil) {
         NSNumber* status = taskDict[KEY_STATUS];
         if ([status intValue] == STATUS_COMPLETE) {
             NSURL *downloadedFileURL = [self fileUrlFromDict:taskDict];
 
-            BOOL success = [self openDocumentWithURL:downloadedFileURL];
+            BOOL success = [self openDocumentWithURL:downloadedFileURL title:title];
             result([NSNumber numberWithBool:success]);
         } else {
             result([FlutterError errorWithCode:@"invalid_status"

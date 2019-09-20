@@ -363,9 +363,9 @@ class FlutterDownloader {
   /// - The current device has at least an application that can read the file
   /// type of the file
   ///
-  static Future<bool> open({@required String taskId}) async {
+  static Future<bool> open({@required String taskId, String title}) async {
     try {
-      return await platform.invokeMethod('open', {'task_id': taskId});
+      return await platform.invokeMethod('open', {'task_id': taskId, 'title': title});
     } on PlatformException catch (e) {
       print(e.message);
       return false;
