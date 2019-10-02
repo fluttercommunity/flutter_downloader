@@ -43,6 +43,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
     private TaskDbHelper dbHelper;
     private TaskDao taskDao;
     private Context context;
+    private final int registrarActivityHashCode;
 
     private final BroadcastReceiver updateProcessEventReceiver = new BroadcastReceiver() {
         @Override
@@ -54,17 +55,22 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
         }
     };
 
-    private FlutterDownloaderPlugin(Context context, BinaryMessenger messenger) {
+    private FlutterDownloaderPlugin(Context context, BinaryMessenger messenger, int hasCode) {
         this.context = context;
         flutterChannel = new MethodChannel(messenger, CHANNEL);
         flutterChannel.setMethodCallHandler(this);
+        registrarActivityHashCode = hasCode;
         dbHelper = TaskDbHelper.getInstance(context);
         taskDao = new TaskDao(dbHelper);
     }
 
     @SuppressLint("NewApi")
     public static void registerWith(PluginRegistry.Registrar registrar) {
-        final FlutterDownloaderPlugin plugin = new FlutterDownloaderPlugin(registrar.context(), registrar.messenger());
+        int hasCode = 0;
+        if (registrar.activity() != null) {
+            hasCode = registrar.activity().hashCode();
+        }
+        final FlutterDownloaderPlugin plugin = new FlutterDownloaderPlugin(registrar.context(), registrar.messenger(), hasCode);
         Application application = (Application) registrar.context().getApplicationContext();
         application.registerActivityLifecycleCallbacks(plugin);
     }
@@ -103,7 +109,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
 
     @Override
     public void onActivityStarted(Activity activity) {
-        if (activity instanceof FlutterActivity || activity instanceof FlutterFragmentActivity) {
+        if (activity.hashCode() == registrarActivityHashCode) {
             LocalBroadcastManager.getInstance(context).registerReceiver(updateProcessEventReceiver,
                     new IntentFilter(DownloadWorker.UPDATE_PROCESS_EVENT));
         }
@@ -121,7 +127,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, Application.A
 
     @Override
     public void onActivityStopped(Activity activity) {
-        if (activity instanceof FlutterActivity || activity instanceof FlutterFragmentActivity) {
+        if (activity.hashCode() == registrarActivityHashCode) {
             LocalBroadcastManager.getInstance(context).unregisterReceiver(updateProcessEventReceiver);
         }
     }
