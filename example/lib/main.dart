@@ -101,7 +101,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   List<_TaskInfo> _tasks;
   List<_ItemHolder> _items;
   bool _isLoading;
-  bool _permissisonReady;
+  bool _permissionReady;
   String _localPath;
 
   @override
@@ -119,7 +119,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     });
 
     _isLoading = true;
-    _permissisonReady = false;
+    _permissionReady = false;
 
     _prepare();
   }
@@ -141,7 +141,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
               ? new Center(
                   child: new CircularProgressIndicator(),
                 )
-              : _permissisonReady
+              : _permissionReady
                   ? new Container(
                       child: new ListView(
                         padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -252,7 +252,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                                 onPressed: () {
                                   _checkPermission().then((hasGranted) {
                                     setState(() {
-                                      _permissisonReady = hasGranted;
+                                      _permissionReady = hasGranted;
                                     });
                                   });
                                 },
@@ -355,9 +355,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void _requestDownload(_TaskInfo task) async {
     task.taskId = await FlutterDownloader.enqueue(
         url: task.link,
-        headers: {
-          "auth": "test_for_sql_encoding"
-        },
+        headers: {"auth": "test_for_sql_encoding"},
         savedDir: _localPath,
         showNotification: true,
         openFileFromNotification: true);
@@ -386,7 +384,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   }
 
   void _delete(_TaskInfo task) async {
-    await FlutterDownloader.remove(taskId: task.taskId, shouldDeleteContent: true);
+    await FlutterDownloader.remove(
+        taskId: task.taskId, shouldDeleteContent: true);
     await _prepare();
     setState(() {});
   }
@@ -455,7 +454,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       }
     });
 
-    _permissisonReady = await _checkPermission();
+    _permissionReady = await _checkPermission();
 
     _localPath = (await _findLocalPath()) + '/Download';
 

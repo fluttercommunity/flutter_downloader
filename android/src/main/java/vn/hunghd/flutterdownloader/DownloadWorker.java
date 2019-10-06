@@ -18,6 +18,7 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.util.Log;
@@ -278,7 +279,7 @@ public class DownloadWorker extends Worker {
                 int storage = ContextCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
                 PendingIntent pendingIntent = null;
                 if (status == DownloadStatus.COMPLETE) {
-                    if (isImageOrVideoFile(contentType)) {
+                    if (isImageOrVideoFile(contentType) && isExternalStoragePath(saveFilePath)) {
                         addImageOrVideoToGallery(filename, saveFilePath, getContentTypeWithoutCharset(contentType));
                     }
 
@@ -454,21 +455,44 @@ public class DownloadWorker extends Worker {
         return (contentType != null && (contentType.startsWith("image/") || contentType.startsWith("video")));
     }
 
+    private boolean isExternalStoragePath(String filePath) {
+        File externalStorageDir = Environment.getExternalStorageDirectory();
+        return filePath != null && externalStorageDir != null && filePath.startsWith(externalStorageDir.getPath());
+    }
+
     private void addImageOrVideoToGallery(String fileName, String filePath, String contentType) {
         if (contentType != null && filePath != null && fileName != null) {
-            ContentValues values = new ContentValues();
-            values.put(MediaStore.Images.Media.TITLE, fileName);
-            values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
-            values.put(MediaStore.Images.Media.DESCRIPTION, "");
-            values.put(MediaStore.Images.Media.MIME_TYPE, contentType);
-            values.put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis());
-            values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis());
-            values.put(MediaStore.Images.Media.DATA, filePath);
+            if (contentType.startsWith("image/")) {
+                ContentValues values = new ContentValues();
 
-            Log.d(TAG, "insert " + values + " to MediaStore");
+                values.put(MediaStore.Images.Media.TITLE, fileName);
+                values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
+                values.put(MediaStore.Images.Media.DESCRIPTION, "");
+                values.put(MediaStore.Images.Media.MIME_TYPE, contentType);
+                values.put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis());
+                values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis());
+                values.put(MediaStore.Images.Media.DATA, filePath);
 
-            ContentResolver contentResolver = getApplicationContext().getContentResolver();
-            contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+                Log.d(TAG, "insert " + values + " to MediaStore");
+
+                ContentResolver contentResolver = getApplicationContext().getContentResolver();
+                contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            } else if (contentType.startsWith("video")) {
+                ContentValues values = new ContentValues();
+
+                values.put(MediaStore.Video.Media.TITLE, fileName);
+                values.put(MediaStore.Video.Media.DISPLAY_NAME, fileName);
+                values.put(MediaStore.Video.Media.DESCRIPTION, "");
+                values.put(MediaStore.Video.Media.MIME_TYPE, contentType);
+                values.put(MediaStore.Video.Media.DATE_ADDED, System.currentTimeMillis());
+                values.put(MediaStore.Video.Media.DATE_TAKEN, System.currentTimeMillis());
+                values.put(MediaStore.Video.Media.DATA, filePath);
+
+                Log.d(TAG, "insert " + values + " to MediaStore");
+
+                ContentResolver contentResolver = getApplicationContext().getContentResolver();
+                contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values);
+            }
         }
     }
 }
