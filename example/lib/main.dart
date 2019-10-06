@@ -1,3 +1,6 @@
+import 'dart:isolate';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
@@ -5,7 +8,9 @@ import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
-void main() {
+void main() async {
+  await FlutterDownloader.initialize();
+
   runApp(new MyApp());
 }
 
@@ -103,14 +108,20 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   bool _isLoading;
   bool _permissionReady;
   String _localPath;
+  ReceivePort _port = ReceivePort();
 
   @override
   void initState() {
     super.initState();
 
-    FlutterDownloader.registerCallback((id, status, progress) {
-      print(
-          'Download task ($id) is in status ($status) and process ($progress)');
+    IsolateNameServer.registerPortWithName(
+        _port.sendPort, 'downloader_send_port');
+    _port.listen((dynamic data) {
+      print('UI Isolate Callback: $data');
+      String id = data[0];
+      DownloadTaskStatus status = data[1];
+      int progress = data[2];
+
       final task = _tasks.firstWhere((task) => task.taskId == id);
       setState(() {
         task?.status = status;
@@ -118,10 +129,20 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       });
     });
 
+    FlutterDownloader.registerCallback(downloadCallback);
+
     _isLoading = true;
     _permissionReady = false;
 
     _prepare();
+  }
+
+  static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
+    print(
+        'Background Isolate Callback: task ($id) is in status ($status) and process ($progress)');
+    final SendPort send =
+        IsolateNameServer.lookupPortByName('downloader_send_port');
+    send.send([id, status, progress]);
   }
 
   @override
