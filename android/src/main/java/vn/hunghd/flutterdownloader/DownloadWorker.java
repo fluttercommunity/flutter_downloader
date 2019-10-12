@@ -279,7 +279,16 @@ public class DownloadWorker extends Worker {
                 PendingIntent pendingIntent = null;
                 if (status == DownloadStatus.COMPLETE) {
                     if (isImageOrVideoFile(contentType)) {
-                        addImageOrVideoToGallery(filename, saveFilePath, getContentTypeWithoutCharset(contentType));
+                        try {
+                            addImageOrVideoToGallery(filename, saveFilePath, getContentTypeWithoutCharset(contentType));
+                        } catch (SecurityException e) {
+                            Log.d(
+                                    TAG,
+                                    "Not enough permissions to add image/video to gallery." +
+                                            " Path: " + saveFilePath +
+                                            " Error: " + e.getMessage()
+                            );
+                        }
                     }
 
                     if (clickToOpenDownloadedFile && storage == PackageManager.PERMISSION_GRANTED) {
