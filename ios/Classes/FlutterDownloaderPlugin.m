@@ -33,7 +33,8 @@
 
 @interface FlutterDownloaderPlugin()<NSURLSessionTaskDelegate, NSURLSessionDownloadDelegate, UIDocumentInteractionControllerDelegate>
 {
-    FlutterMethodChannel *_flutterChannel;
+    FlutterMethodChannel *_mainChannel;
+    FlutterMethodChannel *_callbackChannel;
     NSURLSession *_session;
     DBManager *_dbManager;
     NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById;
@@ -51,7 +52,7 @@
 - (instancetype)initWithBinaryMessenger: (NSObject<FlutterBinaryMessenger>*) messenger;
 {
     if (self = [super init]) {
-        _flutterChannel = [FlutterMethodChannel
+        _mainChannel = [FlutterMethodChannel
                            methodChannelWithName:@"vn.hunghd/downloader"
                            binaryMessenger:messenger];
 
@@ -89,7 +90,7 @@
 }
 
 -(FlutterMethodChannel *)channel {
-    return _flutterChannel;
+    return _mainChannel;
 }
 
 - (NSURLSession*)currentSession {
@@ -213,7 +214,7 @@
     NSDictionary *info = @{KEY_TASK_ID: taskId,
                            KEY_STATUS: status,
                            KEY_PROGRESS: progress};
-    [_flutterChannel invokeMethod:@"updateProgress" arguments:info];
+    [_mainChannel invokeMethod:@"updateProgress" arguments:info];
 }
 
 - (BOOL)openDocumentWithURL:(NSURL*)url {
@@ -448,6 +449,11 @@
 
 # pragma mark - FlutterDownloader
 
+- (void)initializeMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    
+    result([NSNull null]);
+}
+
 - (void)enqueueMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString *urlString = call.arguments[KEY_URL];
     NSString *savedDir = call.arguments[KEY_SAVED_DIR];
@@ -678,7 +684,9 @@
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSLog(@"methodCallHandler: %@", call.method);
-    if ([@"enqueue" isEqualToString:call.method]) {
+    if ([@"initialize" isEqualToString:call.method]) {
+        [self initializeMethodCall:call result:result];
+    } else if ([@"enqueue" isEqualToString:call.method]) {
         [self enqueueMethodCall:call result:result];
     } else if ([@"loadTasks" isEqualToString:call.method]) {
         [self loadTasksMethodCall:call result:result];
@@ -717,7 +725,7 @@
         }
     }
     _session = nil;
-    _flutterChannel = nil;
+    _mainChannel = nil;
     _dbManager = nil;
     databaseQueue = nil;
     _runningTaskById = nil;

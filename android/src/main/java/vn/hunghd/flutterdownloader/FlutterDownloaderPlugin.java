@@ -42,7 +42,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
     private Context context;
     private long callbackHandle;
 
-    private FlutterDownloaderPlugin(Context context, BinaryMessenger messenger, int hasCode) {
+    private FlutterDownloaderPlugin(Context context, BinaryMessenger messenger) {
         this.context = context;
         flutterChannel = new MethodChannel(messenger, CHANNEL);
         flutterChannel.setMethodCallHandler(this);
@@ -52,11 +52,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
 
     @SuppressLint("NewApi")
     public static void registerWith(PluginRegistry.Registrar registrar) {
-        int hasCode = 0;
-        if (registrar.activity() != null) {
-            hasCode = registrar.activity().hashCode();
-        }
-        new FlutterDownloaderPlugin(registrar.context(), registrar.messenger(), hasCode);
+        new FlutterDownloaderPlugin(registrar.context(), registrar.messenger());
     }
 
     @Override
