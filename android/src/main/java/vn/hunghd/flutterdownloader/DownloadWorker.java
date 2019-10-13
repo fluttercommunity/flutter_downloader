@@ -138,7 +138,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
     @Override
     public void onMethodCall(MethodCall call, MethodChannel.Result result) {
-        if (call.method.equals("hasInitializedDispatcher")) {
+        if (call.method.equals("didInitializeDispatcher")) {
             synchronized (isolateStarted) {
                 while (!isolateQueue.isEmpty()) {
                     backgroundChannel.invokeMethod("", isolateQueue.remove());

@@ -33,12 +33,16 @@
 
 @interface FlutterDownloaderPlugin()<NSURLSessionTaskDelegate, NSURLSessionDownloadDelegate, UIDocumentInteractionControllerDelegate>
 {
+    FlutterEngine *_headlessRunner;
     FlutterMethodChannel *_mainChannel;
     FlutterMethodChannel *_callbackChannel;
+    NSObject<FlutterPluginRegistrar> *_registrar;
     NSURLSession *_session;
     DBManager *_dbManager;
     NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById;
     NSString *_allFilesDownloadedMsg;
+    NSMutableArray *_eventQueue;
+    int64_t _callbackHandle;
 }
 
 @property(nonatomic, strong) dispatch_queue_t databaseQueue;
@@ -47,17 +51,31 @@
 
 @implementation FlutterDownloaderPlugin
 
+static FlutterDownloaderPlugin *instance = nil;
+static FlutterPluginRegistrantCallback registerPlugins = nil;
+static BOOL initialized = NO;
+
 @synthesize databaseQueue;
 
-- (instancetype)initWithBinaryMessenger: (NSObject<FlutterBinaryMessenger>*) messenger;
+- (instancetype)init:(NSObject<FlutterPluginRegistrar> *)registrar;
 {
     if (self = [super init]) {
+        _headlessRunner = [[FlutterEngine alloc] initWithName:@"FlutterDownloaderIsolate" project:nil allowHeadlessExecution:YES];
+        _registrar = registrar;
+        
         _mainChannel = [FlutterMethodChannel
                            methodChannelWithName:@"vn.hunghd/downloader"
-                           binaryMessenger:messenger];
+                           binaryMessenger:[registrar messenger]];
+        [registrar addMethodCallDelegate:self channel:_mainChannel];
+        
+        _callbackChannel =
+        [FlutterMethodChannel methodChannelWithName:@"vn.hunghd/downloader_background"
+                                    binaryMessenger:_headlessRunner];
 
+        _eventQueue = [[NSMutableArray alloc] init];
+        
         NSBundle *frameworkBundle = [NSBundle bundleForClass:FlutterDownloaderPlugin.class];
-
+        
         // initialize Database
         NSURL *bundleUrl = [[frameworkBundle resourceURL] URLByAppendingPathComponent:@"FlutterDownloaderDatabase.bundle"];
         NSBundle *resourceBundle = [NSBundle bundleWithURL:bundleUrl];
@@ -89,7 +107,24 @@
     return self;
 }
 
--(FlutterMethodChannel *)channel {
+- (void)startBackgroundIsolate:(int64_t)handle {
+    NSLog(@"startBackgroundIsolate");
+    FlutterCallbackInformation *info = [FlutterCallbackCache lookupCallbackInformation:handle];
+    NSAssert(info != nil, @"failed to find callback");
+    NSString *entrypoint = info.callbackName;
+    NSString *uri = info.callbackLibraryPath;
+    [_headlessRunner runWithEntrypoint:entrypoint libraryURI:uri];
+    NSAssert(registerPlugins != nil, @"failed to set registerPlugins");
+    
+    // Once our headless runner has been started, we need to register the application's plugins
+    // with the runner in order for them to work on the background isolate. `registerPlugins` is
+    // a callback set from AppDelegate.m in the main application. This callback should register
+    // all relevant plugins (excluding those which require UI).
+    registerPlugins(_headlessRunner);
+    [_registrar addMethodCallDelegate:self channel:_callbackChannel];
+}
+
+- (FlutterMethodChannel *)channel {
     return _mainChannel;
 }
 
@@ -211,10 +246,12 @@
 
 - (void)sendUpdateProgressForTaskId: (NSString*)taskId inStatus: (NSNumber*) status andProgress: (NSNumber*) progress
 {
-    NSDictionary *info = @{KEY_TASK_ID: taskId,
-                           KEY_STATUS: status,
-                           KEY_PROGRESS: progress};
-    [_mainChannel invokeMethod:@"updateProgress" arguments:info];
+    NSArray *args = @[@(_callbackHandle), taskId, status, progress];
+    if (initialized) {
+        [_callbackChannel invokeMethod:@"" arguments:args];
+    } else {
+        [_eventQueue addObject:args];
+    }
 }
 
 - (BOOL)openDocumentWithURL:(NSURL*)url {
@@ -450,7 +487,27 @@
 # pragma mark - FlutterDownloader
 
 - (void)initializeMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
-    
+    NSArray *arguments = call.arguments;
+    [self startBackgroundIsolate:[arguments[0] longValue]];
+    result([NSNull null]);
+}
+
+- (void)didInitializeDispatcherMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    @synchronized (self) {
+        initialized = YES;
+        //unqueue all pending download status events.
+        while ([_eventQueue count] > 0) {
+            NSArray* args = _eventQueue[0];
+            [_eventQueue removeObjectAtIndex:0];
+            [_callbackChannel invokeMethod:@"" arguments:args];
+        }
+    }
+    result([NSNull null]);
+}
+
+- (void)registerCallbackMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    NSArray *arguments = call.arguments;
+    _callbackHandle = [arguments[0] longValue];
     result([NSNull null]);
 }
 
@@ -676,16 +733,26 @@
 # pragma mark - FlutterPlugin
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
+    @synchronized(self) {
+        if (instance == nil) {
+            instance = [[FlutterDownloaderPlugin alloc] init:registrar];
+            [registrar addApplicationDelegate: instance];
+        }
+    }
+}
 
-    FlutterDownloaderPlugin* instance = [[FlutterDownloaderPlugin alloc] initWithBinaryMessenger:registrar.messenger];
-    [registrar addMethodCallDelegate:instance channel:[instance channel]];
-    [registrar addApplicationDelegate: instance];
++ (void)setPluginRegistrantCallback:(FlutterPluginRegistrantCallback)callback {
+  registerPlugins = callback;
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSLog(@"methodCallHandler: %@", call.method);
     if ([@"initialize" isEqualToString:call.method]) {
         [self initializeMethodCall:call result:result];
+    } else if ([@"didInitializeDispatcher" isEqualToString:call.method]) {
+        [self didInitializeDispatcherMethodCall:call result:result];
+    } else if ([@"registerCallback" isEqualToString:call.method]) {
+        [self registerCallbackMethodCall:call result:result];
     } else if ([@"enqueue" isEqualToString:call.method]) {
         [self enqueueMethodCall:call result:result];
     } else if ([@"loadTasks" isEqualToString:call.method]) {
@@ -713,6 +780,7 @@
 
 - (BOOL)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void (^)(void))completionHandler {
     self.backgroundTransferCompletionHandler = completionHandler;
+    //TODO: setup background isolate in case the application is re-launched from background to handle download event
     return YES;
 }
 

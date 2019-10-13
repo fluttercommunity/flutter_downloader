@@ -24,5 +24,5 @@ void callbackDispatcher() {
     callback(id, DownloadTaskStatus(status), progress);
   });
 
-  backgroundChannel.invokeMethod('hasInitializedDispatcher');
+  backgroundChannel.invokeMethod('didInitializeDispatcher');
 }
