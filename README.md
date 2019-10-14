@@ -137,7 +137,7 @@ public class MyApplication extends FlutterApplication implements PluginRegistry.
 ```
 
 ```xml
-// AndroidManifest.xml
+<!-- AndroidManifest.xml -->
 <application
         android:name=".MyApplication"
         ....>
