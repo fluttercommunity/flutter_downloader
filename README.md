@@ -29,7 +29,41 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
     <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/add_sqlite_2.png?raw=true" />
 </p>
 
+* Configure `AppDelegate`:
 
+```objective-c
+/// AppDelegate.h
+#import <Flutter/Flutter.h>
+#import <UIKit/UIKit.h>
+
+@interface AppDelegate : FlutterAppDelegate
+
+@end
+```
+
+```objective-c
+// AppDelegate.m
+#include "AppDelegate.h"
+#include "GeneratedPluginRegistrant.h"
+#include "FlutterDownloaderPlugin.h"
+
+@implementation AppDelegate
+
+void registerPlugins(NSObject<FlutterPluginRegistry>* registry) {
+  [GeneratedPluginRegistrant registerWithRegistry:registry];
+}
+
+- (BOOL)application:(UIApplication *)application
+    didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+  [GeneratedPluginRegistrant registerWithRegistry:self];
+  [FlutterDownloaderPlugin setPluginRegistrantCallback:registerPlugins];
+  // Override point for customization after application launch.
+  return [super application:application didFinishLaunchingWithOptions:launchOptions];
+}
+
+@end
+
+```
 
 ### Optional configuration:
 
@@ -89,6 +123,25 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 ## Android integration
 
 ### Required configuration:
+
+* Configure `Application`:
+
+```java
+// MyApplication.java
+public class MyApplication extends FlutterApplication implements PluginRegistry.PluginRegistrantCallback {
+    @Override
+    public void registerWith(PluginRegistry registry) {
+        GeneratedPluginRegistrant.registerWith(registry);
+    }
+}
+```
+
+```xml
+// AndroidManifest.xml
+<application
+        android:name=".MyApplication"
+        ....>
+```
 
 * In order to handle click action on notification to open the downloaded file on Android, you need to add some additional configurations. Add the following codes to your `AndroidManifest.xml`:
 
@@ -171,12 +224,36 @@ final taskId = await FlutterDownloader.enqueue(
 #### Update download progress:
 
 ````dart
-FlutterDownloader.registerCallback((id, status, progress) {
-  // code to update your UI
-});
+FlutterDownloader.registerCallback(callback); // callback is a top-level or static function
 ````
 
-- Note: set `callback` as `null` to remove listener. You should clean up callback to prevent from leaking references.
+**Important note:** your UI is rendered in the main isolate, while download events come from a background isolate (in other words, codes in `callback` are run in the background isolate), so you have to handle the communication between two isolates. For example:
+
+````dart
+ReceivePort _port = ReceivePort();
+
+@override
+void initState() {
+	super.initState();
+
+	IsolateNameServer.registerPortWithName(_port.sendPort, 'downloader_send_port');
+	_port.listen((dynamic data) {
+		String id = data[0];
+		DownloadTaskStatus status = data[1];
+		int progress = data[2];
+		setState((){ });
+	});
+
+	FlutterDownloader.registerCallback(downloadCallback);
+}
+
+static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
+	final SendPort send = IsolateNameServer.lookupPortByName('downloader_send_port');
+	send.send([id, status, progress]);
+}
+
+````
+
 
 #### Load all tasks:
 

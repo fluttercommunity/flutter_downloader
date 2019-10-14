@@ -147,7 +147,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    FlutterDownloader.registerCallback(null);
     super.dispose();
   }
 

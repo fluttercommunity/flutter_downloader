@@ -311,12 +311,49 @@ class FlutterDownloader {
   ///
   /// **parameters:**
   ///
-  /// * `callback`: a function of [DownloadCallback] type which is called whenever
-  /// the status or progress value of a download task has been changed.
+  /// * `callback`: a top-level or static function of [DownloadCallback] type
+  /// which is called whenever the status or progress value of a download task
+  /// has been changed.
   ///
   /// **Note:**
   ///
-  /// `callback` must be a top-level or a static function.
+  /// Your UI is rendered in the main isolate, while download events come from a
+  /// background isolate (in other words, codes in `callback` are run in the
+  /// background isolate), so you have to handle the communication between two
+  /// isolates.
+  ///
+  /// **Example:**
+  ///
+  /// {@tool sample}
+  ///
+  /// ```dart
+  ///
+  /// ReceivePort _port = ReceivePort();
+  ///
+  /// @override
+  /// void initState() {
+  ///   super.initState();
+  ///
+  ///   IsolateNameServer.registerPortWithName(_port.sendPort, 'downloader_send_port');
+  ///   _port.listen((dynamic data) {
+  ///      String id = data[0];
+  ///      DownloadTaskStatus status = data[1];
+  ///      int progress = data[2];
+  ///      setState((){ });
+  ///   });
+  ///
+  ///   FlutterDownloader.registerCallback(downloadCallback);
+  ///
+  /// }
+  ///
+  /// static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
+  ///   final SendPort send = IsolateNameServer.lookupPortByName('downloader_send_port');
+  ///   send.send([id, status, progress]);
+  /// }
+  ///
+  /// ```
+  ///
+  /// {@end-tool}
   ///
   static registerCallback(DownloadCallback callback) {
     final callbackHandle = PluginUtilities.getCallbackHandle(callback);
