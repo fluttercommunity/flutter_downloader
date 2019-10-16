@@ -1,3 +1,10 @@
+## 1.3.0 - 16.09.2019
+
+* **BREAKING CHANGES**: the plugin has been refactored to support update download events with background isolate. In order to support background execution in Dart, the `callback`, that receives events from platform codes, now must be a static or top-level function. There's also an additional native configuration required on both of iOS and Android. See README for detail.
+* Android: upgrade `WorkManager` to v2.2.0.
+* Fix bug `SecurityException` when saving image/videos to internal storage in Android
+* Fix bug cannot save videos in Android.
+
 ## 1.2.2 - 19.09.2019
 
 * Android: fix bugs
