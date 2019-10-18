@@ -31,6 +31,7 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 * Configure `AppDelegate`:
 
+Objective-C:
 ```objective-c
 /// AppDelegate.h
 #import <Flutter/Flutter.h>
@@ -62,6 +63,29 @@ void registerPlugins(NSObject<FlutterPluginRegistry>* registry) {
 }
 
 @end
+
+```
+
+Or Swift:
+```swift
+import UIKit
+import Flutter
+
+@UIApplicationMain
+@objc class AppDelegate: FlutterAppDelegate {
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    GeneratedPluginRegistrant.register(with: self)
+    FlutterDownloaderPlugin.setPluginRegistrantCallback(registerPlugins)
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+}
+
+private func registerPlugins(registry: FlutterPluginRegistry) {
+    GeneratedPluginRegistrant.register(with: registry)
+}
 
 ```
 
@@ -126,6 +150,7 @@ void registerPlugins(NSObject<FlutterPluginRegistry>* registry) {
 
 * Configure `Application`:
 
+Java: 
 ```java
 // MyApplication.java
 public class MyApplication extends FlutterApplication implements PluginRegistry.PluginRegistrantCallback {
@@ -136,6 +161,17 @@ public class MyApplication extends FlutterApplication implements PluginRegistry.
 }
 ```
 
+Or Kotlin:
+```kotlin
+// MyApplication.kt
+internal class MyApplication : FlutterApplication(), PluginRegistry.PluginRegistrantCallback {
+    override fun registerWith(registry: PluginRegistry) {
+        GeneratedPluginRegistrant.registerWith(registry)
+    }
+}
+```
+
+And update `AndroidManifest.xml`
 ```xml
 <!-- AndroidManifest.xml -->
 <application
@@ -209,6 +245,14 @@ public class MyApplication extends FlutterApplication implements PluginRegistry.
 ````dart
 import 'package:flutter_downloader/flutter_downloader.dart';
 ````
+
+#### Initialize
+
+````dart
+await FlutterDownloader.initialize();
+````
+
+- Note: the plugin must be initialized before using.
 
 #### Create new download task:
 

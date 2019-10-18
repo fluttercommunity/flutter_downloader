@@ -1,3 +1,7 @@
+## 1.3.1 - 18.09.2019
+
+* assert the initialization of FlutterDownloader
+
 ## 1.3.0 - 16.09.2019
 
 * **BREAKING CHANGES**: the plugin has been refactored to support update download events with background isolate. In order to support background execution in Dart, the `callback`, that receives events from platform codes, now must be a static or top-level function. There's also an additional native configuration required on both of iOS and Android. See README for detail.
