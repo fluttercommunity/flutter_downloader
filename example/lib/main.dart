@@ -32,7 +32,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatefulWidget {
+class MyHomePage extends StatefulWidget with WidgetsBindingObserver {
   final TargetPlatform platform;
 
   MyHomePage({Key key, this.title, this.platform}) : super(key: key);
@@ -43,7 +43,7 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => new _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
+class _MyHomePageState extends State<MyHomePage> {
   final _documents = [
     {
       'name': 'Learning Android Studio',
@@ -114,20 +114,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
 
-    IsolateNameServer.registerPortWithName(
-        _port.sendPort, 'downloader_send_port');
-    _port.listen((dynamic data) {
-      print('UI Isolate Callback: $data');
-      String id = data[0];
-      DownloadTaskStatus status = data[1];
-      int progress = data[2];
-
-      final task = _tasks.firstWhere((task) => task.taskId == id);
-      setState(() {
-        task?.status = status;
-        task?.progress = progress;
-      });
-    });
+    _bindBackgroundIsolate();
 
     FlutterDownloader.registerCallback(downloadCallback);
 
@@ -137,17 +124,47 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     _prepare();
   }
 
-  static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
+  @override
+  void dispose(){
+    _unbindBackgroundIsolate();
+    super.dispose();
+  }
+
+  void _bindBackgroundIsolate() {
+    bool isSuccess = IsolateNameServer.registerPortWithName(
+        _port.sendPort, 'downloader_send_port');
+    if (!isSuccess) {
+      _unbindBackgroundIsolate();
+      _bindBackgroundIsolate();
+      return;
+    }
+    _port.listen((dynamic data) {
+      print('UI Isolate Callback: $data');
+      String id = data[0];
+      DownloadTaskStatus status = data[1];
+      int progress = data[2];
+
+      final task = _tasks?.firstWhere((task) => task.taskId == id);
+      if (task != null) {
+        setState(() {
+          task.status = status;
+          task.progress = progress;
+        });
+      }
+    });
+  }
+
+  void _unbindBackgroundIsolate() {
+    IsolateNameServer.removePortNameMapping('downloader_send_port');
+  }
+
+  static void downloadCallback(
+      String id, DownloadTaskStatus status, int progress) {
     print(
         'Background Isolate Callback: task ($id) is in status ($status) and process ($progress)');
     final SendPort send =
         IsolateNameServer.lookupPortByName('downloader_send_port');
     send.send([id, status, progress]);
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 
   @override

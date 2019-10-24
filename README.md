@@ -291,6 +291,12 @@ void initState() {
 	FlutterDownloader.registerCallback(downloadCallback);
 }
 
+@override
+void dispose() {
+	IsolateNameServer.removePortNameMapping('downloader_send_port');
+	super.dispose();
+}
+
 static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
 	final SendPort send = IsolateNameServer.lookupPortByName('downloader_send_port');
 	send.send([id, status, progress]);

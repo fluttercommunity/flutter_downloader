@@ -342,7 +342,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                         // but commenting this line causes tasks loaded from DB missing current downloading progress,
                         // however, this missing data should be temporary and it will be updated as soon as
                         // a new bunch of data fetched and a notification sent
-                        //taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, progress);
+                        taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, progress);
                     }
                 }
 
