@@ -51,6 +51,21 @@ Objective-C:
 @implementation AppDelegate
 
 void registerPlugins(NSObject<FlutterPluginRegistry>* registry) {
+  //
+  // Integration note:
+  //
+  // In Flutter, in order to work in background isolate, plugins need to register with
+  // a special instance of `FlutterEngine` that serves for background execution only.
+  // Hence, all (and only) plugins that require background execution feature need to 
+  // call `registerWithRegistrar` in this function. 
+  //
+  // The default `GeneratedPluginRegistrant` will call `registerWithRegistrar` of all
+  // plugins integrated in your application. Hence, if you are using `FlutterDownloaderPlugin`
+  // along with other plugins that need UI manipulation, you should register 
+  // `FlutterDownloaderPlugin` and any 'background' plugins explicitly like this: 
+  //   
+  // [FlutterDownloaderPlugin registerWithRegistrar:[registry registrarForPlugin:@"vn.hunghd.flutter_downloader"]];
+  //
   [GeneratedPluginRegistrant registerWithRegistry:registry];
 }
 
@@ -70,6 +85,7 @@ Or Swift:
 ```swift
 import UIKit
 import Flutter
+import flutter_downloader
 
 @UIApplicationMain
 @objc class AppDelegate: FlutterAppDelegate {
@@ -84,6 +100,21 @@ import Flutter
 }
 
 private func registerPlugins(registry: FlutterPluginRegistry) {
+    //
+    // Integration note:
+    //
+    // In Flutter, in order to work in background isolate, plugins need to register with
+    // a special instance of `FlutterEngine` that serves for background execution only.
+    // Hence, all (and only) plugins that require background execution feature need to 
+    // call `register` in this function. 
+    //
+    // The default `GeneratedPluginRegistrant` will call `register` of all plugins integrated
+    // in your application. Hence, if you are using `FlutterDownloaderPlugin` along with other
+    // plugins that need UI manipulation, you should register `FlutterDownloaderPlugin` and any
+    // 'background' plugins explicitly like this:
+    //   
+    // FlutterDownloaderPlugin.register(with: registry.registrar(forPlugin: "vn.hunghd.flutter_downloader"))
+    //
     GeneratedPluginRegistrant.register(with: registry)
 }
 
@@ -152,10 +183,30 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
 
 Java: 
 ```java
-// MyApplication.java
+// MyApplication.java (create this file if it doesn't exist in your project)
+
+import io.flutter.app.FlutterApplication;
+import io.flutter.plugin.common.PluginRegistry;
+import vn.hunghd.flutterdownloader.FlutterDownloaderPlugin;
+
 public class MyApplication extends FlutterApplication implements PluginRegistry.PluginRegistrantCallback {
     @Override
     public void registerWith(PluginRegistry registry) {
+        //
+        // Integration note:
+        //
+        // In Flutter, in order to work in background isolate, plugins need to register with
+        // a special instance of `FlutterEngine` that serves for background execution only.
+        // Hence, all (and only) plugins that require background execution feature need to 
+        // call `registerWith` in this method. 
+        //
+        // The default `GeneratedPluginRegistrant` will call `registerWith` of all plugins
+        // integrated in your application. Hence, if you are using `FlutterDownloaderPlugin`
+        // along with other plugins that need UI manipulation, you should register
+        // `FlutterDownloaderPlugin` and any 'background' plugins explicitly like this:
+        //   
+        // FlutterDownloaderPlugin.registerWith(registry.registrarFor("vn.hunghd.flutterdownloader.FlutterDownloaderPlugin"));
+        //
         GeneratedPluginRegistrant.registerWith(registry);
     }
 }
@@ -163,9 +214,29 @@ public class MyApplication extends FlutterApplication implements PluginRegistry.
 
 Or Kotlin:
 ```kotlin
-// MyApplication.kt
+// MyApplication.kt (create this file if it doesn't exist in your project)
+
+import io.flutter.app.FlutterApplication
+import io.flutter.plugin.common.PluginRegistry
+import vn.hunghd.flutterdownloader.FlutterDownloaderPlugin
+
 internal class MyApplication : FlutterApplication(), PluginRegistry.PluginRegistrantCallback {
     override fun registerWith(registry: PluginRegistry) {
+        //
+        // Integration note:
+        //
+        // In Flutter, in order to work in background isolate, plugins need to register with
+        // a special instance of `FlutterEngine` that serves for background execution only.
+        // Hence, all (and only) plugins that require background execution feature need to 
+        // call `registerWith` in this method. 
+        //
+        // The default `GeneratedPluginRegistrant` will call `registerWith` of all plugins
+        // integrated in your application. Hence, if you are using `FlutterDownloaderPlugin`
+        // along with other plugins that need UI manipulation, you should register
+        // `FlutterDownloaderPlugin` and any 'background' plugins explicitly like this:
+        // 
+        // FlutterDownloaderPlugin.registerWith(registry.registrarFor("vn.hunghd.flutterdownloader.FlutterDownloaderPlugin"))
+        //
         GeneratedPluginRegistrant.registerWith(registry)
     }
 }

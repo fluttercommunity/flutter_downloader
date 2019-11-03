@@ -1,3 +1,8 @@
+## 1.3.3 - 03.11.2019
+
+* update document
+* assert and make sure FlutterDownloader initialized one time.
+
 ## 1.3.2 - 24.10.2019
 
 * correct document and example codes about communication with background isolate
