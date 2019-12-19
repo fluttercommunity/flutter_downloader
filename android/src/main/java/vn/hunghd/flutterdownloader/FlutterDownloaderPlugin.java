@@ -119,7 +119,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
 
     private void initialize(MethodCall call, MethodChannel.Result result) {
         List args = (List) call.arguments;
-        long callbackHandle = (long) args.get(0);
+        long callbackHandle = Long.parseLong(args.get(0).toString());
 
         SharedPreferences pref = context.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
         pref.edit().putLong(CALLBACK_DISPATCHER_HANDLE_KEY, callbackHandle).apply();
@@ -129,7 +129,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler {
 
     private void registerCallback(MethodCall call, MethodChannel.Result result) {
         List args = (List) call.arguments;
-        callbackHandle = (long) args.get(0);
+        callbackHandle = Long.parseLong(args.get(0).toString());
         result.success(null);
     }
 
