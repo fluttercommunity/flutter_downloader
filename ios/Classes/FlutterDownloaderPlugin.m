@@ -62,20 +62,20 @@ static BOOL initialized = NO;
     if (self = [super init]) {
         _headlessRunner = [[FlutterEngine alloc] initWithName:@"FlutterDownloaderIsolate" project:nil allowHeadlessExecution:YES];
         _registrar = registrar;
-        
+
         _mainChannel = [FlutterMethodChannel
                            methodChannelWithName:@"vn.hunghd/downloader"
                            binaryMessenger:[registrar messenger]];
         [registrar addMethodCallDelegate:self channel:_mainChannel];
-        
+
         _callbackChannel =
         [FlutterMethodChannel methodChannelWithName:@"vn.hunghd/downloader_background"
                                     binaryMessenger:_headlessRunner];
 
         _eventQueue = [[NSMutableArray alloc] init];
-        
+
         NSBundle *frameworkBundle = [NSBundle bundleForClass:FlutterDownloaderPlugin.class];
-        
+
         // initialize Database
         NSURL *bundleUrl = [[frameworkBundle resourceURL] URLByAppendingPathComponent:@"FlutterDownloaderDatabase.bundle"];
         NSBundle *resourceBundle = [NSBundle bundleWithURL:bundleUrl];
@@ -115,7 +115,7 @@ static BOOL initialized = NO;
     NSString *uri = info.callbackLibraryPath;
     [_headlessRunner runWithEntrypoint:entrypoint libraryURI:uri];
     NSAssert(registerPlugins != nil, @"failed to set registerPlugins");
-    
+
     // Once our headless runner has been started, we need to register the application's plugins
     // with the runner in order for them to work on the background isolate. `registerPlugins` is
     // a callback set from AppDelegate.m in the main application. This callback should register
@@ -195,7 +195,7 @@ static BOOL initialized = NO;
                 }];
 
                 [weakSelf updateRunningTaskById:taskId progress:progress status:STATUS_PAUSED resumable:YES];
-                
+
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_PAUSED) andProgress:@(progress)];
 
                 dispatch_sync([weakSelf databaseQueue], ^{
@@ -283,7 +283,7 @@ static BOOL initialized = NO;
     NSString *filename = taskInfo[KEY_FILE_NAME];
     NSString *suggestedFilename = downloadTask.response.suggestedFilename;
     NSLog(@"SuggestedFileName: %@", suggestedFilename);
-    
+
     // check filename, if it is empty then we try to extract it from http response or url path
     if (filename == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: filename]) {
         if (suggestedFilename) {
@@ -291,24 +291,24 @@ static BOOL initialized = NO;
         } else {
             filename = downloadTask.currentRequest.URL.lastPathComponent;
         }
-        
+
         NSMutableDictionary *mutableTask = [taskInfo mutableCopy];
         [mutableTask setObject:filename forKey:KEY_FILE_NAME];
-        
+
         // update taskInfo
         if ([_runningTaskById objectForKey:taskId]) {
             _runningTaskById[taskId][KEY_FILE_NAME] = filename;
         }
-        
+
         // update DB
         __typeof__(self) __weak weakSelf = self;
         dispatch_sync(databaseQueue, ^{
             [weakSelf updateTask:taskId filename:filename];
         });
-        
+
         return [self fileUrlFromDict:mutableTask];
     }
-    
+
     return [self fileUrlFromDict:taskInfo];
 }
 
@@ -488,7 +488,7 @@ static BOOL initialized = NO;
 
 - (void)initializeMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSArray *arguments = call.arguments;
-    [self startBackgroundIsolate:[arguments[0] longValue]];
+    [self startBackgroundIsolate:[arguments[0] longLongValue]];
     result([NSNull null]);
 }
 
@@ -507,7 +507,7 @@ static BOOL initialized = NO;
 
 - (void)registerCallbackMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSArray *arguments = call.arguments;
-    _callbackHandle = [arguments[0] longValue];
+    _callbackHandle = [arguments[0] longLongValue];
     result([NSNull null]);
 }
 
@@ -519,7 +519,7 @@ static BOOL initialized = NO;
     NSString *headers = call.arguments[KEY_HEADERS];
     NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
     NSNumber *openFileFromNotification = call.arguments[KEY_OPEN_FILE_FROM_NOTIFICATION];
-    
+
     NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
 
     NSString *taskId = [self identifierForTask:task];
@@ -711,10 +711,10 @@ static BOOL initialized = NO;
         }
         if (shouldDeleteContent) {
             NSURL *destinationURL = [self fileUrlFromDict:taskDict];
-            
+
             NSError *error;
             NSFileManager *fileManager = [NSFileManager defaultManager];
-            
+
             if ([fileManager fileExistsAtPath:[destinationURL path]]) {
                 [fileManager removeItemAtURL:destinationURL error:&error];
                 if (error == nil) {
@@ -818,13 +818,13 @@ static BOOL initialized = NO;
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL:(NSURL *)location
 {
     NSLog(@"URLSession:downloadTask:didFinishDownloadingToURL:");
-    
+
     NSString *taskId = [self identifierForTask:downloadTask ofSession:session];
     NSDictionary *task = [self loadTaskWithId:taskId];
     NSURL *destinationURL = [self fileUrlOf:taskId taskInfo:task downloadTask:downloadTask];
-    
+
     [_runningTaskById removeObjectForKey:taskId];
-    
+
     NSError *error;
     NSFileManager *fileManager = [NSFileManager defaultManager];
 
