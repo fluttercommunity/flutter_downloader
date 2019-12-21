@@ -1,3 +1,8 @@
+## 1.3.4 - 21.12.2019
+
+* fix bug stuck in Flutter v12.13
+* fix bug on casting int to long value
+
 ## 1.3.3 - 03.11.2019
 
 * update document

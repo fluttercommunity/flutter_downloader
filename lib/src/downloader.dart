@@ -28,6 +28,8 @@ class FlutterDownloader {
   static Future<Null> initialize() async {
     assert(!_initialized, 'FlutterDownloader.initialize() must be called only once!');
 
+    WidgetsFlutterBinding.ensureInitialized();
+
     final callback = PluginUtilities.getCallbackHandle(callbackDispatcher);
     await _channel
         .invokeMethod('initialize', <dynamic>[callback.toRawHandle()]);

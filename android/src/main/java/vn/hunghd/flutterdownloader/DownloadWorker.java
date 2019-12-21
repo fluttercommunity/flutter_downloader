@@ -464,23 +464,23 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
             shouldUpdate = true;
             builder.setContentText(msgCanceled).setProgress(0, 0, false);
             builder.setOngoing(false)
-                    .setSmallIcon(android.R.drawable.stat_sys_download)
+                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
                     .setLargeIcon(BitmapFactory.decodeResource(getApplicationContext().getResources(),
-                            android.R.drawable.stat_sys_download));
+                            android.R.drawable.stat_sys_download_done));
         } else if (status == DownloadStatus.FAILED) {
             shouldUpdate = true;
             builder.setContentText(msgFailed).setProgress(0, 0, false);
             builder.setOngoing(false)
-                    .setSmallIcon(android.R.drawable.stat_sys_download)
+                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
                     .setLargeIcon(BitmapFactory.decodeResource(getApplicationContext().getResources(),
-                            android.R.drawable.stat_sys_download));
+                            android.R.drawable.stat_sys_download_done));
         } else if (status == DownloadStatus.PAUSED) {
             shouldUpdate = true;
             builder.setContentText(msgPaused).setProgress(0, 0, false);
             builder.setOngoing(false)
-                    .setSmallIcon(android.R.drawable.stat_sys_download)
+                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
                     .setLargeIcon(BitmapFactory.decodeResource(getApplicationContext().getResources(),
-                            android.R.drawable.stat_sys_download));
+                            android.R.drawable.stat_sys_download_done));
         } else if (status == DownloadStatus.COMPLETE) {
             shouldUpdate = true;
             builder.setContentText(msgComplete).setProgress(0, 0, false);
