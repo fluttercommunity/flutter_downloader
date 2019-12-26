@@ -46,6 +46,7 @@ class FlutterDownloader {
   /// * `savedDir`: absolute path of the directory where downloaded file is saved
   /// * `fileName`: name of downloaded file. If this parameter is not set, the
   /// plugin will try to extract a file name from HTTP headers response or `url`
+  /// * `additionalInfo`:name of Additional information of a downloaded file
   /// * `headers`: HTTP headers
   /// * `showNotification`: sets `true` to show a notification displaying the
   /// download progress (only Android), otherwise, `false` value will disable
@@ -64,10 +65,11 @@ class FlutterDownloader {
       {@required String url,
         @required String savedDir,
         String fileName,
+        String additionalInfo,
         Map<String, String> headers,
         bool showNotification = true,
         bool openFileFromNotification = true,
-        bool requiresStorageNotLow = true}) async {
+        bool requiresStorageNotLow = true,}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
     assert(Directory(savedDir).existsSync());
 
@@ -85,6 +87,7 @@ class FlutterDownloader {
         'url': url,
         'saved_dir': savedDir,
         'file_name': fileName,
+        'additional_info': additionalInfo,
         'headers': headerBuilder.toString(),
         'show_notification': showNotification,
         'open_file_from_notification': openFileFromNotification,
@@ -117,7 +120,8 @@ class FlutterDownloader {
           progress: item['progress'],
           url: item['url'],
           filename: item['file_name'],
-          savedDir: item['saved_dir']))
+          additionalInfo: item['additional_info'],
+          savedDir: item['saved_dir']),)
           .toList();
     } on PlatformException catch (e) {
       print(e.message);
@@ -160,6 +164,7 @@ class FlutterDownloader {
           progress: item['progress'],
           url: item['url'],
           filename: item['file_name'],
+          additionalInfo: item['additional_info'],
           savedDir: item['saved_dir']))
           .toList();
     } on PlatformException catch (e) {

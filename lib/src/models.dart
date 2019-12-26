@@ -1,11 +1,10 @@
-
 ///
 /// A class defines a set of possible statuses of a download task
 ///
 class DownloadTaskStatus {
   final int _value;
 
-  const DownloadTaskStatus(int value): _value = value;
+  const DownloadTaskStatus(int value) : _value = value;
 
   int get value => _value;
 
@@ -15,8 +14,7 @@ class DownloadTaskStatus {
 
   toString() => 'DownloadTaskStatus($_value)';
 
-  static DownloadTaskStatus from(int value) =>
-      DownloadTaskStatus(value);
+  static DownloadTaskStatus from(int value) => DownloadTaskStatus(value);
 
   static const undefined = const DownloadTaskStatus(0);
   static const enqueued = const DownloadTaskStatus(1);
@@ -36,6 +34,7 @@ class DownloadTaskStatus {
 /// * [progress] the latest progress value of a download task
 /// * [url] the download link
 /// * [filename] the local file name of a downloaded file
+/// * [additionalInfo] Additional information of a downloaded file
 /// * [savedDir] the absolute path of the directory where the downloaded file is saved
 ///
 class DownloadTask {
@@ -44,17 +43,20 @@ class DownloadTask {
   final int progress;
   final String url;
   final String filename;
+  final String additionalInfo;
   final String savedDir;
 
-  DownloadTask(
-      {this.taskId,
-        this.status,
-        this.progress,
-        this.url,
-        this.filename,
-        this.savedDir});
+  DownloadTask({
+    this.taskId,
+    this.status,
+    this.progress,
+    this.url,
+    this.filename,
+    this.additionalInfo,
+    this.savedDir,
+  });
 
   @override
   String toString() =>
-      "DownloadTask(taskId: $taskId, status: $status, progress: $progress, url: $url, filename: $filename, savedDir: $savedDir)";
+      "DownloadTask(taskId: $taskId, status: $status, progress: $progress, url: $url, filename: $filename, additionalInfo: $additionalInfo, savedDir: $savedDir)";
 }
