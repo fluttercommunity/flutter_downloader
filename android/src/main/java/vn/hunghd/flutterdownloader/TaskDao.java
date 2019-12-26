@@ -177,12 +177,11 @@ public class TaskDao {
         }
     }
 
-    public void updateTask(String taskId, String filename, String additionalinfo, String mimeType) {
+    public void updateTask(String taskId, String filename, String mimeType) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
 
         ContentValues values = new ContentValues();
         values.put(TaskContract.TaskEntry.COLUMN_NAME_FILE_NAME, filename);
-        values.put(TaskContract.TaskEntry.COLUMN_NAME_ADDITIONAL_INFO, additionalinfo);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_MIME_TYPE, mimeType);
 
         db.beginTransaction();
