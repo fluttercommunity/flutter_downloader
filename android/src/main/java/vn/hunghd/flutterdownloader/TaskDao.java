@@ -18,6 +18,7 @@ public class TaskDao {
             TaskContract.TaskEntry.COLUMN_NAME_STATUS,
             TaskContract.TaskEntry.COLUMN_NAME_URL,
             TaskContract.TaskEntry.COLUMN_NAME_FILE_NAME,
+            TaskContract.TaskEntry.COLUMN_NAME_ADDITIONAL_INFO,
             TaskContract.TaskEntry.COLUMN_NAME_SAVED_DIR,
             TaskContract.TaskEntry.COLUMN_NAME_HEADERS,
             TaskContract.TaskEntry.COLUMN_NAME_MIME_TYPE,
@@ -31,7 +32,7 @@ public class TaskDao {
         dbHelper = helper;
     }
 
-    public void insertOrUpdateNewTask(String taskId, String url, int status, int progress, String fileName,
+    public void insertOrUpdateNewTask(String taskId, String url, int status, int progress, String fileName, String additionalinfo,
                                        String savedDir, String headers, boolean showNotification, boolean openFileFromNotification) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
 
@@ -41,6 +42,7 @@ public class TaskDao {
         values.put(TaskContract.TaskEntry.COLUMN_NAME_STATUS, status);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_PROGRESS, progress);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_FILE_NAME, fileName);
+        values.put(TaskContract.TaskEntry.COLUMN_NAME_ADDITIONAL_INFO, additionalinfo);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_SAVED_DIR, savedDir);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_HEADERS, headers);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_MIME_TYPE, "unknown");
@@ -175,11 +177,12 @@ public class TaskDao {
         }
     }
 
-    public void updateTask(String taskId, String filename, String mimeType) {
+    public void updateTask(String taskId, String filename, String additionalinfo, String mimeType) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
 
         ContentValues values = new ContentValues();
         values.put(TaskContract.TaskEntry.COLUMN_NAME_FILE_NAME, filename);
+        values.put(TaskContract.TaskEntry.COLUMN_NAME_ADDITIONAL_INFO, additionalinfo);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_MIME_TYPE, mimeType);
 
         db.beginTransaction();
@@ -216,6 +219,7 @@ public class TaskDao {
         int progress = cursor.getInt(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_PROGRESS));
         String url = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_URL));
         String filename = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_FILE_NAME));
+        String additionalinfo = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_ADDITIONAL_INFO));
         String savedDir = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_SAVED_DIR));
         String headers = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_HEADERS));
         String mimeType = cursor.getString(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_MIME_TYPE));
@@ -223,7 +227,7 @@ public class TaskDao {
         int showNotification = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION));
         int clickToOpenDownloadedFile = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION));
         long timeCreated = cursor.getLong(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_TIME_CREATED));
-        return new DownloadTask(primaryId, taskId, status, progress, url, filename, savedDir, headers,
+        return new DownloadTask(primaryId, taskId, status, progress, url, filename, additionalinfo, savedDir, headers,
                 mimeType, resumable == 1, showNotification == 1, clickToOpenDownloadedFile == 1, timeCreated);
     }
 

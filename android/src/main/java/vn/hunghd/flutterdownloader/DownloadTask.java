@@ -7,6 +7,7 @@ public class DownloadTask {
     int progress;
     String url;
     String filename;
+    String additionalinfo;
     String savedDir;
     String headers;
     String mimeType;
@@ -15,7 +16,7 @@ public class DownloadTask {
     boolean openFileFromNotification;
     long timeCreated;
 
-    DownloadTask(int primaryId, String taskId, int status, int progress, String url, String filename, String savedDir,
+    DownloadTask(int primaryId, String taskId, int status, int progress, String url, String filename, String additionalinfo, String savedDir,
                  String headers, String mimeType, boolean resumable, boolean showNotification, boolean openFileFromNotification, long timeCreated) {
         this.primaryId = primaryId;
         this.taskId = taskId;
@@ -23,6 +24,7 @@ public class DownloadTask {
         this.progress = progress;
         this.url = url;
         this.filename = filename;
+        this.additionalinfo = additionalinfo;
         this.savedDir = savedDir;
         this.headers = headers;
         this.mimeType = mimeType;
@@ -34,6 +36,6 @@ public class DownloadTask {
 
     @Override
     public String toString() {
-        return "DownloadTask{taskId=" + taskId + ",status=" + status + ",progress=" + progress + ",url=" + url + ",filename=" + filename + ",savedDir=" + savedDir + ",headers=" + headers + "}";
+        return "DownloadTask{taskId=" + taskId + ",status=" + status + ",progress=" + progress + ",url=" + url + ",filename=" + filename + ",additionalinfo=" + additionalinfo + ",savedDir=" + savedDir + ",headers=" + headers + "}";
     }
 }
