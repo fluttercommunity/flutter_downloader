@@ -29,7 +29,9 @@ public class MyApplication extends FlutterApplication implements PluginRegistry.
         // along with other plugins that need UI manipulation, you should register
         // `FlutterDownloaderPlugin` and any 'background' plugins explicitly like this:
         //   
-        // FlutterDownloaderPlugin.registerWith(registry.registrarFor("vn.hunghd.flutterdownloader.FlutterDownloaderPlugin"));
+        // if (!registry.hasPlugin("vn.hunghd.flutterdownloader.FlutterDownloaderPlugin")) {
+        //    FlutterDownloaderPlugin.registerWith(registry.registrarFor("vn.hunghd.flutterdownloader.FlutterDownloaderPlugin"));
+        // }
         //
         GeneratedPluginRegistrant.registerWith(registry);
     }
@@ -60,7 +62,9 @@ internal class MyApplication : FlutterApplication(), PluginRegistry.PluginRegist
         // along with other plugins that need UI manipulation, you should register
         // `FlutterDownloaderPlugin` and any 'background' plugins explicitly like this:
         // 
-        // FlutterDownloaderPlugin.registerWith(registry.registrarFor("vn.hunghd.flutterdownloader.FlutterDownloaderPlugin"))
+        // if (!registry.hasPlugin("vn.hunghd.flutterdownloader.FlutterDownloaderPlugin")) {
+        //    FlutterDownloaderPlugin.registerWith(registry.registrarFor("vn.hunghd.flutterdownloader.FlutterDownloaderPlugin"))
+        // }
         //
         GeneratedPluginRegistrant.registerWith(registry)
     }

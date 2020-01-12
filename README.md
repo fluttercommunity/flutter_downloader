@@ -64,7 +64,9 @@ void registerPlugins(NSObject<FlutterPluginRegistry>* registry) {
   // along with other plugins that need UI manipulation, you should register 
   // `FlutterDownloaderPlugin` and any 'background' plugins explicitly like this: 
   //   
-  // [FlutterDownloaderPlugin registerWithRegistrar:[registry registrarForPlugin:@"vn.hunghd.flutter_downloader"]];
+  // if (![registry hasPlugin:@"FlutterDownloaderPlugin"]) {
+  //    [FlutterDownloaderPlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterDownloaderPlugin"]];
+  // }
   //
   [GeneratedPluginRegistrant registerWithRegistry:registry];
 }
@@ -113,7 +115,9 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
     // plugins that need UI manipulation, you should register `FlutterDownloaderPlugin` and any
     // 'background' plugins explicitly like this:
     //   
-    // FlutterDownloaderPlugin.register(with: registry.registrar(forPlugin: "vn.hunghd.flutter_downloader"))
+    // if (!registry.hasPlugin("FlutterDownloaderPlugin")) {
+    //    FlutterDownloaderPlugin.register(with: registry.registrar(forPlugin: "FlutterDownloaderPlugin"))
+    // }
     //
     GeneratedPluginRegistrant.register(with: registry)
 }
