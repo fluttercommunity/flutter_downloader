@@ -153,5 +153,8 @@
     <orderEntry type="module" module-name="flutter_downloader" />
     <orderEntry type="module" module-name="permission_handler" />
     <orderEntry type="module" module-name="path_provider" />
+    <orderEntry type="module" module-name="flutter_downloader" />
+    <orderEntry type="module" module-name="permission_handler" />
+    <orderEntry type="module" module-name="path_provider" />
   </component>
 </module>

@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await FlutterDownloader.initialize();
 
   runApp(new MyApp());
