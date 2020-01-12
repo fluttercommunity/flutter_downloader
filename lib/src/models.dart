@@ -1,11 +1,10 @@
-
 ///
 /// A class defines a set of possible statuses of a download task
 ///
 class DownloadTaskStatus {
   final int _value;
 
-  const DownloadTaskStatus(int value): _value = value;
+  const DownloadTaskStatus(int value) : _value = value;
 
   int get value => _value;
 
@@ -15,8 +14,7 @@ class DownloadTaskStatus {
 
   toString() => 'DownloadTaskStatus($_value)';
 
-  static DownloadTaskStatus from(int value) =>
-      DownloadTaskStatus(value);
+  static DownloadTaskStatus from(int value) => DownloadTaskStatus(value);
 
   static const undefined = const DownloadTaskStatus(0);
   static const enqueued = const DownloadTaskStatus(1);
@@ -48,11 +46,11 @@ class DownloadTask {
 
   DownloadTask(
       {this.taskId,
-        this.status,
-        this.progress,
-        this.url,
-        this.filename,
-        this.savedDir});
+      this.status,
+      this.progress,
+      this.url,
+      this.filename,
+      this.savedDir});
 
   @override
   String toString() =>
