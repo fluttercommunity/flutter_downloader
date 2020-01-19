@@ -64,7 +64,9 @@ void registerPlugins(NSObject<FlutterPluginRegistry>* registry) {
   // along with other plugins that need UI manipulation, you should register 
   // `FlutterDownloaderPlugin` and any 'background' plugins explicitly like this: 
   //   
-  // [FlutterDownloaderPlugin registerWithRegistrar:[registry registrarForPlugin:@"vn.hunghd.flutter_downloader"]];
+  // if (![registry hasPlugin:@"FlutterDownloaderPlugin"]) {
+  //    [FlutterDownloaderPlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterDownloaderPlugin"]];
+  // }
   //
   [GeneratedPluginRegistrant registerWithRegistry:registry];
 }
@@ -113,7 +115,9 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
     // plugins that need UI manipulation, you should register `FlutterDownloaderPlugin` and any
     // 'background' plugins explicitly like this:
     //   
-    // FlutterDownloaderPlugin.register(with: registry.registrar(forPlugin: "vn.hunghd.flutter_downloader"))
+    // if (!registry.hasPlugin("FlutterDownloaderPlugin")) {
+    //    FlutterDownloaderPlugin.register(with: registry.registrar(forPlugin: "FlutterDownloaderPlugin"))
+    // }
     //
     GeneratedPluginRegistrant.register(with: registry)
 }
@@ -179,78 +183,9 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
 
 ### Required configuration:
 
-* Configure `Application`:
+* If your project is running on Flutter versions prior v1.12, have a look at [this document](android_integration_note.md) to configure your Android project.
 
-Java: 
-```java
-// MyApplication.java (create this file if it doesn't exist in your project)
-
-import io.flutter.app.FlutterApplication;
-import io.flutter.plugin.common.PluginRegistry;
-import io.flutter.plugins.GeneratedPluginRegistrant;
-import vn.hunghd.flutterdownloader.FlutterDownloaderPlugin;
-
-public class MyApplication extends FlutterApplication implements PluginRegistry.PluginRegistrantCallback {
-    @Override
-    public void registerWith(PluginRegistry registry) {
-        //
-        // Integration note:
-        //
-        // In Flutter, in order to work in background isolate, plugins need to register with
-        // a special instance of `FlutterEngine` that serves for background execution only.
-        // Hence, all (and only) plugins that require background execution feature need to 
-        // call `registerWith` in this method. 
-        //
-        // The default `GeneratedPluginRegistrant` will call `registerWith` of all plugins
-        // integrated in your application. Hence, if you are using `FlutterDownloaderPlugin`
-        // along with other plugins that need UI manipulation, you should register
-        // `FlutterDownloaderPlugin` and any 'background' plugins explicitly like this:
-        //   
-        // FlutterDownloaderPlugin.registerWith(registry.registrarFor("vn.hunghd.flutterdownloader.FlutterDownloaderPlugin"));
-        //
-        GeneratedPluginRegistrant.registerWith(registry);
-    }
-}
-```
-
-Or Kotlin:
-```kotlin
-// MyApplication.kt (create this file if it doesn't exist in your project)
-
-import io.flutter.app.FlutterApplication
-import io.flutter.plugin.common.PluginRegistry
-import io.flutter.plugins.GeneratedPluginRegistrant
-import vn.hunghd.flutterdownloader.FlutterDownloaderPlugin
-
-internal class MyApplication : FlutterApplication(), PluginRegistry.PluginRegistrantCallback {
-    override fun registerWith(registry: PluginRegistry) {
-        //
-        // Integration note:
-        //
-        // In Flutter, in order to work in background isolate, plugins need to register with
-        // a special instance of `FlutterEngine` that serves for background execution only.
-        // Hence, all (and only) plugins that require background execution feature need to 
-        // call `registerWith` in this method. 
-        //
-        // The default `GeneratedPluginRegistrant` will call `registerWith` of all plugins
-        // integrated in your application. Hence, if you are using `FlutterDownloaderPlugin`
-        // along with other plugins that need UI manipulation, you should register
-        // `FlutterDownloaderPlugin` and any 'background' plugins explicitly like this:
-        // 
-        // FlutterDownloaderPlugin.registerWith(registry.registrarFor("vn.hunghd.flutterdownloader.FlutterDownloaderPlugin"))
-        //
-        GeneratedPluginRegistrant.registerWith(registry)
-    }
-}
-```
-
-And update `AndroidManifest.xml`
-```xml
-<!-- AndroidManifest.xml -->
-<application
-        android:name=".MyApplication"
-        ....>
-```
+* From Flutter v1.12 with Android v2 embedding there's no additional configurations required to work with background isolation in Android.
 
 * In order to handle click action on notification to open the downloaded file on Android, you need to add some additional configurations. Add the following codes to your `AndroidManifest.xml`:
 
@@ -269,8 +204,6 @@ And update `AndroidManifest.xml`
 **Note:**
  - You have to save your downloaded files in external storage (where the other applications have permission to read your files)
  - The downloaded files are only able to be opened if your device has at least an application that can read these file types (mp3, pdf, etc)
-
-
 
 ### Optional configuration:
 
@@ -322,6 +255,7 @@ import 'package:flutter_downloader/flutter_downloader.dart';
 #### Initialize
 
 ````dart
+WidgetsFlutterBinding.ensureInitialized();
 await FlutterDownloader.initialize();
 ````
 

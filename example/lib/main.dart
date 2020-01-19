@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await FlutterDownloader.initialize();
 
   runApp(new MyApp());
@@ -125,7 +126,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   @override
-  void dispose(){
+  void dispose() {
     _unbindBackgroundIsolate();
     super.dispose();
   }

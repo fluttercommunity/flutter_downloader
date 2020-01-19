@@ -59,4 +59,5 @@ class DownloadTask {
   @override
   String toString() =>
       "DownloadTask(taskId: $taskId, status: $status, progress: $progress, url: $url, filename: $filename, additionalInfo: $additionalInfo, savedDir: $savedDir)";
+
 }
