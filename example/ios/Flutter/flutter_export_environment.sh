@@ -1,5 +1,6 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
+
 export "FLUTTER_ROOT=/Users/hunghd/Documents/Workspace/flutter"
 export "FLUTTER_APPLICATION_PATH=/Users/hunghd/Documents/Workspace/flutter_packages/flutter_downloader/example"
 export "FLUTTER_TARGET=/Users/hunghd/Documents/Workspace/flutter_packages/flutter_downloader/example/lib/main.dart"

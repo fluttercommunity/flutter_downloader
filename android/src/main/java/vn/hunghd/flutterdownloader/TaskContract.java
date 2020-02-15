@@ -14,6 +14,7 @@ public class TaskContract {
         public static final String COLUMN_NAME_URL = "url";
         public static final String COLUMN_NAME_SAVED_DIR = "saved_dir";
         public static final String COLUMN_NAME_FILE_NAME = "file_name";
+        public static final String COLUMN_NAME_ADDITIONAL_INFO = "additional_info";
         public static final String COLUMN_NAME_MIME_TYPE = "mime_type";
         public static final String COLUMN_NAME_RESUMABLE = "resumable";
         public static final String COLUMN_NAME_HEADERS = "headers";

@@ -48,6 +48,7 @@ class FlutterDownloader {
   /// * `savedDir`: absolute path of the directory where downloaded file is saved
   /// * `fileName`: name of downloaded file. If this parameter is not set, the
   /// plugin will try to extract a file name from HTTP headers response or `url`
+  /// * `additionalInfo`:name of Additional information of a downloaded file
   /// * `headers`: HTTP headers
   /// * `showNotification`: sets `true` to show a notification displaying the
   /// download progress (only Android), otherwise, `false` value will disable
@@ -66,6 +67,7 @@ class FlutterDownloader {
       {@required String url,
       @required String savedDir,
       String fileName,
+      String additionalInfo,
       Map<String, String> headers,
       bool showNotification = true,
       bool openFileFromNotification = true,
@@ -87,6 +89,7 @@ class FlutterDownloader {
         'url': url,
         'saved_dir': savedDir,
         'file_name': fileName,
+        'additional_info': additionalInfo,
         'headers': headerBuilder.toString(),
         'show_notification': showNotification,
         'open_file_from_notification': openFileFromNotification,
@@ -114,12 +117,14 @@ class FlutterDownloader {
       List<dynamic> result = await _channel.invokeMethod('loadTasks');
       return result
           .map((item) => new DownloadTask(
-              taskId: item['task_id'],
-              status: DownloadTaskStatus(item['status']),
-              progress: item['progress'],
-              url: item['url'],
-              filename: item['file_name'],
-              savedDir: item['saved_dir']))
+          taskId: item['task_id'],
+          status: DownloadTaskStatus(item['status']),
+          progress: item['progress'],
+          url: item['url'],
+          filename: item['file_name'],
+          additionalInfo: item['additional_info'],
+          savedDir: item['saved_dir']),)
+
           .toList();
     } on PlatformException catch (e) {
       print(e.message);
@@ -157,12 +162,14 @@ class FlutterDownloader {
       print('Loaded tasks: $result');
       return result
           .map((item) => new DownloadTask(
-              taskId: item['task_id'],
-              status: DownloadTaskStatus(item['status']),
-              progress: item['progress'],
-              url: item['url'],
-              filename: item['file_name'],
-              savedDir: item['saved_dir']))
+          taskId: item['task_id'],
+          status: DownloadTaskStatus(item['status']),
+          progress: item['progress'],
+          url: item['url'],
+          filename: item['file_name'],
+          additionalInfo: item['additional_info'],
+          savedDir: item['saved_dir']))
+
           .toList();
     } on PlatformException catch (e) {
       print(e.message);

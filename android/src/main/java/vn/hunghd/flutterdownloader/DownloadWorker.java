@@ -59,6 +59,7 @@ import io.flutter.view.FlutterRunArguments;
 public class DownloadWorker extends Worker implements MethodChannel.MethodCallHandler {
     public static final String ARG_URL = "url";
     public static final String ARG_FILE_NAME = "file_name";
+    public static final String ARG_ADDITIONAL_INFO = "additional_info";
     public static final String ARG_SAVED_DIR = "saved_file";
     public static final String ARG_HEADERS = "headers";
     public static final String ARG_IS_RESUME = "is_resume";
@@ -160,6 +161,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
         String url = getInputData().getString(ARG_URL);
         String filename = getInputData().getString(ARG_FILE_NAME);
+        String additionalinfo = getInputData().getString(ARG_ADDITIONAL_INFO);
         String savedDir = getInputData().getString(ARG_SAVED_DIR);
         String headers = getInputData().getString(ARG_HEADERS);
         boolean isResume = getInputData().getBoolean(ARG_IS_RESUME, false);
@@ -172,7 +174,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         msgPaused = res.getString(R.string.flutter_downloader_notification_paused);
         msgComplete = res.getString(R.string.flutter_downloader_notification_complete);
 
-        Log.d(TAG, "DownloadWorker{url=" + url + ",filename=" + filename + ",savedDir=" + savedDir + ",header=" + headers + ",isResume=" + isResume);
+        Log.d(TAG, "DownloadWorker{url=" + url + ",filename=" + filename + ",additionalinfo=" + additionalinfo + ",savedDir=" + savedDir + ",header=" + headers + ",isResume=" + isResume);
 
         showNotification = getInputData().getBoolean(ARG_SHOW_NOTIFICATION, false);
         clickToOpenDownloadedFile = getInputData().getBoolean(ARG_OPEN_FILE_FROM_NOTIFICATION, false);

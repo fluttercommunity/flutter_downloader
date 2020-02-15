@@ -109,7 +109,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         flutterChannel = null;
     }
 
-    private WorkRequest buildRequest(String url, String savedDir, String filename, String headers, boolean showNotification, boolean openFileFromNotification, boolean isResume, boolean requiresStorageNotLow) {
+    private WorkRequest buildRequest(String url, String savedDir, String filename, String additionalinfo, String headers, boolean showNotification, boolean openFileFromNotification, boolean isResume, boolean requiresStorageNotLow) {
         WorkRequest request = new OneTimeWorkRequest.Builder(DownloadWorker.class)
                 .setConstraints(new Constraints.Builder()
                         .setRequiresStorageNotLow(requiresStorageNotLow)
@@ -121,6 +121,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                         .putString(DownloadWorker.ARG_URL, url)
                         .putString(DownloadWorker.ARG_SAVED_DIR, savedDir)
                         .putString(DownloadWorker.ARG_FILE_NAME, filename)
+                        .putString(DownloadWorker.ARG_ADDITIONAL_INFO, additionalinfo)
                         .putString(DownloadWorker.ARG_HEADERS, headers)
                         .putBoolean(DownloadWorker.ARG_SHOW_NOTIFICATION, showNotification)
                         .putBoolean(DownloadWorker.ARG_OPEN_FILE_FROM_NOTIFICATION, openFileFromNotification)
@@ -160,16 +161,17 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         String url = call.argument("url");
         String savedDir = call.argument("saved_dir");
         String filename = call.argument("file_name");
+        String additionalinfo = call.argument("additional_info");
         String headers = call.argument("headers");
         boolean showNotification = call.argument("show_notification");
         boolean openFileFromNotification = call.argument("open_file_from_notification");
         boolean requiresStorageNotLow = call.argument("requires_storage_not_low");
-        WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, openFileFromNotification, false, requiresStorageNotLow);
+        WorkRequest request = buildRequest(url, savedDir, filename, additionalinfo, headers, showNotification, openFileFromNotification, false, requiresStorageNotLow);
         WorkManager.getInstance(context).enqueue(request);
         String taskId = request.getId().toString();
         result.success(taskId);
         sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0);
-        taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, savedDir, headers, showNotification, openFileFromNotification);
+        taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, additionalinfo, savedDir, headers, showNotification, openFileFromNotification);
     }
 
     private void loadTasks(MethodCall call, MethodChannel.Result result) {
@@ -182,6 +184,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
             item.put("progress", task.progress);
             item.put("url", task.url);
             item.put("file_name", task.filename);
+            item.put("additional_info", task.additionalinfo);
             item.put("saved_dir", task.savedDir);
             item.put("time_created", task.timeCreated);
             array.add(item);
@@ -200,6 +203,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
             item.put("progress", task.progress);
             item.put("url", task.url);
             item.put("file_name", task.filename);
+            item.put("additional_info", task.additionalinfo);
             item.put("saved_dir", task.savedDir);
             item.put("time_created", task.timeCreated);
             array.add(item);
@@ -238,7 +242,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                 String partialFilePath = task.savedDir + File.separator + filename;
                 File partialFile = new File(partialFilePath);
                 if (partialFile.exists()) {
-                    WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, true, requiresStorageNotLow);
+                    WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.additionalinfo, task.headers, task.showNotification, task.openFileFromNotification, true, requiresStorageNotLow);
                     String newTaskId = request.getId().toString();
                     result.success(newTaskId);
                     sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress);
@@ -261,7 +265,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         boolean requiresStorageNotLow = call.argument("requires_storage_not_low");
         if (task != null) {
             if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
-                WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, false, requiresStorageNotLow);
+                WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.additionalinfo, task.headers, task.showNotification, task.openFileFromNotification, false, requiresStorageNotLow);
                 String newTaskId = request.getId().toString();
                 result.success(newTaskId);
                 sendUpdateProgress(newTaskId, DownloadStatus.ENQUEUED, task.progress);

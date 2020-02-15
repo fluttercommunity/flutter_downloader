@@ -12,6 +12,7 @@
 #define KEY_URL @"url"
 #define KEY_SAVED_DIR @"saved_dir"
 #define KEY_FILE_NAME @"file_name"
+#define KEY_ADDITIONAL_INFO @"additional_info"
 #define KEY_PROGRESS @"progress"
 #define KEY_ID @"id"
 #define KEY_IDS @"ids"
@@ -132,7 +133,7 @@ static BOOL initialized = NO;
     return _session;
 }
 
-- (NSURLSessionDownloadTask*)downloadTaskWithURL: (NSURL*) url fileName: (NSString*) fileName andSavedDir: (NSString*) savedDir andHeaders: (NSString*) headers
+- (NSURLSessionDownloadTask*)downloadTaskWithURL: (NSURL*) url fileName: (NSString*) fileName andAdditionalInfo: (NSString*) additionalInfo andSavedDir: (NSString*) savedDir andHeaders: (NSString*) headers
 {
     NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:url];
     if (headers != nil && [headers length] > 0) {
@@ -347,7 +348,7 @@ static BOOL initialized = NO;
     : [origin stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLQueryAllowedCharacterSet];
 }
 
-- (void) addNewTask: (NSString*) taskId url: (NSString*) url status: (int) status progress: (int) progress filename: (NSString*) filename savedDir: (NSString*) savedDir headers: (NSString*) headers resumable: (BOOL) resumable showNotification: (BOOL) showNotification openFileFromNotification: (BOOL) openFileFromNotification
+- (void) addNewTask: (NSString*) taskId url: (NSString*) url status: (int) status progress: (int) progress filename: (NSString*) filename additionalinfo: (NSString*) additionalinfo savedDir: (NSString*) savedDir headers: (NSString*) headers resumable: (BOOL) resumable showNotification: (BOOL) showNotification openFileFromNotification: (BOOL) openFileFromNotification
 {
     headers = [self escape:headers revert:false];
     NSString *query = [NSString stringWithFormat:@"INSERT INTO task (task_id,url,status,progress,file_name,saved_dir,headers,resumable,show_notification,open_file_from_notification,time_created) VALUES (\"%@\",\"%@\",%d,%d,\"%@\",\"%@\",\"%@\",%d,%d,%d,%ld)", taskId, url, status, progress, filename, savedDir, headers, resumable ? 1 : 0, showNotification ? 1 : 0, openFileFromNotification ? 1 : 0, [self currentTimeInMilliseconds]];
@@ -474,6 +475,7 @@ static BOOL initialized = NO;
     int progress = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"progress"]] intValue];
     NSString *url = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"url"]];
     NSString *filename = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"file_name"]];
+    NSString *additionalinfo = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"additional_info"]];
     NSString *savedDir = [self absoluteSavedDirPath:[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"saved_dir"]]];
     NSString *headers = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"headers"]];
     headers = [self escape:headers revert:true];
@@ -481,7 +483,7 @@ static BOOL initialized = NO;
     int showNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"show_notification"]] intValue];
     int openFileFromNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"open_file_from_notification"]] intValue];
     long long timeCreated = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"time_created"]] longLongValue];
-    return [NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, headers, KEY_HEADERS, savedDir, KEY_SAVED_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, [NSNumber numberWithBool:(showNotification == 1)], KEY_SHOW_NOTIFICATION, [NSNumber numberWithBool:(openFileFromNotification == 1)], KEY_OPEN_FILE_FROM_NOTIFICATION, @(timeCreated), KEY_TIME_CREATED, nil];
+    return [NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, additionalinfo, KEY_ADDITIONAL_INFO, headers, KEY_HEADERS, savedDir, KEY_SAVED_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, [NSNumber numberWithBool:(showNotification == 1)], KEY_SHOW_NOTIFICATION, [NSNumber numberWithBool:(openFileFromNotification == 1)], KEY_OPEN_FILE_FROM_NOTIFICATION, @(timeCreated), KEY_TIME_CREATED, nil];
 }
 
 # pragma mark - FlutterDownloader
@@ -516,17 +518,19 @@ static BOOL initialized = NO;
     NSString *savedDir = call.arguments[KEY_SAVED_DIR];
     NSString *shortSavedDir = [self shortenSavedDirPath:savedDir];
     NSString *fileName = call.arguments[KEY_FILE_NAME];
+    NSString *additionalInfo = call.arguments[KEY_ADDITIONAL_INFO];
     NSString *headers = call.arguments[KEY_HEADERS];
     NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
     NSNumber *openFileFromNotification = call.arguments[KEY_OPEN_FILE_FROM_NOTIFICATION];
 
-    NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
+    NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andAdditionalInfo:andAdditionalInfo andSavedDir:savedDir andHeaders:headers];
 
     NSString *taskId = [self identifierForTask:task];
 
     [_runningTaskById setObject: [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                   urlString, KEY_URL,
                                   fileName, KEY_FILE_NAME,
+                                  andAdditionalInfo, KEY_ADDITIONAL_INFO,
                                   savedDir, KEY_SAVED_DIR,
                                   headers, KEY_HEADERS,
                                   showNotification, KEY_SHOW_NOTIFICATION,
@@ -538,7 +542,7 @@ static BOOL initialized = NO;
 
     __typeof__(self) __weak weakSelf = self;
     dispatch_sync(databaseQueue, ^{
-        [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:shortSavedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
+        [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName additionalinfo:additionalInfo savedDir:shortSavedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
     });
     result(taskId);
     [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
