@@ -119,7 +119,8 @@ class FlutterDownloader {
               progress: item['progress'],
               url: item['url'],
               filename: item['file_name'],
-              savedDir: item['saved_dir']))
+              savedDir: item['saved_dir'],
+              timeCreated: item('time_created')))
           .toList();
     } on PlatformException catch (e) {
       print(e.message);
