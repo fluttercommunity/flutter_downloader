@@ -120,7 +120,7 @@ class FlutterDownloader {
               url: item['url'],
               filename: item['file_name'],
               savedDir: item['saved_dir'],
-              timeCreated: item('time_created')))
+              timeCreated: item['time_created']))
           .toList();
     } on PlatformException catch (e) {
       print(e.message);
@@ -164,7 +164,7 @@ class FlutterDownloader {
               url: item['url'],
               filename: item['file_name'],
               savedDir: item['saved_dir'],
-              timeCreated: item('time_created')))
+              timeCreated: item['time_created']))
           .toList();
     } on PlatformException catch (e) {
       print(e.message);
