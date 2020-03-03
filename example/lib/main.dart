@@ -9,10 +9,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
   await FlutterDownloader.initialize();
-
-  runApp(new MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -22,9 +20,7 @@ class MyApp extends StatelessWidget {
 
     return new MaterialApp(
       title: 'Flutter Demo',
-      theme: new ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: new ThemeData(primarySwatch: Colors.blue),
       home: new MyHomePage(
         title: 'Downloader',
         platform: platform,
@@ -400,30 +396,29 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _cancelDownload(_TaskInfo task) async {
-    await FlutterDownloader.cancel(taskId: task.taskId);
+    await FlutterDownloader.cancel(id: task.taskId);
   }
 
   void _pauseDownload(_TaskInfo task) async {
-    await FlutterDownloader.pause(taskId: task.taskId);
+    await FlutterDownloader.pause(id: task.taskId);
   }
 
   void _resumeDownload(_TaskInfo task) async {
-    String newTaskId = await FlutterDownloader.resume(taskId: task.taskId);
+    String newTaskId = await FlutterDownloader.resume(id: task.taskId);
     task.taskId = newTaskId;
   }
 
   void _retryDownload(_TaskInfo task) async {
-    String newTaskId = await FlutterDownloader.retry(taskId: task.taskId);
+    String newTaskId = await FlutterDownloader.retry(id: task.taskId);
     task.taskId = newTaskId;
   }
 
   Future<bool> _openDownloadedFile(_TaskInfo task) {
-    return FlutterDownloader.open(taskId: task.taskId);
+    return FlutterDownloader.open(id: task.taskId);
   }
 
   void _delete(_TaskInfo task) async {
-    await FlutterDownloader.remove(
-        taskId: task.taskId, shouldDeleteContent: true);
+    await FlutterDownloader.remove(id: task.taskId, shouldDeleteContent: true);
     await _prepare();
     setState(() {});
   }
@@ -485,7 +480,7 @@ class _MyHomePageState extends State<MyHomePage> {
     tasks?.forEach((task) {
       for (_TaskInfo info in _tasks) {
         if (info.link == task.url) {
-          info.taskId = task.taskId;
+          info.taskId = task.id;
           info.status = task.status;
           info.progress = task.progress;
         }

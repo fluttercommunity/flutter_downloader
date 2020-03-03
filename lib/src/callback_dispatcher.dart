@@ -1,13 +1,7 @@
-import 'dart:ui';
+part of 'downloader.dart';
 
-import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
-
-import 'models.dart';
-
-void callbackDispatcher() {
-  const MethodChannel backgroundChannel =
-      MethodChannel('vn.hunghd/downloader_background');
+void dispatchCallback() {
+  const backgroundChannel = MethodChannel('vn.hunghd/downloader_background');
 
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -21,8 +15,32 @@ void callbackDispatcher() {
     final int status = args[2];
     final int progress = args[3];
 
-    callback(id, DownloadTaskStatus(status), progress);
+    // TODO: handle callback
+    // callback(id, DownloadTaskStatus(status), progress);
   });
 
   backgroundChannel.invokeMethod('didInitializeDispatcher');
 }
+
+// ReceivePort _port = ReceivePort();
+///
+/// @override
+/// void initState() {
+///   super.initState();
+///
+///   IsolateNameServer.registerPortWithName(_port.sendPort, 'downloader_send_port');
+///   _port.listen((dynamic data) {
+///      String id = data[0];
+///      DownloadTaskStatus status = data[1];
+///      int progress = data[2];
+///      setState((){ });
+///   });
+///
+///   FlutterDownloader.registerCallback(downloadCallback);
+///
+/// }
+///
+/// static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
+///   final SendPort send = IsolateNameServer.lookupPortByName('downloader_send_port');
+///   send.send([id, status, progress]);
+/// }
