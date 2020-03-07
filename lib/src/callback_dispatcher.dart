@@ -15,8 +15,7 @@ void dispatchCallback() {
     final int status = args[2];
     final int progress = args[3];
 
-    // TODO: handle callback
-    // callback(id, DownloadTaskStatus(status), progress);
+    callback(id, _StatusByValue.create(status), progress);
   });
 
   backgroundChannel.invokeMethod('didInitializeDispatcher');

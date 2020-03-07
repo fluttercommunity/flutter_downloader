@@ -37,7 +37,7 @@ abstract class FlutterDownloader {
         final id = data[0] as String;
         final status = data[1] as DownloadTaskStatus;
         final progress = data[2] as double;
-        _tasksById[id]?._update(status, progress);
+        _tasksById[id]?._update(id, status, progress);
       });
     IsolateNameServer.registerPortWithName(port.sendPort, 'downloader_port');
     final callbackHandle = PluginUtilities.getCallbackHandle(_onUpdate);
@@ -84,7 +84,7 @@ abstract class FlutterDownloader {
     }
 
     // This call might fail, in which case we just throw the PlatformException.
-    final taskId = await _channel.invokeMethod('enqueue', {
+    final arguments = {
       'url': url,
       'saved_dir': downloadDirectory.path,
       'file_name': fileName,
@@ -92,7 +92,10 @@ abstract class FlutterDownloader {
       'show_notification': showNotification,
       'open_file_from_notification': openFileFromNotification,
       'requires_storage_not_low': requiresStorageNotLow,
-    }) as String;
+    };
+    print(arguments);
+
+    final taskId = await _channel.invokeMethod('enqueue', arguments) as String;
 
     // Create download task.
     final task = DownloadTask._(
@@ -132,15 +135,37 @@ abstract class FlutterDownloader {
   /// the result into [DownloadTask]s.
   ///
   /// ```dart
-  /// FlutterDownloader.loadTasksWithRawQuery(query: 'SELECT * FROM task WHERE status=3');
+  /// FlutterDownloader.loadTasksWithRawQuery('SELECT * FROM task WHERE status=3');
   /// ```
   static Future<List<DownloadTask>> loadTasksWithRawQuery(String query) async {
     _ensureInitialized();
 
-    return (await _channel.invokeMethod(
-            'loadTasksWithRawQuery', {'query': query}) as List<dynamic>)
+    final tasks = (await _channel.invokeMethod('loadTasksWithRawQuery', {
+      'query': query,
+    }) as List<dynamic>)
         .map((item) => DownloadTask._fromQueryResult(item))
         .toList();
+
+    for (final task in tasks) {
+      _tasksById.putIfAbsent(task.id, () => task)._merge(task);
+    }
+
+    return tasks;
+  }
+
+  /// Returns the task with the given [id].
+  /// **Caution**: The [id] is inserted into a raw SQL query with no further
+  /// checks done. Prone to SQL injection if unsanitized input is fed in as
+  /// [id].
+  static Future<DownloadTask> loadTaskById(String id) async {
+    _ensureInitialized();
+
+    final tasks =
+        await loadTasksWithRawQuery('SELECT * FROM task WHERE task_id=$id');
+    if (tasks.isEmpty) {
+      throw Exception('No task with id $id exists.');
+    }
+    return tasks.single;
   }
 
   static Future<void> _cancel(DownloadTask task) async {
@@ -159,34 +184,32 @@ abstract class FlutterDownloader {
     await _channel.invokeMethod('pause', {'task_id': task.id});
   }
 
-  static Future<String> _resume(
+  static Future<DownloadTask> _resume(
     DownloadTask task, {
     bool requiresStorageNotLow,
   }) async {
     _ensureInitialized();
     assert(requiresStorageNotLow != null);
 
-    // TODO(marcelgarus): This returns the id of a newly created [DownloadTask]
-    // that represents the rest of the download of the old one.
-    return await _channel.invokeMethod('resume', {
+    final idOfNewTask = await _channel.invokeMethod('resume', {
       'task_id': task.id,
       'requires_storage_not_low': requiresStorageNotLow,
     });
+    return await loadTaskById(idOfNewTask);
   }
 
-  static Future<String> _retry(
+  static Future<DownloadTask> _retry(
     DownloadTask task, {
     bool requiresStorageNotLow,
   }) async {
     _ensureInitialized();
     assert(requiresStorageNotLow != null);
 
-    // TODO(marcelgarus): This returns the id of a newly created [DownloadTask]
-    // that represents the rest of the download of the old one.
-    return await _channel.invokeMethod('retry', {
+    final idOfNewTask = await _channel.invokeMethod('retry', {
       'task_id': task.id,
       'requires_storage_not_low': requiresStorageNotLow,
     });
+    return await loadTaskById(idOfNewTask);
   }
 
   static Future<void> _remove(DownloadTask task, {bool removeContent}) async {
