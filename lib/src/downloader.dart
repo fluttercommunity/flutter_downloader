@@ -25,6 +25,8 @@ typedef void DownloadCallback(
 class FlutterDownloader {
   static const _channel = const MethodChannel('vn.hunghd/downloader');
   static bool _initialized = false;
+    
+  static bool get initialized => _initialized;
 
   static Future<Null> initialize() async {
     assert(!_initialized,
