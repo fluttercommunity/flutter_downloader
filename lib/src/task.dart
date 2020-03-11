@@ -136,4 +136,11 @@ class DownloadTask {
   /// - The current device has at least an application that can read the file
   /// type of the file.
   Future<bool> openFile() => FlutterDownloader._openFile(this);
+
+  Future<void> wait() async {
+    await updates.firstWhere(
+      (task) => task.isCompleted || task.gotCanceled || task.hasFailed,
+      orElse: () => null,
+    );
+  }
 }
