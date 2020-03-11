@@ -1,6 +1,4 @@
-import 'dart:isolate';
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'dart:async';
@@ -89,10 +87,12 @@ class _DownloadListState extends State<DownloadList> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          var random = () => Random().nextInt(500) + 1;
+          var random = () => Random().nextInt(5000) + 1;
           final task = await DownloadTask.create(
             url: 'https://placekitten.com/${random()}/${random()}',
-            downloadDirectory: await getApplicationDocumentsDirectory(),
+            downloadDirectory: Platform.isAndroid
+                ? await getExternalStorageDirectory()
+                : await getApplicationDocumentsDirectory(),
           );
           setState(() => tasks.add(task));
         },
@@ -118,17 +118,16 @@ class DownloadTaskWidget extends StatelessWidget {
 
         Widget trailing;
         if (task.isRunning) {
-          trailing = IconButton(
-              icon: Icon(Icons.pause), onPressed: () => task.pause());
+          trailing = IconButton(icon: Icon(Icons.pause), onPressed: task.pause);
         } else if (task.isPaused) {
-          trailing = IconButton(
-              icon: Icon(Icons.play_arrow), onPressed: () => task.resume());
+          trailing =
+              IconButton(icon: Icon(Icons.play_arrow), onPressed: task.resume);
         } else if (task.hasFailed || task.gotCanceled) {
-          trailing = IconButton(
-              icon: Icon(Icons.refresh), onPressed: () => task.retry());
+          trailing =
+              IconButton(icon: Icon(Icons.refresh), onPressed: task.retry);
         } else if (task.isCompleted) {
           trailing = IconButton(
-              icon: Icon(Icons.open_in_new), onPressed: () => task.openFile());
+              icon: Icon(Icons.open_in_new), onPressed: task.openFile);
         } else if (task.isEnqueued) {
           trailing = Icon(Icons.schedule);
         } else if (task.hasUndefinedStatus) {
@@ -136,11 +135,11 @@ class DownloadTaskWidget extends StatelessWidget {
         }
 
         return ListTile(
-          title: Text('${task.id}'),
+          title: Text('${task.url}'),
           subtitle: Row(
             children: <Widget>[
               Text('${task.status}'),
-              LinearProgressIndicator(value: task.progress),
+              Expanded(child: LinearProgressIndicator(value: task.progress)),
             ],
           ),
           trailing: trailing ?? Container(),

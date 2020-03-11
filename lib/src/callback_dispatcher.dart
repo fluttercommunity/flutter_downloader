@@ -13,33 +13,10 @@ void dispatchCallback() {
 
     final String id = args[1];
     final int status = args[2];
-    final int progress = args[3];
+    final double progress = (args[3] as int) / 100.0;
 
-    callback(id, _StatusByValue.create(status), progress);
+    callback(id, status, progress);
   });
 
   backgroundChannel.invokeMethod('didInitializeDispatcher');
 }
-
-// ReceivePort _port = ReceivePort();
-///
-/// @override
-/// void initState() {
-///   super.initState();
-///
-///   IsolateNameServer.registerPortWithName(_port.sendPort, 'downloader_send_port');
-///   _port.listen((dynamic data) {
-///      String id = data[0];
-///      DownloadTaskStatus status = data[1];
-///      int progress = data[2];
-///      setState((){ });
-///   });
-///
-///   FlutterDownloader.registerCallback(downloadCallback);
-///
-/// }
-///
-/// static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
-///   final SendPort send = IsolateNameServer.lookupPortByName('downloader_send_port');
-///   send.send([id, status, progress]);
-/// }

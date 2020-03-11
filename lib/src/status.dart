@@ -22,7 +22,7 @@ extension _StatusByValue on DownloadTaskStatus {
     DownloadTaskStatus.paused, // Index 6
   ];
 
-  static create(int value) => _byIndex[value];
+  static DownloadTaskStatus create(int value) => _byIndex[value];
   int get value => _byIndex.indexOf(this);
 }
 

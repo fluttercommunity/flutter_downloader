@@ -35,7 +35,7 @@ abstract class FlutterDownloader {
     final port = ReceivePort()
       ..listen((dynamic data) {
         final id = data[0] as String;
-        final status = data[1] as DownloadTaskStatus;
+        final status = _StatusByValue.create(data[1] as int);
         final progress = data[2] as double;
         _tasksById[id]?._update(id, status, progress);
       });
@@ -48,9 +48,11 @@ abstract class FlutterDownloader {
     _initialized = true;
   }
 
-  static void _onUpdate(String id, DownloadTaskStatus status, double progress) {
+  static void _onUpdate(String id, int statusCode, double progress) {
+    print(
+        'onUpdate called with id $id, status $statusCode and progress $progress');
     final send = IsolateNameServer.lookupPortByName('downloader_port');
-    send.send([id, status, progress]);
+    send.send([id, statusCode, progress]);
   }
 
   static void _ensureInitialized() {
@@ -186,7 +188,7 @@ abstract class FlutterDownloader {
 
   static Future<DownloadTask> _resume(
     DownloadTask task, {
-    bool requiresStorageNotLow,
+    @required bool requiresStorageNotLow,
   }) async {
     _ensureInitialized();
     assert(requiresStorageNotLow != null);
@@ -200,7 +202,7 @@ abstract class FlutterDownloader {
 
   static Future<DownloadTask> _retry(
     DownloadTask task, {
-    bool requiresStorageNotLow,
+    @required bool requiresStorageNotLow,
   }) async {
     _ensureInitialized();
     assert(requiresStorageNotLow != null);
