@@ -1,3 +1,60 @@
+## 1.4.1 - 30.01.2020
+
+* Android: fix bug `ensureInitializationComplete must be called after startInitialization`
+* clarify integration documents
+
+## 1.4.0 - 12.01.2020
+
+* migrate to Android v2 embedding.
+
+## 1.3.4 - 21.12.2019
+
+* fix bug stuck in Flutter v12.13
+* fix bug on casting int to long value
+
+## 1.3.3 - 03.11.2019
+
+* update document
+* assert and make sure FlutterDownloader initialized one time.
+
+## 1.3.2 - 24.10.2019
+
+* correct document and example codes about communication with background isolate
+
+## 1.3.1 - 18.09.2019
+
+* assert the initialization of FlutterDownloader
+
+## 1.3.0 - 16.09.2019
+
+* **BREAKING CHANGES**: the plugin has been refactored to support update download events with background isolate. In order to support background execution in Dart, the `callback`, that receives events from platform codes, now must be a static or top-level function. There's also an additional native configuration required on both of iOS and Android. See README for detail.
+* Android: upgrade `WorkManager` to v2.2.0.
+* Fix bug `SecurityException` when saving image/videos to internal storage in Android
+* Fix bug cannot save videos in Android.
+
+## 1.2.2 - 19.09.2019
+
+* Android: fix bugs
+
+## 1.2.1 - 27.08.2019
+
+* Android: hot-fix unregister `BroadcastReceiver` in case using `FlutterFragmentActivity`
+
+## 1.2.0 - 27.08.2019
+
+* Android: support `FlutterFragmentActivity`, fix bug downloaded image/video files not shown in Gallery application, improved HTTP redirection implementation, fix bug cannot open apk file in some cases
+
+## 1.1.9 - 18.07.2019
+
+* Android: support HTTP redirection
+* iOS: correct getting file name from HTTP response
+
+## 1.1.8 - 16.07.2019
+
+* Fix bug in iOS: from iOS 8, absolute path to app's sandbox changes every time you relaunch the app, hence `savedDir` path is needed to truncate the changing part before saving it to DB and recreate the absolute path every time it loaded from DB. Currently, the plugin only supports save files in `NSDocumentDirectory`.
+* Fix bug is iOS: setting wrong status of task in case that the application is terminated
+* Android: upgrade dependencies
+
 ## 1.1.7 - 24.03.2019
 
 * Android: upgrade `WorkManager` to version 2.0.0 (AndroidX)

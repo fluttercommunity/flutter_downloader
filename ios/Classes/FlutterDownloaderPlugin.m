@@ -33,11 +33,16 @@
 
 @interface FlutterDownloaderPlugin()<NSURLSessionTaskDelegate, NSURLSessionDownloadDelegate, UIDocumentInteractionControllerDelegate>
 {
-    FlutterMethodChannel *_flutterChannel;
+    FlutterEngine *_headlessRunner;
+    FlutterMethodChannel *_mainChannel;
+    FlutterMethodChannel *_callbackChannel;
+    NSObject<FlutterPluginRegistrar> *_registrar;
     NSURLSession *_session;
     DBManager *_dbManager;
     NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById;
     NSString *_allFilesDownloadedMsg;
+    NSMutableArray *_eventQueue;
+    int64_t _callbackHandle;
 }
 
 @property(nonatomic, strong) dispatch_queue_t databaseQueue;
@@ -46,14 +51,28 @@
 
 @implementation FlutterDownloaderPlugin
 
+static FlutterDownloaderPlugin *instance = nil;
+static FlutterPluginRegistrantCallback registerPlugins = nil;
+static BOOL initialized = NO;
+
 @synthesize databaseQueue;
 
-- (instancetype)initWithBinaryMessenger: (NSObject<FlutterBinaryMessenger>*) messenger;
+- (instancetype)init:(NSObject<FlutterPluginRegistrar> *)registrar;
 {
     if (self = [super init]) {
-        _flutterChannel = [FlutterMethodChannel
+        _headlessRunner = [[FlutterEngine alloc] initWithName:@"FlutterDownloaderIsolate" project:nil allowHeadlessExecution:YES];
+        _registrar = registrar;
+
+        _mainChannel = [FlutterMethodChannel
                            methodChannelWithName:@"vn.hunghd/downloader"
-                           binaryMessenger:messenger];
+                           binaryMessenger:[registrar messenger]];
+        [registrar addMethodCallDelegate:self channel:_mainChannel];
+
+        _callbackChannel =
+        [FlutterMethodChannel methodChannelWithName:@"vn.hunghd/downloader_background"
+                                    binaryMessenger:_headlessRunner];
+
+        _eventQueue = [[NSMutableArray alloc] init];
 
         NSBundle *frameworkBundle = [NSBundle bundleForClass:FlutterDownloaderPlugin.class];
 
@@ -88,8 +107,25 @@
     return self;
 }
 
--(FlutterMethodChannel *)channel {
-    return _flutterChannel;
+- (void)startBackgroundIsolate:(int64_t)handle {
+    NSLog(@"startBackgroundIsolate");
+    FlutterCallbackInformation *info = [FlutterCallbackCache lookupCallbackInformation:handle];
+    NSAssert(info != nil, @"failed to find callback");
+    NSString *entrypoint = info.callbackName;
+    NSString *uri = info.callbackLibraryPath;
+    [_headlessRunner runWithEntrypoint:entrypoint libraryURI:uri];
+    NSAssert(registerPlugins != nil, @"failed to set registerPlugins");
+
+    // Once our headless runner has been started, we need to register the application's plugins
+    // with the runner in order for them to work on the background isolate. `registerPlugins` is
+    // a callback set from AppDelegate.m in the main application. This callback should register
+    // all relevant plugins (excluding those which require UI).
+    registerPlugins(_headlessRunner);
+    [_registrar addMethodCallDelegate:self channel:_callbackChannel];
+}
+
+- (FlutterMethodChannel *)channel {
+    return _mainChannel;
 }
 
 - (NSURLSession*)currentSession {
@@ -148,7 +184,7 @@
                 [download cancelByProducingResumeData:^(NSData * _Nullable resumeData) {
                     // Save partial downloaded data to a file
                     NSFileManager *fileManager = [NSFileManager defaultManager];
-                    NSURL *destinationURL = [weakSelf fileUrlFromDict:task];
+                    NSURL *destinationURL = [weakSelf fileUrlOf:taskId taskInfo:task downloadTask:download];
 
                     if ([fileManager fileExistsAtPath:[destinationURL path]]) {
                         [fileManager removeItemAtURL:destinationURL error:nil];
@@ -159,7 +195,7 @@
                 }];
 
                 [weakSelf updateRunningTaskById:taskId progress:progress status:STATUS_PAUSED resumable:YES];
-                
+
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_PAUSED) andProgress:@(progress)];
 
                 dispatch_sync([weakSelf databaseQueue], ^{
@@ -210,10 +246,12 @@
 
 - (void)sendUpdateProgressForTaskId: (NSString*)taskId inStatus: (NSNumber*) status andProgress: (NSNumber*) progress
 {
-    NSDictionary *info = @{KEY_TASK_ID: taskId,
-                           KEY_STATUS: status,
-                           KEY_PROGRESS: progress};
-    [_flutterChannel invokeMethod:@"updateProgress" arguments:info];
+    NSArray *args = @[@(_callbackHandle), taskId, status, progress];
+    if (initialized) {
+        [_callbackChannel invokeMethod:@"" arguments:args];
+    } else {
+        [_eventQueue addObject:args];
+    }
 }
 
 - (BOOL)openDocumentWithURL:(NSURL*)url {
@@ -235,11 +273,60 @@
     NSString *url = dict[KEY_URL];
     NSString *savedDir = dict[KEY_SAVED_DIR];
     NSString *filename = dict[KEY_FILE_NAME];
-//    if (filename == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: filename]) {
-//        filename = [NSURL URLWithString:url].lastPathComponent;
-//    }
+    NSLog(@"savedDir: %@", savedDir);
+    NSLog(@"filename: %@", filename);
     NSURL *savedDirURL = [NSURL fileURLWithPath:savedDir];
     return [savedDirURL URLByAppendingPathComponent:filename];
+}
+
+- (NSURL*)fileUrlOf:(NSString*)taskId taskInfo:(NSDictionary*)taskInfo downloadTask:(NSURLSessionDownloadTask*)downloadTask {
+    NSString *filename = taskInfo[KEY_FILE_NAME];
+    NSString *suggestedFilename = downloadTask.response.suggestedFilename;
+    NSLog(@"SuggestedFileName: %@", suggestedFilename);
+
+    // check filename, if it is empty then we try to extract it from http response or url path
+    if (filename == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: filename]) {
+        if (suggestedFilename) {
+            filename = suggestedFilename;
+        } else {
+            filename = downloadTask.currentRequest.URL.lastPathComponent;
+        }
+
+        NSMutableDictionary *mutableTask = [taskInfo mutableCopy];
+        [mutableTask setObject:filename forKey:KEY_FILE_NAME];
+
+        // update taskInfo
+        if ([_runningTaskById objectForKey:taskId]) {
+            _runningTaskById[taskId][KEY_FILE_NAME] = filename;
+        }
+
+        // update DB
+        __typeof__(self) __weak weakSelf = self;
+        dispatch_sync(databaseQueue, ^{
+            [weakSelf updateTask:taskId filename:filename];
+        });
+
+        return [self fileUrlFromDict:mutableTask];
+    }
+
+    return [self fileUrlFromDict:taskInfo];
+}
+
+- (NSString*)absoluteSavedDirPath:(NSString*)savedDir {
+    return [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:savedDir];
+}
+
+- (NSString*)shortenSavedDirPath:(NSString*)absolutePath {
+    NSLog(@"Absolute savedDir path: %@", absolutePath);
+    if (absolutePath) {
+        NSString* documentDirPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+        NSRange foundRank = [absolutePath rangeOfString:documentDirPath];
+        if (foundRank.length > 0) {
+            // we increase the location of range by one because we want to remove the file separator as well.
+            return [absolutePath substringWithRange:NSMakeRange(foundRank.length + 1, absolutePath.length - documentDirPath.length - 1)];
+        }
+    }
+    return absolutePath;
 }
 
 - (long)currentTimeInMilliseconds
@@ -275,6 +362,16 @@
 - (void) updateTask: (NSString*) taskId status: (int) status progress: (int) progress
 {
     NSString *query = [NSString stringWithFormat:@"UPDATE task SET status=%d, progress=%d WHERE task_id=\"%@\"", status, progress, taskId];
+    [_dbManager executeQuery:query];
+    if (_dbManager.affectedRows != 0) {
+        NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
+    } else {
+        NSLog(@"Could not execute the query.");
+    }
+}
+
+- (void) updateTask: (NSString*) taskId filename: (NSString*) filename {
+    NSString *query = [NSString stringWithFormat:@"UPDATE task SET file_name=\"%@\" WHERE task_id=\"%@\"", filename, taskId];
     [_dbManager executeQuery:query];
     if (_dbManager.affectedRows != 0) {
         NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
@@ -331,7 +428,9 @@
     NSLog(@"Load tasks successfully");
     NSMutableArray *results = [NSMutableArray new];
     for(NSArray *record in records) {
-        [results addObject:[self taskDictFromRecordArray:record]];
+        NSDictionary *task = [self taskDictFromRecordArray:record];
+        NSLog(@"%@", task);
+        [results addObject:task];
     }
     return results;
 }
@@ -359,7 +458,9 @@
         if (records != nil && [records count] > 0) {
             NSArray *record = [records firstObject];
             NSDictionary *task = [self taskDictFromRecordArray:record];
-            [_runningTaskById setObject:[NSMutableDictionary dictionaryWithDictionary:task] forKey:taskId];
+            if ([task[KEY_STATUS] intValue] < STATUS_COMPLETE) {
+                [_runningTaskById setObject:[NSMutableDictionary dictionaryWithDictionary:task] forKey:taskId];
+            }
             return task;
         }
         return nil;
@@ -373,7 +474,7 @@
     int progress = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"progress"]] intValue];
     NSString *url = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"url"]];
     NSString *filename = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"file_name"]];
-    NSString *savedDir = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"saved_dir"]];
+    NSString *savedDir = [self absoluteSavedDirPath:[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"saved_dir"]]];
     NSString *headers = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"headers"]];
     headers = [self escape:headers revert:true];
     int resumable = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"resumable"]] intValue];
@@ -385,9 +486,35 @@
 
 # pragma mark - FlutterDownloader
 
+- (void)initializeMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    NSArray *arguments = call.arguments;
+    [self startBackgroundIsolate:[arguments[0] longLongValue]];
+    result([NSNull null]);
+}
+
+- (void)didInitializeDispatcherMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    @synchronized (self) {
+        initialized = YES;
+        //unqueue all pending download status events.
+        while ([_eventQueue count] > 0) {
+            NSArray* args = _eventQueue[0];
+            [_eventQueue removeObjectAtIndex:0];
+            [_callbackChannel invokeMethod:@"" arguments:args];
+        }
+    }
+    result([NSNull null]);
+}
+
+- (void)registerCallbackMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    NSArray *arguments = call.arguments;
+    _callbackHandle = [arguments[0] longLongValue];
+    result([NSNull null]);
+}
+
 - (void)enqueueMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString *urlString = call.arguments[KEY_URL];
     NSString *savedDir = call.arguments[KEY_SAVED_DIR];
+    NSString *shortSavedDir = [self shortenSavedDirPath:savedDir];
     NSString *fileName = call.arguments[KEY_FILE_NAME];
     NSString *headers = call.arguments[KEY_HEADERS];
     NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
@@ -396,14 +523,6 @@
     NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
 
     NSString *taskId = [self identifierForTask:task];
-
-    // if filename is not given, we try to extract it from http response or url
-    if (fileName == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: fileName]) {
-        fileName = task.response.suggestedFilename;
-        if (fileName == nil) {
-            fileName = [NSURL URLWithString:urlString].lastPathComponent;
-        }
-    }
 
     [_runningTaskById setObject: [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                   urlString, KEY_URL,
@@ -419,7 +538,7 @@
 
     __typeof__(self) __weak weakSelf = self;
     dispatch_sync(databaseQueue, ^{
-        [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:savedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
+        [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:shortSavedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
     });
     result(taskId);
     [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
@@ -592,10 +711,10 @@
         }
         if (shouldDeleteContent) {
             NSURL *destinationURL = [self fileUrlFromDict:taskDict];
-            
+
             NSError *error;
             NSFileManager *fileManager = [NSFileManager defaultManager];
-            
+
             if ([fileManager fileExistsAtPath:[destinationURL path]]) {
                 [fileManager removeItemAtURL:destinationURL error:&error];
                 if (error == nil) {
@@ -614,15 +733,27 @@
 # pragma mark - FlutterPlugin
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
+    @synchronized(self) {
+        if (instance == nil) {
+            instance = [[FlutterDownloaderPlugin alloc] init:registrar];
+            [registrar addApplicationDelegate: instance];
+        }
+    }
+}
 
-    FlutterDownloaderPlugin* instance = [[FlutterDownloaderPlugin alloc] initWithBinaryMessenger:registrar.messenger];
-    [registrar addMethodCallDelegate:instance channel:[instance channel]];
-    [registrar addApplicationDelegate: instance];
++ (void)setPluginRegistrantCallback:(FlutterPluginRegistrantCallback)callback {
+  registerPlugins = callback;
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSLog(@"methodCallHandler: %@", call.method);
-    if ([@"enqueue" isEqualToString:call.method]) {
+    if ([@"initialize" isEqualToString:call.method]) {
+        [self initializeMethodCall:call result:result];
+    } else if ([@"didInitializeDispatcher" isEqualToString:call.method]) {
+        [self didInitializeDispatcherMethodCall:call result:result];
+    } else if ([@"registerCallback" isEqualToString:call.method]) {
+        [self registerCallbackMethodCall:call result:result];
+    } else if ([@"enqueue" isEqualToString:call.method]) {
         [self enqueueMethodCall:call result:result];
     } else if ([@"loadTasks" isEqualToString:call.method]) {
         [self loadTasksMethodCall:call result:result];
@@ -649,6 +780,7 @@
 
 - (BOOL)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void (^)(void))completionHandler {
     self.backgroundTransferCompletionHandler = completionHandler;
+    //TODO: setup background isolate in case the application is re-launched from background to handle download event
     return YES;
 }
 
@@ -656,10 +788,12 @@
 {
     NSLog(@"applicationWillTerminate:");
     for (NSString* key in _runningTaskById) {
-        [self updateTask:key status:STATUS_CANCELED progress:-1];
+        if ([_runningTaskById[key][KEY_STATUS] intValue] < STATUS_COMPLETE) {
+            [self updateTask:key status:STATUS_CANCELED progress:-1];
+        }
     }
     _session = nil;
-    _flutterChannel = nil;
+    _mainChannel = nil;
     _dbManager = nil;
     databaseQueue = nil;
     _runningTaskById = nil;
@@ -684,9 +818,10 @@
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL:(NSURL *)location
 {
     NSLog(@"URLSession:downloadTask:didFinishDownloadingToURL:");
+
     NSString *taskId = [self identifierForTask:downloadTask ofSession:session];
     NSDictionary *task = [self loadTaskWithId:taskId];
-    NSURL *destinationURL = [self fileUrlFromDict:task];
+    NSURL *destinationURL = [self fileUrlOf:taskId taskInfo:task downloadTask:downloadTask];
 
     [_runningTaskById removeObjectForKey:taskId];
 

@@ -1,3 +1,6 @@
+import 'dart:isolate';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
@@ -5,7 +8,10 @@ import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await FlutterDownloader.initialize();
+
   runApp(new MyApp());
 }
 
@@ -27,7 +33,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatefulWidget {
+class MyHomePage extends StatefulWidget with WidgetsBindingObserver {
   final TargetPlatform platform;
 
   MyHomePage({Key key, this.title, this.platform}) : super(key: key);
@@ -38,7 +44,7 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => new _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
+class _MyHomePageState extends State<MyHomePage> {
   final _documents = [
     {
       'name': 'Learning Android Studio',
@@ -101,33 +107,65 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   List<_TaskInfo> _tasks;
   List<_ItemHolder> _items;
   bool _isLoading;
-  bool _permissisonReady;
+  bool _permissionReady;
   String _localPath;
+  ReceivePort _port = ReceivePort();
 
   @override
   void initState() {
     super.initState();
 
-    FlutterDownloader.registerCallback((id, status, progress) {
-      print(
-          'Download task ($id) is in status ($status) and process ($progress)');
-      final task = _tasks.firstWhere((task) => task.taskId == id);
-      setState(() {
-        task?.status = status;
-        task?.progress = progress;
-      });
-    });
+    _bindBackgroundIsolate();
+
+    FlutterDownloader.registerCallback(downloadCallback);
 
     _isLoading = true;
-    _permissisonReady = false;
+    _permissionReady = false;
 
     _prepare();
   }
 
   @override
   void dispose() {
-    FlutterDownloader.registerCallback(null);
+    _unbindBackgroundIsolate();
     super.dispose();
+  }
+
+  void _bindBackgroundIsolate() {
+    bool isSuccess = IsolateNameServer.registerPortWithName(
+        _port.sendPort, 'downloader_send_port');
+    if (!isSuccess) {
+      _unbindBackgroundIsolate();
+      _bindBackgroundIsolate();
+      return;
+    }
+    _port.listen((dynamic data) {
+      print('UI Isolate Callback: $data');
+      String id = data[0];
+      DownloadTaskStatus status = data[1];
+      int progress = data[2];
+
+      final task = _tasks?.firstWhere((task) => task.taskId == id);
+      if (task != null) {
+        setState(() {
+          task.status = status;
+          task.progress = progress;
+        });
+      }
+    });
+  }
+
+  void _unbindBackgroundIsolate() {
+    IsolateNameServer.removePortNameMapping('downloader_send_port');
+  }
+
+  static void downloadCallback(
+      String id, DownloadTaskStatus status, int progress) {
+    print(
+        'Background Isolate Callback: task ($id) is in status ($status) and process ($progress)');
+    final SendPort send =
+        IsolateNameServer.lookupPortByName('downloader_send_port');
+    send.send([id, status, progress]);
   }
 
   @override
@@ -141,7 +179,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
               ? new Center(
                   child: new CircularProgressIndicator(),
                 )
-              : _permissisonReady
+              : _permissionReady
                   ? new Container(
                       child: new ListView(
                         padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -252,7 +290,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                                 onPressed: () {
                                   _checkPermission().then((hasGranted) {
                                     setState(() {
-                                      _permissisonReady = hasGranted;
+                                      _permissionReady = hasGranted;
                                     });
                                   });
                                 },
@@ -355,9 +393,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void _requestDownload(_TaskInfo task) async {
     task.taskId = await FlutterDownloader.enqueue(
         url: task.link,
-        headers: {
-          "auth": "test_for_sql_encoding"
-        },
+        headers: {"auth": "test_for_sql_encoding"},
         savedDir: _localPath,
         showNotification: true,
         openFileFromNotification: true);
@@ -386,7 +422,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   }
 
   void _delete(_TaskInfo task) async {
-    await FlutterDownloader.remove(taskId: task.taskId, shouldDeleteContent: true);
+    await FlutterDownloader.remove(
+        taskId: task.taskId, shouldDeleteContent: true);
     await _prepare();
     setState(() {});
   }
@@ -455,9 +492,9 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       }
     });
 
-    _permissisonReady = await _checkPermission();
+    _permissionReady = await _checkPermission();
 
-    _localPath = (await _findLocalPath()) + '/Download';
+    _localPath = (await _findLocalPath()) + Platform.pathSeparator + 'Download';
 
     final savedDir = Directory(_localPath);
     bool hasExisted = await savedDir.exists();

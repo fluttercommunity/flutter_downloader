@@ -2,7 +2,7 @@ package vn.hunghd.flutterdownloader;
 
 import android.provider.BaseColumns;
 
-public final class TaskContract {
+public class TaskContract {
 
     private TaskContract() {}
 
