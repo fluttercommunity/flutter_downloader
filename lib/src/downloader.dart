@@ -48,6 +48,8 @@ class FlutterDownloader {
   /// * `savedDir`: absolute path of the directory where downloaded file is saved
   /// * `fileName`: name of downloaded file. If this parameter is not set, the
   /// plugin will try to extract a file name from HTTP headers response or `url`
+  /// * `mimeType`: To provide downloaded file type so that plugin will open
+  /// file with default application associate with it.
   /// * `headers`: HTTP headers
   /// * `showNotification`: sets `true` to show a notification displaying the
   /// download progress (only Android), otherwise, `false` value will disable
@@ -66,6 +68,7 @@ class FlutterDownloader {
       {@required String url,
       @required String savedDir,
       String fileName,
+      String mimeType = "",
       Map<String, String> headers,
       bool showNotification = true,
       bool openFileFromNotification = true,
@@ -87,6 +90,7 @@ class FlutterDownloader {
         'url': url,
         'saved_dir': savedDir,
         'file_name': fileName,
+        'mimeType': mimeType,
         'headers': headerBuilder.toString(),
         'show_notification': showNotification,
         'open_file_from_notification': openFileFromNotification,
@@ -119,6 +123,7 @@ class FlutterDownloader {
               progress: item['progress'],
               url: item['url'],
               filename: item['file_name'],
+              mimeType: item['mimeType'],
               savedDir: item['saved_dir']))
           .toList();
     } on PlatformException catch (e) {
@@ -162,6 +167,7 @@ class FlutterDownloader {
               progress: item['progress'],
               url: item['url'],
               filename: item['file_name'],
+              mimeType: item['mimeType'],
               savedDir: item['saved_dir']))
           .toList();
     } on PlatformException catch (e) {

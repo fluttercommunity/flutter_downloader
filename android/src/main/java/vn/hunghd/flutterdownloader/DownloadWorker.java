@@ -59,6 +59,7 @@ import io.flutter.view.FlutterRunArguments;
 public class DownloadWorker extends Worker implements MethodChannel.MethodCallHandler {
     public static final String ARG_URL = "url";
     public static final String ARG_FILE_NAME = "file_name";
+    public static final String ARG_MIME_TYPE = "mimeType";
     public static final String ARG_SAVED_DIR = "saved_file";
     public static final String ARG_HEADERS = "headers";
     public static final String ARG_IS_RESUME = "is_resume";
@@ -160,6 +161,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
         String url = getInputData().getString(ARG_URL);
         String filename = getInputData().getString(ARG_FILE_NAME);
+        String mimeType = getInputData().getString(ARG_MIME_TYPE);
         String savedDir = getInputData().getString(ARG_SAVED_DIR);
         String headers = getInputData().getString(ARG_HEADERS);
         boolean isResume = getInputData().getBoolean(ARG_IS_RESUME, false);
@@ -172,7 +174,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         msgPaused = res.getString(R.string.flutter_downloader_notification_paused);
         msgComplete = res.getString(R.string.flutter_downloader_notification_complete);
 
-        Log.d(TAG, "DownloadWorker{url=" + url + ",filename=" + filename + ",savedDir=" + savedDir + ",header=" + headers + ",isResume=" + isResume);
+        Log.d(TAG, "DownloadWorker{url=" + url + ",filename=" + filename + ",mimeType=" + mimeType + ",savedDir=" + savedDir + ",header=" + headers + ",isResume=" + isResume);
 
         showNotification = getInputData().getBoolean(ARG_SHOW_NOTIFICATION, false);
         clickToOpenDownloadedFile = getInputData().getBoolean(ARG_OPEN_FILE_FROM_NOTIFICATION, false);
@@ -186,7 +188,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, 0);
 
         try {
-            downloadFile(context, url, savedDir, filename, headers, isResume);
+            downloadFile(context, url, savedDir, filename, mimeType, headers, isResume);
             cleanUp();
             dbHelper = null;
             taskDao = null;
@@ -228,7 +230,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         return downloadedBytes;
     }
 
-    private void downloadFile(Context context, String fileURL, String savedDir, String filename, String headers, boolean isResume) throws IOException {
+    private void downloadFile(Context context, String fileURL, String savedDir, String filename, String mimeType, String headers, boolean isResume) throws IOException {
         String url = fileURL;
         URL resourceUrl, base, next;
         Map<String, Integer> visited;
@@ -318,7 +320,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
                 Log.d(TAG, "fileName = " + filename);
 
-                taskDao.updateTask(getId().toString(), filename, contentType);
+                taskDao.updateTask(getId().toString(), filename, mimeType.isEmpty() ? contentType : mimeType);
 
                 // opens input stream from the HTTP connection
                 inputStream = httpConn.getInputStream();
@@ -358,7 +360,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     }
 
                     if (clickToOpenDownloadedFile && storage == PackageManager.PERMISSION_GRANTED) {
-                        Intent intent = IntentUtils.validatedFileIntent(getApplicationContext(), saveFilePath, contentType);
+                        Intent intent = IntentUtils.validatedFileIntent(getApplicationContext(), saveFilePath, mimeType == null || mimeType.isEmpty() ? contentType : mimeType);
                         if (intent != null) {
                             Log.d(TAG, "Setting an intent to open the file " + saveFilePath);
                             pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
