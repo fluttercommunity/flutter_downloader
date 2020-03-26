@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
-import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -119,7 +119,8 @@ class FlutterDownloader {
               progress: item['progress'],
               url: item['url'],
               filename: item['file_name'],
-              savedDir: item['saved_dir']))
+              savedDir: item['saved_dir'],
+              timeCreated: item['time_created']))
           .toList();
     } on PlatformException catch (e) {
       print(e.message);
@@ -162,7 +163,8 @@ class FlutterDownloader {
               progress: item['progress'],
               url: item['url'],
               filename: item['file_name'],
-              savedDir: item['saved_dir']))
+              savedDir: item['saved_dir'],
+              timeCreated: item['time_created']))
           .toList();
     } on PlatformException catch (e) {
       print(e.message);
