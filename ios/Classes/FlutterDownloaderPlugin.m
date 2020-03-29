@@ -152,12 +152,12 @@ static BOOL initialized = NO;
     return task;
 }
 
-- (NSString*)identifierForTask:(NSURLSessionDownloadTask*) task
+- (NSString*)identifierForTask:(NSURLSessionTask*) task
 {
     return [NSString stringWithFormat: @"%@.%lu", [[[self currentSession] configuration] identifier], [task taskIdentifier]];
 }
 
-- (NSString*)identifierForTask:(NSURLSessionDownloadTask*) task ofSession:(NSURLSession *)session
+- (NSString*)identifierForTask:(NSURLSessionTask*) task ofSession:(NSURLSession *)session
 {
     return [NSString stringWithFormat: @"%@.%lu", [[session configuration] identifier], [task taskIdentifier]];
 }
@@ -270,7 +270,6 @@ static BOOL initialized = NO;
 
 - (NSURL*)fileUrlFromDict:(NSDictionary*)dict
 {
-    NSString *url = dict[KEY_URL];
     NSString *savedDir = dict[KEY_SAVED_DIR];
     NSString *filename = dict[KEY_FILE_NAME];
     NSLog(@"savedDir: %@", savedDir);
@@ -901,7 +900,7 @@ static BOOL initialized = NO;
 
                     // Show a local notification when all downloads are over.
                     UILocalNotification *localNotification = [[UILocalNotification alloc] init];
-                    localNotification.alertBody = _allFilesDownloadedMsg;
+                    localNotification.alertBody = self->_allFilesDownloadedMsg;
                     [[UIApplication sharedApplication] presentLocalNotificationNow:localNotification];
                 }];
             }
