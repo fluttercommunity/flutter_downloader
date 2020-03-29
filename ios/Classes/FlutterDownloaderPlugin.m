@@ -705,9 +705,8 @@ static BOOL initialized = NO;
                     }
                 };
             }];
-        } else {
-            [self deleteTask:taskId];
         }
+        [self deleteTask:taskId];
         if (shouldDeleteContent) {
             NSURL *destinationURL = [self fileUrlFromDict:taskDict];
 
