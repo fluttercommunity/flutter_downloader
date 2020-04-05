@@ -270,7 +270,7 @@ static BOOL initialized = NO;
 
 - (NSURL*)fileUrlFromDict:(NSDictionary*)dict
 {
-    NSString *savedDir = dict[KEY_SAVED_DIR];
+    NSString *savedDir = [self absoluteSavedDirPath:dict[KEY_SAVED_DIR]];
     NSString *filename = dict[KEY_FILE_NAME];
     NSLog(@"savedDir: %@", savedDir);
     NSLog(@"filename: %@", filename);
@@ -512,8 +512,7 @@ static BOOL initialized = NO;
 
 - (void)enqueueMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString *urlString = call.arguments[KEY_URL];
-    NSString *savedDir = call.arguments[KEY_SAVED_DIR];
-    NSString *shortSavedDir = [self shortenSavedDirPath:savedDir];
+    NSString *savedDir = [self shortenSavedDirPath:call.arguments[KEY_SAVED_DIR]];
     NSString *fileName = call.arguments[KEY_FILE_NAME];
     NSString *headers = call.arguments[KEY_HEADERS];
     NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
@@ -537,7 +536,7 @@ static BOOL initialized = NO;
 
     __typeof__(self) __weak weakSelf = self;
     dispatch_sync(databaseQueue, ^{
-        [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:shortSavedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
+        [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:savedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
     });
     result(taskId);
     [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
