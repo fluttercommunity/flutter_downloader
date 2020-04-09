@@ -1,3 +1,12 @@
+## 1.4.3 - 09.04.2020
+
+* iOS: fix bug on `remove` method
+
+## 1.4.2 - 02.04.2020
+
+* add `timeCreated` in `DownloadTask` model
+* iOS: fix bug MissingPluginException
+
 ## 1.4.1 - 30.01.2020
 
 * Android: fix bug `ensureInitializationComplete must be called after startInitialization`

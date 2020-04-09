@@ -51,7 +51,6 @@
 
 @implementation FlutterDownloaderPlugin
 
-static FlutterDownloaderPlugin *instance = nil;
 static FlutterPluginRegistrantCallback registerPlugins = nil;
 static BOOL initialized = NO;
 
@@ -730,12 +729,7 @@ static BOOL initialized = NO;
 # pragma mark - FlutterPlugin
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
-    @synchronized(self) {
-        if (instance == nil) {
-            instance = [[FlutterDownloaderPlugin alloc] init:registrar];
-            [registrar addApplicationDelegate: instance];
-        }
-    }
+    [registrar addApplicationDelegate: [[FlutterDownloaderPlugin alloc] init:registrar]];
 }
 
 + (void)setPluginRegistrantCallback:(FlutterPluginRegistrantCallback)callback {
