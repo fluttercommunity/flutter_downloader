@@ -227,7 +227,9 @@ import 'package:flutter_downloader/flutter_downloader.dart';
 
 ````dart
 WidgetsFlutterBinding.ensureInitialized();
-await FlutterDownloader.initialize();
+await FlutterDownloader.initialize(
+  debug: true // optional: set false to disable printing logs to console
+);
 ````
 
 - Note: the plugin must be initialized before using.

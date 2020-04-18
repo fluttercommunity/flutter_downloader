@@ -1,3 +1,7 @@
+## 1.4.4 - 18.04.2020
+
+* add `debug` (optional) parameter in `initialize()` method that supports disable logging to console
+
 ## 1.4.3 - 09.04.2020
 
 * iOS: fix bug on `remove` method
