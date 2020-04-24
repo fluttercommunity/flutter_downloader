@@ -113,7 +113,7 @@ class DownloadTaskWidget extends StatelessWidget {
       stream: task.updates,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return ListTile(title: Text('Loading'));
+          return ListTile(title: Text('Creating DownloadTask…'));
         }
 
         Widget trailing;
