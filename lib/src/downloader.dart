@@ -187,7 +187,7 @@ abstract class FlutterDownloader {
     await _channel.invokeMethod('pause', {'task_id': task.id});
   }
 
-  static Future<DownloadTask> _resume(
+  static Future<void> _resume(
     DownloadTask task, {
     @required bool requiresStorageNotLow,
   }) async {
@@ -198,7 +198,7 @@ abstract class FlutterDownloader {
       'task_id': task.id,
       'requires_storage_not_low': requiresStorageNotLow,
     });
-    return await loadTaskById(idOfNewTask);
+    _tasksById[idOfNewTask] = task.._merge(await loadTaskById(idOfNewTask));
   }
 
   static Future<DownloadTask> _retry(
