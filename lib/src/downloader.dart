@@ -163,7 +163,7 @@ abstract class FlutterDownloader {
     _ensureInitialized();
 
     final tasks =
-        await loadTasksWithRawQuery('SELECT * FROM task WHERE task_id=$id');
+        await loadTasksWithRawQuery('SELECT * FROM task WHERE task_id="$id"');
     if (tasks.isEmpty) {
       throw Exception('No task with id $id exists.');
     }
