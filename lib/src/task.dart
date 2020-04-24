@@ -7,10 +7,11 @@ class DownloadTask {
     @required DownloadTaskStatus status,
     @required double progress,
     @required this.url,
-    @required this.destination,
+    @required File destination,
   })  : _id = id,
         _status = status,
         _progress = progress,
+        _destination = destination,
         _updatesController = StreamController() {
     _updates = _updatesController.stream.asBroadcastStream();
   }
@@ -46,7 +47,8 @@ class DownloadTask {
   final String url;
 
   /// The local file that this tasks downloads to.
-  final File destination;
+  File get destination => _destination;
+  File _destination;
 
   /// A [Stream] that repeatedly emits [this] [DownloadTask] whenever some of
   /// its fields change.
@@ -92,17 +94,21 @@ class DownloadTask {
         );
 
   void _merge(DownloadTask other) {
-    // Url and destination file shouldn't change.
     assert(url == other.url);
-    assert(destination.path == other.destination.path);
 
-    _update(other.id, other.status, other.progress);
+    _update(other.id, other.status, other.progress, other.destination);
   }
 
-  void _update(String id, DownloadTaskStatus status, double progress) {
-    if (_id != id || _status != status || _progress != progress) {
+  void _update(
+      String id, DownloadTaskStatus status, double progress, File destination) {
+    if (_id != id ||
+        _status != status ||
+        _progress != progress ||
+        _destination != destination) {
+      _id = id;
       _status = status;
       _progress = progress;
+      _destination = destination;
 
       _updatesController.add(this);
     }
