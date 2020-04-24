@@ -37,7 +37,8 @@ abstract class FlutterDownloader {
         final id = data[0] as String;
         final status = _StatusByValue.create(data[1] as int);
         final progress = data[2] as double;
-        _tasksById[id]?._update(id, status, progress);
+        final task = _tasksById[id];
+        task?._update(id, status, progress, task?.destination);
       });
     IsolateNameServer.registerPortWithName(port.sendPort, 'downloader_port');
     final callbackHandle = PluginUtilities.getCallbackHandle(_onUpdate);
