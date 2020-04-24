@@ -1,11 +1,11 @@
-import 'dart:math';
-
-import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:path_provider/path_provider.dart';
-import 'package:flutter_downloader/flutter_downloader.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
+
+import 'package:black_hole_flutter/black_hole_flutter.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   await FlutterDownloader.initialize();
@@ -28,7 +28,9 @@ class StartScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Downloader Example')),
-      body: Center(child: Text("We're gonna download kitten pictures.")),
+      body: Center(
+        child: Text("We're gonna download Android Studio handbooks."),
+      ),
       floatingActionButton: ContinueButton(),
     );
   }
@@ -36,25 +38,15 @@ class StartScreen extends StatelessWidget {
 
 class ContinueButton extends StatelessWidget {
   Future<void> _continue(BuildContext context) async {
-    if (Platform.isAndroid) {
-      final handler = PermissionHandler();
-      final permission =
-          await handler.checkPermissionStatus(PermissionGroup.storage);
-      if (permission != PermissionStatus.granted) {
-        final permissions =
-            await handler.requestPermissions([PermissionGroup.storage]);
-        if (permissions[PermissionGroup.storage] != PermissionStatus.granted) {
-          Scaffold.of(context).showSnackBar(SnackBar(
-            content: Text('You need to grant storage permission so that we '
-                'can download kitten pictures. 😇'),
-          ));
-          return;
-        }
-      }
+    if (Platform.isAndroid && !await Permission.storage.request().isGranted) {
+      context.scaffold.showSnackBar(SnackBar(
+        content: Text('You need to grant storage permission so that we '
+            'can download handbooks. 😇'),
+      ));
     }
 
     // Permission granted.
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
+    context.navigator.pushReplacement(MaterialPageRoute(
       builder: (_) => DownloadList(),
     ));
   }
@@ -87,9 +79,9 @@ class _DownloadListState extends State<DownloadList> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          var random = () => Random().nextInt(5000) + 1;
           final task = await DownloadTask.create(
-            url: 'https://placekitten.com/${random()}/${random()}',
+            url:
+                'http://barbra-coco.dyndns.org/student/learning_android_studio.pdf',
             downloadDirectory: Platform.isAndroid
                 ? await getExternalStorageDirectory()
                 : await getApplicationDocumentsDirectory(),
@@ -111,11 +103,8 @@ class DownloadTaskWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return StreamBuilder<DownloadTask>(
       stream: task.updates,
+      initialData: task,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return ListTile(title: Text('Creating DownloadTask…'));
-        }
-
         Widget trailing;
         if (task.isRunning) {
           trailing = IconButton(icon: Icon(Icons.pause), onPressed: task.pause);
@@ -136,12 +125,11 @@ class DownloadTaskWidget extends StatelessWidget {
 
         return ListTile(
           title: Text('${task.url}'),
-          subtitle: Row(
-            children: <Widget>[
-              Text('${task.status}'),
-              Expanded(child: LinearProgressIndicator(value: task.progress)),
-            ],
-          ),
+          subtitle: task.isRunning || task.isPaused
+              ? LinearProgressIndicator(value: task.progress)
+              : task.hasFailed
+                  ? Text('failed')
+                  : task.gotCanceled ? Text('canceled') : null,
           trailing: trailing ?? Container(),
         );
       },
