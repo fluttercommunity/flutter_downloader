@@ -201,7 +201,7 @@ abstract class FlutterDownloader {
     _tasksById[idOfNewTask] = task.._merge(await loadTaskById(idOfNewTask));
   }
 
-  static Future<DownloadTask> _retry(
+  static Future<void> _retry(
     DownloadTask task, {
     @required bool requiresStorageNotLow,
   }) async {
@@ -212,7 +212,7 @@ abstract class FlutterDownloader {
       'task_id': task.id,
       'requires_storage_not_low': requiresStorageNotLow,
     });
-    return await loadTaskById(idOfNewTask);
+    _tasksById[idOfNewTask] = task.._merge(await loadTaskById(idOfNewTask));
   }
 
   static Future<void> _remove(DownloadTask task, {bool removeContent}) async {
