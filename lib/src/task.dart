@@ -119,20 +119,14 @@ class DownloadTask {
       '${(progress * 100.0).toStringAsFixed(0)} %): $url -> ${destination.path}';
 
   Future<void> pause() => FlutterDownloader._pause(this);
-  Future<void> resume({bool requiresStorageNotLow = true}) async {
-    _merge(await FlutterDownloader._resume(
-      this,
-      requiresStorageNotLow: requiresStorageNotLow,
-    ));
-  }
+  Future<void> resume({bool requiresStorageNotLow = true}) =>
+      FlutterDownloader._resume(this,
+          requiresStorageNotLow: requiresStorageNotLow);
 
   Future<void> cancel() => FlutterDownloader._cancel(this);
-  Future<void> retry({bool requiresStorageNotLow = true}) async {
-    _merge(await FlutterDownloader._retry(
-      this,
-      requiresStorageNotLow: requiresStorageNotLow,
-    ));
-  }
+  Future<void> retry({bool requiresStorageNotLow = true}) =>
+      FlutterDownloader._retry(this,
+          requiresStorageNotLow: requiresStorageNotLow);
 
   /// Removes the task.
   /// If the task is running, it's cancelled.
