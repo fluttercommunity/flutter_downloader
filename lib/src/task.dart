@@ -39,8 +39,8 @@ class DownloadTask {
 
   /// The progress of this task, where `0.0` refers to nothing being downloaded
   /// yet and `1.0` refers to all data being downloaded.
-  double _progress;
   double get progress => _progress;
+  double _progress;
 
   /// The [url] that this task downloads from.
   final String url;
