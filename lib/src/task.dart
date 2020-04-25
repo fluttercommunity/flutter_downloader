@@ -8,6 +8,7 @@ class DownloadTask {
     @required double progress,
     @required this.url,
     @required File destination,
+    @required int timeCreated,
   })  : _id = id,
         _status = status,
         _progress = progress,
@@ -56,6 +57,10 @@ class DownloadTask {
   StreamController<DownloadTask> _updatesController;
   Stream<DownloadTask> _updates;
 
+  /// When this task got created.
+  int get timeCreated => _timeCreated;
+  int _timeCreated;
+
   // The following are functions and methods that interact with the
   // [FlutterDownloader].
 
@@ -91,6 +96,7 @@ class DownloadTask {
           url: result['url'] as String,
           destination: _fileFromDirAndName(
               result['saved_dir'] as String, result['file_name'] as String),
+          timeCreated: result['time_created'],
         );
 
   void _merge(DownloadTask other) {
