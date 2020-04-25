@@ -22,6 +22,8 @@
 
 @implementation DBManager
 
+@synthesize debug;
+
 -(instancetype)initWithDatabaseFilePath:(NSString *)dbFilePath{
     self = [super init];
     if (self) {
@@ -51,16 +53,20 @@
         [[NSFileManager defaultManager] copyItemAtPath:sourcePath toPath:destinationPath error:&error];
         
         // Check if any error occurred during copying and display it.
-        if (error != nil) {
-            NSLog(@"%@", [error localizedDescription]);
-        } else {
-            NSLog(@"create DB successfully");
+        if (debug) {
+            if (error != nil) {
+                NSLog(@"%@", [error localizedDescription]);
+            } else {
+                NSLog(@"create DB successfully");
+            }
         }
     }
 }
 
 -(void)runQuery:(const char *)query isQueryExecutable:(BOOL)queryExecutable{
-    NSLog(@"execute query: %s", query);
+    if (debug) {
+        NSLog(@"execute query: %s", query);
+    }
 
     // Create a sqlite object.
     sqlite3 *sqlite3Database;
@@ -86,7 +92,9 @@
     // Open the database.
     BOOL openDatabaseResult = sqlite3_open([databasePath UTF8String], &sqlite3Database);
     if(openDatabaseResult == SQLITE_OK) {
-        NSLog(@"open DB successfully");
+        if (debug) {
+            NSLog(@"open DB successfully");
+        }
 
         // Declare a sqlite3_stmt object in which will be stored the query after having been compiled into a SQLite statement.
         sqlite3_stmt *compiledStatement;
@@ -147,13 +155,17 @@
                 }
                 else {
                     // If could not execute the query show the error message on the debugger.
-                    NSLog(@"DB Error: %s", sqlite3_errmsg(sqlite3Database));
+                    if (debug) {
+                        NSLog(@"DB Error: %s", sqlite3_errmsg(sqlite3Database));
+                    }
                 }
             }
         }
         else {
             // In the database cannot be opened then show the error message on the debugger.
-            NSLog(@"%s", sqlite3_errmsg(sqlite3Database));
+            if (debug) {
+                NSLog(@"%s", sqlite3_errmsg(sqlite3Database));
+            }
         }
         
         // Release the compiled statement from memory.

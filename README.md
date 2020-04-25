@@ -185,10 +185,9 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
 
 ```xml
  <provider
-    android:name="androidx.work.impl.WorkManagerInitializer"
-    android:authorities="${applicationId}.workmanager-init"
-    android:enabled="false"
-    android:exported="false" />
+     android:name="androidx.work.impl.WorkManagerInitializer"
+     android:authorities="${applicationId}.workmanager-init"
+     tools:node="remove" />
 
  <provider
     android:name="vn.hunghd.flutterdownloader.FlutterDownloaderInitializer"

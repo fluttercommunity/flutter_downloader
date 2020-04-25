@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="vn.hunghd.example">
     <!-- io.flutter.app.FlutterApplication is an android.app.Application that
          calls FlutterMain.startInitialization(this); in its onCreate method.
@@ -47,7 +48,8 @@
             android:name="androidx.work.impl.WorkManagerInitializer"
             android:authorities="${applicationId}.workmanager-init"
             android:enabled="false"
-            android:exported="false" />
+            android:exported="false"
+            tools:node="remove"/>
 
         <provider
             android:name="vn.hunghd.flutterdownloader.FlutterDownloaderInitializer"

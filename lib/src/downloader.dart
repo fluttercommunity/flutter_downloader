@@ -19,7 +19,7 @@ abstract class FlutterDownloader {
   static bool _initialized = false;
   static var _tasksById = <String, DownloadTask>{};
 
-  static Future<void> initialize() async {
+  static Future<void> initialize({bool debug = true}) async {
     assert(!_initialized,
         'FlutterDownloader.initialize() must be called only once.');
 
@@ -28,10 +28,10 @@ abstract class FlutterDownloader {
     final callback = PluginUtilities.getCallbackHandle(dispatchCallback);
     await _channel.invokeMethod('initialize', <dynamic>[
       callback.toRawHandle(),
+      debug ? 1 : 0,
     ]);
 
     // Create callback listener.
-
     final port = ReceivePort()
       ..listen((dynamic data) {
         final id = data[0] as String;
@@ -107,6 +107,7 @@ abstract class FlutterDownloader {
       progress: 0.0,
       url: url,
       destination: _fileFromDirAndName(downloadDirectory.path, fileName),
+      timeCreated: 0, // TODO
     );
     _tasksById[taskId] = task;
 
