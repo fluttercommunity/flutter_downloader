@@ -1,3 +1,7 @@
+## 2.0.0 - 26-04-2020
+
+* Redesign API to be more intuitive.
+
 ## 1.4.1 - 30.01.2020
 
 * Android: fix bug `ensureInitializationComplete must be called after startInitialization`
