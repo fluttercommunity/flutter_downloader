@@ -386,6 +386,22 @@ class FlutterDownloader {
   static registerCallback(DownloadCallback callback) {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
+    if (callback != null) {
+      // remove previous setting
+      _channel.setMethodCallHandler(null);
+      _channel.setMethodCallHandler((MethodCall call) async {
+        if (call.method == 'updateProgress') {
+          String id = call.arguments['task_id'];
+          int status = call.arguments['status'];
+          int process = call.arguments['progress'];
+          callback(id, DownloadTaskStatus(status), process);
+        }
+        return null;
+      });
+    } else {
+      _channel.setMethodCallHandler(null);
+    }
+
     final callbackHandle = PluginUtilities.getCallbackHandle(callback);
     assert(callbackHandle != null,
         'callback must be a top-level or a static function');
