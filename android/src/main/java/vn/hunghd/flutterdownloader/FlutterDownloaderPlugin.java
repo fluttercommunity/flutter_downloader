@@ -43,6 +43,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
     private TaskDao taskDao;
     private Context context;
     private long callbackHandle;
+    private int stepUpdate;
     private int debugMode;
     private final Object initializationLock = new Object();
 
@@ -129,6 +130,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                         .putBoolean(DownloadWorker.ARG_OPEN_FILE_FROM_NOTIFICATION, openFileFromNotification)
                         .putBoolean(DownloadWorker.ARG_IS_RESUME, isResume)
                         .putLong(DownloadWorker.ARG_CALLBACK_HANDLE, callbackHandle)
+                        .putInt(DownloadWorker.ARG_STEP_UPDATE, stepUpdate)
                         .putBoolean(DownloadWorker.ARG_DEBUG, debugMode == 1)
                         .build()
                 )
@@ -158,6 +160,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
     private void registerCallback(MethodCall call, MethodChannel.Result result) {
         List args = (List) call.arguments;
         callbackHandle = Long.parseLong(args.get(0).toString());
+        stepUpdate = Integer.parseInt(args.get(1).toString());
         result.success(null);
     }
 

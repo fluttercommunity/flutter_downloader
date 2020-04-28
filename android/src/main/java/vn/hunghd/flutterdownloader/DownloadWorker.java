@@ -66,11 +66,11 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     public static final String ARG_OPEN_FILE_FROM_NOTIFICATION = "open_file_from_notification";
     public static final String ARG_CALLBACK_HANDLE = "callback_handle";
     public static final String ARG_DEBUG = "debug";
+    public static final String ARG_STEP_UPDATE = "step_update";
 
     private static final String TAG = DownloadWorker.class.getSimpleName();
     private static final int BUFFER_SIZE = 4096;
     private static final String CHANNEL_ID = "FLUTTER_DOWNLOADER_NOTIFICATION";
-    private static final int STEP_UPDATE = 10;
 
     private static final AtomicBoolean isolateStarted = new AtomicBoolean(false);
     private static final ArrayDeque<List> isolateQueue = new ArrayDeque<>();
@@ -88,6 +88,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     private int lastProgress = 0;
     private int primaryId;
     private String msgStarted, msgInProgress, msgCanceled, msgFailed, msgPaused, msgComplete;
+    private int stepUpdate;
 
     public DownloadWorker(@NonNull final Context context,
                           @NonNull WorkerParameters params) {
@@ -166,6 +167,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         String headers = getInputData().getString(ARG_HEADERS);
         boolean isResume = getInputData().getBoolean(ARG_IS_RESUME, false);
         debug = getInputData().getBoolean(ARG_DEBUG, false);
+        stepUpdate = getInputData().getInt(ARG_STEP_UPDATE, 10);
 
         Resources res = getApplicationContext().getResources();
         msgStarted = res.getString(R.string.flutter_downloader_notification_started);
@@ -337,7 +339,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     int progress = (int) ((count * 100) / (contentLength + downloadedBytes));
                     outputStream.write(buffer, 0, bytesRead);
 
-                    if ((lastProgress == 0 || progress > lastProgress + STEP_UPDATE || progress == 100)
+                    if ((lastProgress == 0 || progress > (lastProgress + stepUpdate) || progress == 100)
                             && progress != lastProgress) {
                         lastProgress = progress;
                         updateNotification(context, filename, DownloadStatus.RUNNING, progress, null);
