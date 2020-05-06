@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:black_hole_flutter/black_hole_flutter.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 const debug = true;
+
+const urls = [
+  'http://barbra-coco.dyndns.org/student/learning_android_studio.pdf',
+  'https://placekitten.com/1234/1234',
+  'http://www.africau.edu/images/default/sample.pdf',
+  'https://images.theconversation.com/files/177834/original/file-20170712-14488-19lw3sc.jpg?ixlib=rb-1.1.0&q=45&auto=format&w=926&fit=clip'
+];
 
 void main() async {
   await FlutterDownloader.initialize(debug: debug);
@@ -31,7 +39,7 @@ class StartScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text('Downloader Example')),
       body: Center(
-        child: Text("We're gonna download Android Studio handbooks."),
+        child: Text("We're gonna download some files."),
       ),
       floatingActionButton: ContinueButton(),
     );
@@ -43,7 +51,7 @@ class ContinueButton extends StatelessWidget {
     if (Platform.isAndroid && !await Permission.storage.request().isGranted) {
       context.scaffold.showSnackBar(SnackBar(
         content: Text('You need to grant storage permission so that we '
-            'can download handbooks. 😇'),
+            'can download files. 😇'),
       ));
     }
 
@@ -87,8 +95,7 @@ class _DownloadListState extends State<DownloadList> {
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final task = await DownloadTask.create(
-            url:
-                'http://barbra-coco.dyndns.org/student/learning_android_studio.pdf',
+            url: urls[Random().nextInt(urls.length)],
             downloadDirectory: Platform.isAndroid
                 ? await getExternalStorageDirectory()
                 : await getApplicationDocumentsDirectory(),
