@@ -70,6 +70,11 @@ class DownloadList extends StatefulWidget {
 class _DownloadListState extends State<DownloadList> {
   List<DownloadTask> tasks = [];
 
+  void initState() {
+    super.initState();
+    scheduleMicrotask(() async => tasks = await FlutterDownloader.loadTasks());
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
