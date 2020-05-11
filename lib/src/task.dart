@@ -8,7 +8,7 @@ class DownloadTask {
     @required double progress,
     @required this.url,
     @required File destination,
-    @required int timeCreated,
+    @required DateTime created,
   })  : _id = id,
         _status = status,
         _progress = progress,
@@ -96,7 +96,7 @@ class DownloadTask {
           url: result['url'] as String,
           destination: _fileFromDirAndName(
               result['saved_dir'] as String, result['file_name'] as String),
-          timeCreated: result['time_created'],
+          created: DateTime.fromMillisecondsSinceEpoch(result['time_created']),
         );
 
   void _merge(DownloadTask other) {

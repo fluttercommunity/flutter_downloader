@@ -107,7 +107,7 @@ abstract class FlutterDownloader {
       progress: 0.0,
       url: url,
       destination: _fileFromDirAndName(downloadDirectory.path, fileName),
-      timeCreated: 0, // TODO
+      created: DateTime.now(),
     );
     _tasksById[taskId] = task;
 
