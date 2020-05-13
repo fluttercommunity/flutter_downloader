@@ -8,9 +8,11 @@ import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
+const debug = true;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FlutterDownloader.initialize();
+  await FlutterDownloader.initialize(debug: debug);
 
   runApp(new MyApp());
 }
@@ -140,7 +142,9 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
     _port.listen((dynamic data) {
-      print('UI Isolate Callback: $data');
+      if (debug) {
+        print('UI Isolate Callback: $data');
+      }
       String id = data[0];
       DownloadTaskStatus status = data[1];
       int progress = data[2];
@@ -161,8 +165,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   static void downloadCallback(
       String id, DownloadTaskStatus status, int progress) {
-    print(
-        'Background Isolate Callback: task ($id) is in status ($status) and process ($progress)');
+    if (debug) {
+      print(
+          'Background Isolate Callback: task ($id) is in status ($status) and process ($progress)');
+    }
     final SendPort send =
         IsolateNameServer.lookupPortByName('downloader_send_port');
     send.send([id, status, progress]);

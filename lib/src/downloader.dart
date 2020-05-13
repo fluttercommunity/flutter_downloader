@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
-import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -26,15 +26,15 @@ class FlutterDownloader {
   static const _channel = const MethodChannel('vn.hunghd/downloader');
   static bool _initialized = false;
 
-  static Future<Null> initialize() async {
+  static Future<Null> initialize({bool debug = true}) async {
     assert(!_initialized,
         'FlutterDownloader.initialize() must be called only once!');
 
     WidgetsFlutterBinding.ensureInitialized();
 
     final callback = PluginUtilities.getCallbackHandle(callbackDispatcher);
-    await _channel
-        .invokeMethod('initialize', <dynamic>[callback.toRawHandle()]);
+    await _channel.invokeMethod(
+        'initialize', <dynamic>[callback.toRawHandle(), debug ? 1 : 0]);
     _initialized = true;
     return null;
   }
@@ -96,7 +96,6 @@ class FlutterDownloader {
         'open_file_from_notification': openFileFromNotification,
         'requires_storage_not_low': requiresStorageNotLow,
       });
-      print('Download task is enqueued with id($taskId)');
       return taskId;
     } on PlatformException catch (e) {
       print('Download task is failed with reason(${e.message})');
@@ -124,7 +123,8 @@ class FlutterDownloader {
               url: item['url'],
               filename: item['file_name'],
               mimeType: item['mimeType'],
-              savedDir: item['saved_dir']))
+              savedDir: item['saved_dir'],
+              timeCreated: item['time_created']))
           .toList();
     } on PlatformException catch (e) {
       print(e.message);
@@ -159,7 +159,6 @@ class FlutterDownloader {
     try {
       List<dynamic> result = await _channel
           .invokeMethod('loadTasksWithRawQuery', {'query': query});
-      print('Loaded tasks: $result');
       return result
           .map((item) => new DownloadTask(
               taskId: item['task_id'],
@@ -168,7 +167,8 @@ class FlutterDownloader {
               url: item['url'],
               filename: item['file_name'],
               mimeType: item['mimeType'],
-              savedDir: item['saved_dir']))
+              savedDir: item['saved_dir'],
+              timeCreated: item['time_created']))
           .toList();
     } on PlatformException catch (e) {
       print(e.message);
