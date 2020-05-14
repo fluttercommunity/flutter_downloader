@@ -182,8 +182,8 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         showNotification = getInputData().getBoolean(ARG_SHOW_NOTIFICATION, false);
         clickToOpenDownloadedFile = getInputData().getBoolean(ARG_OPEN_FILE_FROM_NOTIFICATION, false);
 
-        
-      task = taskDao.loadTask(getId().toString());
+
+        DownloadTask task = taskDao.loadTask(getId().toString());
         primaryId = task.primaryId;
 
         buildNotification(context);
