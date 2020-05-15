@@ -11,6 +11,7 @@ public class TaskContract {
         public static final String COLUMN_NAME_TASK_ID = "task_id";
         public static final String COLUMN_NAME_STATUS = "status";
         public static final String COLUMN_NAME_PROGRESS = "progress";
+        public static final String COLUMN_NAME_TITLE = "title";
         public static final String COLUMN_NAME_URL = "url";
         public static final String COLUMN_NAME_SAVED_DIR = "saved_dir";
         public static final String COLUMN_NAME_FILE_NAME = "file_name";
