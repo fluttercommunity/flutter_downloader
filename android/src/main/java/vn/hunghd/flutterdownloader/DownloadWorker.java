@@ -164,11 +164,11 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         Log.e(TAG, "Url: " + url);
         String filename = getInputData().getString(ARG_FILE_NAME);
         if(filename==null){
-            Log.e(TAG, "filename==null");
+            Log.d(TAG, "filename==null");
         }else if(filename.equals("")){
-            Log.e(TAG, "filename is empty");
+            Log.d(TAG, "filename is empty");
         }else{
-            Log.e(TAG, "filename=" + filename);
+            Log.d(TAG, "filename=" + filename);
         }
         String savedDir = getInputData().getString(ARG_SAVED_DIR);
         String headers = getInputData().getString(ARG_HEADERS);
@@ -203,7 +203,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
             taskDao = null;
             return Result.success();
         } catch (Exception e) {
-            Log.e(TAG, "doWork() " + e.getMessage());
+            Log.d(TAG, "doWork() " + e.getMessage());
             updateNotification(context, filename == null ? url : filename, DownloadStatus.FAILED, -1, null);
             taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
             e.printStackTrace();
@@ -271,6 +271,10 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 resourceUrl = new URL(url);
                 log("Open connection to " + url);
                 httpConn = (HttpURLConnection) resourceUrl.openConnection();
+
+                if (resourceUrl.getUserInfo() != null) {
+                    log("UserInfo: " + resourceUrl.getUserInfo());
+                }
 
                 httpConn.setConnectTimeout(45000);
                 httpConn.setReadTimeout(45000);
@@ -391,7 +395,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 log(isStopped() ? "Download canceled" : "Server replied HTTP code: " + responseCode);
             }
         } catch (IOException e) {
-            Log.e(TAG, "downloadFile() " + e.getMessage());
+            Log.d(TAG, "downloadFile() " + e.getMessage());
             updateNotification(context, filename == null ? fileURL : filename, DownloadStatus.FAILED, -1, null);
             taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
             e.printStackTrace();
