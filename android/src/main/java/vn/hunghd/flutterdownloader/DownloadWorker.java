@@ -274,6 +274,8 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
                 if (resourceUrl.getUserInfo() != null) {
                     log("UserInfo: " + resourceUrl.getUserInfo());
+                }else{
+                    log("UserInfo is NULL");
                 }
 
                 httpConn.setConnectTimeout(45000);
