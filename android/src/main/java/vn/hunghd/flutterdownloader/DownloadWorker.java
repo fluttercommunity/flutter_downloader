@@ -161,7 +161,15 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         taskDao = new TaskDao(dbHelper);
 
         String url = getInputData().getString(ARG_URL);
+        Log.e(TAG, "Url: " + url);
         String filename = getInputData().getString(ARG_FILE_NAME);
+        if(filename==null){
+            Log.e(TAG, "filename==null");
+        }else if(filename.equals("")){
+            Log.e(TAG, "filename is empty");
+        }else{
+            Log.e(TAG, "filename=" + filename);
+        }
         String savedDir = getInputData().getString(ARG_SAVED_DIR);
         String headers = getInputData().getString(ARG_HEADERS);
         boolean isResume = getInputData().getBoolean(ARG_IS_RESUME, false);
@@ -195,6 +203,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
             taskDao = null;
             return Result.success();
         } catch (Exception e) {
+            Log.e(TAG, "doWork() " + e.getMessage());
             updateNotification(context, filename == null ? url : filename, DownloadStatus.FAILED, -1, null);
             taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
             e.printStackTrace();
@@ -382,6 +391,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 log(isStopped() ? "Download canceled" : "Server replied HTTP code: " + responseCode);
             }
         } catch (IOException e) {
+            Log.e(TAG, "downloadFile() " + e.getMessage());
             updateNotification(context, filename == null ? fileURL : filename, DownloadStatus.FAILED, -1, null);
             taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
             e.printStackTrace();
