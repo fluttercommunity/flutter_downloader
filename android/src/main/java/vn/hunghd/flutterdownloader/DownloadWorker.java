@@ -163,15 +163,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         taskDao = new TaskDao(dbHelper);
 
         String url = getInputData().getString(ARG_URL);
-        Log.e(TAG, "Url: " + url);
         String filename = getInputData().getString(ARG_FILE_NAME);
-        if(filename==null){
-            Log.d(TAG, "filename==null");
-        }else if(filename.equals("")){
-            Log.d(TAG, "filename is empty");
-        }else{
-            Log.d(TAG, "filename=" + filename);
-        }
         String savedDir = getInputData().getString(ARG_SAVED_DIR);
         String headers = getInputData().getString(ARG_HEADERS);
         boolean isResume = getInputData().getBoolean(ARG_IS_RESUME, false);
@@ -205,7 +197,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
             taskDao = null;
             return Result.success();
         } catch (Exception e) {
-            Log.d(TAG, "doWork() " + e.getMessage());
+            log( "doWork() " + e.getMessage());
             updateNotification(context, filename == null ? url : filename, DownloadStatus.FAILED, -1, null);
             taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
             e.printStackTrace();
@@ -271,16 +263,12 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     throw new IOException("Stuck in redirect loop");
 
                 resourceUrl = new URL(url);
-                log("Open connection to url: " + url);
+                log("Open connection url: " + url);
                 httpConn = (HttpURLConnection) resourceUrl.openConnection();
 
                 if (resourceUrl.getUserInfo() != null) {
-                    log("UserInfo: " + resourceUrl.getUserInfo());
                     String basicAuth = "Basic " + Base64.encodeToString(resourceUrl.getUserInfo().getBytes(), Base64.DEFAULT);
-                    log("Basic auth: " + basicAuth);
                     httpConn.setRequestProperty("Authorization", basicAuth);
-                }else{
-                    log("UserInfo is NULL");
                 }
 
                 httpConn.setConnectTimeout(45000);
