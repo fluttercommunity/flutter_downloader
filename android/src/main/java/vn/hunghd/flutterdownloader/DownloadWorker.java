@@ -47,6 +47,8 @@ import java.util.regex.Pattern;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
+import android.util.Base64;
+
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.PluginRegistry;
@@ -274,6 +276,9 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
                 if (resourceUrl.getUserInfo() != null) {
                     log("UserInfo: " + resourceUrl.getUserInfo());
+                    String basicAuth = "Basic " + Base64.encodeToString(resourceUrl.getUserInfo().getBytes(), Base64.DEFAULT);
+                    log("Basic auth: " + basicAuth);
+                    httpConn.setRequestProperty("Authorization", basicAuth);
                 }else{
                     log("UserInfo is NULL");
                 }
