@@ -269,7 +269,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     throw new IOException("Stuck in redirect loop");
 
                 resourceUrl = new URL(url);
-                log("Open connection to " + url);
+                log("Open connection to url: " + url);
                 httpConn = (HttpURLConnection) resourceUrl.openConnection();
 
                 if (resourceUrl.getUserInfo() != null) {
