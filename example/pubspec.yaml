@@ -12,7 +12,7 @@ version: 1.0.0+1
 dependencies:
   flutter:
     sdk: flutter
-  black_hole_flutter: ^0.2.8
+  black_hole_flutter: ^0.2.12
   path_provider: ^1.5.1
   permission_handler: ^5.0.0
   flutter_downloader:
