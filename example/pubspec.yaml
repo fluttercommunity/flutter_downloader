@@ -12,8 +12,8 @@ version: 1.0.0+1
 dependencies:
   flutter:
     sdk: flutter
-  path_provider: ^1.5.1
-  permission_handler: ^4.0.0
+  path_provider: ^1.6.11
+  permission_handler: ^5.0.1+1
   flutter_downloader:
     path: ..
 
