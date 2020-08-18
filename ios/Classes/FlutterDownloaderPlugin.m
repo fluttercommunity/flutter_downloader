@@ -860,7 +860,7 @@ static BOOL debug = YES;
         NSString *taskId = [self identifierForTask:downloadTask];
         int progress = round(totalBytesWritten * 100 / (double)totalBytesExpectedToWrite);
         NSNumber *lastProgress = _runningTaskById[taskId][KEY_PROGRESS];
-        if (([lastProgress intValue] == 0 || (progress > ([lastProgress intValue] + stepUpdate)) || progress == 100) && progress != [lastProgress intValue]) {
+        if (([lastProgress intValue] == 0 || (progress > ([lastProgress intValue] + _stepUpdate)) || progress == 100) && progress != [lastProgress intValue]) {
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_RUNNING) andProgress:@(progress)];
             _runningTaskById[taskId][KEY_PROGRESS] = @(progress);
         }
