@@ -383,7 +383,7 @@ class FlutterDownloader {
   ///
   /// {@end-tool}
   ///
-  static registerCallback(DownloadCallback callback, int stepSize) {
+  static registerCallback(DownloadCallback callback, {int stepSize = 10}) {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     final callbackHandle = PluginUtilities.getCallbackHandle(callback);
