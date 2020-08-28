@@ -11,9 +11,7 @@
 /// All task information is saved in a Sqlite database, it gives a Flutter
 /// application benefit of either getting rid of managing task information
 /// manually or querying task data with SQL statements easily.
-///
 
 library flutter_downloader;
 
 export 'src/downloader.dart';
-export 'src/models.dart';

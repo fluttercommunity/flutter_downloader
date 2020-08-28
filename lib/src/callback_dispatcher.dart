@@ -1,13 +1,7 @@
-import 'dart:ui';
+part of 'downloader.dart';
 
-import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
-
-import 'models.dart';
-
-void callbackDispatcher() {
-  const MethodChannel backgroundChannel =
-      MethodChannel('vn.hunghd/downloader_background');
+void dispatchCallback() {
+  const backgroundChannel = MethodChannel('vn.hunghd/downloader_background');
 
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -17,11 +11,11 @@ void callbackDispatcher() {
     final Function callback = PluginUtilities.getCallbackFromHandle(
         CallbackHandle.fromRawHandle(args[0]));
 
-    final String id = args[1];
-    final int status = args[2];
-    final int progress = args[3];
+    final id = args[1] as String;
+    final status = args[2] as int;
+    final progress = (args[3] as int).toDouble() / 100.0;
 
-    callback(id, DownloadTaskStatus(status), progress);
+    callback(id, status, progress);
   });
 
   backgroundChannel.invokeMethod('didInitializeDispatcher');

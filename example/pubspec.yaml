@@ -12,6 +12,7 @@ version: 1.0.0+1
 dependencies:
   flutter:
     sdk: flutter
+  black_hole_flutter: ^0.2.12
   path_provider: ^1.6.11
   permission_handler: ^5.0.1+1
   flutter_downloader:
@@ -25,28 +26,26 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+dependency_overrides:
+  dartx: ^0.4.1
+
 # For information on the generic Dart part of this file, see the
 # following page: https://www.dartlang.org/tools/pub/pubspec
 
 # The following section is specific to Flutter.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-
   # To add assets to your application, add an assets section, like this:
   # assets:
   #  - images/a_dot_burr.jpeg
   #  - images/a_dot_ham.jpeg
-
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.io/assets-and-images/#resolution-aware.
-
   # For details regarding adding assets from package dependencies, see
   # https://flutter.io/assets-and-images/#from-packages
-
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a
   # "family" key with the font family name, and a "fonts" key with a
