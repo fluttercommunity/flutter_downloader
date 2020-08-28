@@ -2,6 +2,11 @@
 
 * Completely redesign the API to be more intuitive.
 
+## 1.5.0 - 09.08.2020
+
+* Update `pubspec` to new format
+* Upgrade `AndroidWorkManager` to v2.4.0
+
 ## 1.4.4 - 18.04.2020
 
 * Add `debug` (optional) parameter in `initialize()` method that supports disabling logging to console.

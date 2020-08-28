@@ -4,6 +4,15 @@ version: 2.0.0
 homepage: https://github.com/fluttercommunity/flutter_downloader
 maintainer: Hung Duy Ha (@hnvn)
 
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: vn.hunghd.flutterdownloader
+        pluginClass: FlutterDownloaderPlugin
+      ios:
+        pluginClass: FlutterDownloaderPlugin
+
 environment:
   sdk: ">=2.7.0 <3.0.0"
   flutter: ^1.12.13
@@ -15,8 +24,3 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-flutter:
-  plugin:
-    androidPackage: vn.hunghd.flutterdownloader
-    pluginClass: FlutterDownloaderPlugin
