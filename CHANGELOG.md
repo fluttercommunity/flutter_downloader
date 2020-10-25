@@ -1,3 +1,7 @@
+## 1.5.2 - 25.10.2020
+
+* Android: fix bug notification stuck in processing
+
 ## 1.5.1 - 27.09.2020
 
 * iOS: fix bug missing update download progress
