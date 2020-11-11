@@ -35,6 +35,7 @@ class DownloadTaskStatus {
 /// * [url] the download link
 /// * [filename] the local file name of a downloaded file
 /// * [savedDir] the absolute path of the directory where the downloaded file is saved
+/// * [timeCreated] milliseconds since the Unix epoch (midnight, January 1, 1970 UTC)
 ///
 class DownloadTask {
   final String taskId;
