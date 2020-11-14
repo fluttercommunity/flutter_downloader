@@ -298,7 +298,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
             if ((responseCode == HttpURLConnection.HTTP_OK || (isResume && responseCode == HttpURLConnection.HTTP_PARTIAL)) && !isStopped()) {
                 String contentType = httpConn.getContentType();
-                int contentLength = httpConn.getContentLength();
+                long contentLength = httpConn.getContentLengthLong();
                 log("Content-Type = " + contentType);
                 log("Content-Length = " + contentLength);
 
