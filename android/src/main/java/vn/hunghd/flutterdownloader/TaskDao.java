@@ -31,7 +31,7 @@ public class TaskDao {
         dbHelper = helper;
     }
 
-    public void insertOrUpdateNewTask(String taskId, String url, int status, int progress, String fileName,
+    public void insertOrUpdateNewTask(String taskId, String url, int status, int progress, String fileName, String mimeType,
                                        String savedDir, String headers, boolean showNotification, boolean openFileFromNotification) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
 
@@ -43,7 +43,7 @@ public class TaskDao {
         values.put(TaskContract.TaskEntry.COLUMN_NAME_FILE_NAME, fileName);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_SAVED_DIR, savedDir);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_HEADERS, headers);
-        values.put(TaskContract.TaskEntry.COLUMN_NAME_MIME_TYPE, "unknown");
+        values.put(TaskContract.TaskEntry.COLUMN_NAME_MIME_TYPE, mimeType);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION, showNotification ? 1 : 0);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION, openFileFromNotification ? 1 : 0);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_RESUMABLE, 0);
