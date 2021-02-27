@@ -255,6 +255,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                     taskDao.updateTask(taskId, newTaskId, DownloadStatus.RUNNING, task.progress, false);
                     WorkManager.getInstance(context).enqueue(request);
                 } else {
+                    taskDao.updateTask(taskId, false);
                     result.error("invalid_data", "not found partial downloaded data, this task cannot be resumed", null);
                 }
             } else {

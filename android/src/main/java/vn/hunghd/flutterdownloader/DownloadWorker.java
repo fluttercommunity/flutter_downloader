@@ -71,7 +71,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     private static final String TAG = DownloadWorker.class.getSimpleName();
     private static final int BUFFER_SIZE = 4096;
     private static final String CHANNEL_ID = "FLUTTER_DOWNLOADER_NOTIFICATION";
-    private static final int STEP_UPDATE = 10;
+    private static final int STEP_UPDATE = 5;
 
     private static final AtomicBoolean isolateStarted = new AtomicBoolean(false);
     private static final ArrayDeque<List> isolateQueue = new ArrayDeque<>();
@@ -298,7 +298,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
             if ((responseCode == HttpURLConnection.HTTP_OK || (isResume && responseCode == HttpURLConnection.HTTP_PARTIAL)) && !isStopped()) {
                 String contentType = httpConn.getContentType();
-                int contentLength = httpConn.getContentLength();
+                long contentLength = httpConn.getContentLengthLong();
                 log("Content-Type = " + contentType);
                 log("Content-Length = " + contentLength);
 
