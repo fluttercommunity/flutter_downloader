@@ -284,7 +284,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                         log("Response with redirection code");
                         location = httpConn.getHeaderField("Location");
                         log("Location = " + location);
-                        base = new URL(fileURL);
+                        base = new URL(url);
                         next = new URL(base, location);  // Deal with relative URLs
                         url = next.toExternalForm();
                         log("New url: " + url);
