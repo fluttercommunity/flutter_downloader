@@ -8,12 +8,6 @@ class DownloadTaskStatus {
 
   int get value => _value;
 
-  get hashCode => _value;
-
-  operator ==(status) => status._value == this._value;
-
-  toString() => 'DownloadTaskStatus($_value)';
-
   static DownloadTaskStatus from(int value) => DownloadTaskStatus(value);
 
   static const undefined = const DownloadTaskStatus(0);
@@ -23,6 +17,19 @@ class DownloadTaskStatus {
   static const failed = const DownloadTaskStatus(4);
   static const canceled = const DownloadTaskStatus(5);
   static const paused = const DownloadTaskStatus(6);
+
+  @override
+  bool operator ==(Object o) {
+    if (identical(this, o)) return true;
+
+    return o is DownloadTaskStatus && o._value == _value;
+  }
+
+  @override
+  int get hashCode => _value.hashCode;
+
+  @override
+  String toString() => 'DownloadTaskStatus($_value)';
 }
 
 ///
@@ -47,13 +54,13 @@ class DownloadTask {
   final int timeCreated;
 
   DownloadTask(
-      {this.taskId,
-      this.status,
-      this.progress,
-      this.url,
-      this.filename,
-      this.savedDir,
-      this.timeCreated});
+      {required this.taskId,
+      required this.status,
+      required this.progress,
+      required this.url,
+      required this.filename,
+      required this.savedDir,
+      required this.timeCreated});
 
   @override
   String toString() =>
