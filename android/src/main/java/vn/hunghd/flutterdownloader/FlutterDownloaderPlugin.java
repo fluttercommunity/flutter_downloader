@@ -1,15 +1,19 @@
 package vn.hunghd.flutterdownloader;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.provider.MediaStore;
 
+import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationManagerCompat;
 
 import java.io.File;
@@ -20,6 +24,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import androidx.core.content.ContextCompat;
 import androidx.work.BackoffPolicy;
 import androidx.work.Constraints;
 import androidx.work.Data;
@@ -28,12 +33,15 @@ import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
 
+import io.flutter.Log;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.PluginRegistry;
+
+import static androidx.core.content.PermissionChecker.checkSelfPermission;
 
 public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin {
     private static final String CHANNEL = "vn.hunghd/downloader";
@@ -255,7 +263,6 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                     taskDao.updateTask(taskId, newTaskId, DownloadStatus.RUNNING, task.progress, false);
                     WorkManager.getInstance(context).enqueue(request);
                 } else {
-                    taskDao.updateTask(taskId, false);
                     result.error("invalid_data", "not found partial downloaded data, this task cannot be resumed", null);
                 }
             } else {
@@ -358,31 +365,46 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         Uri videoQueryUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
 
         ContentResolver contentResolver = context.getContentResolver();
+
         try {
-            // search the file in image store first
-            Cursor imageCursor = contentResolver.query(imageQueryUri, projection, imageSelection, selectionArgs, null);
-            if (imageCursor != null && imageCursor.moveToFirst()) {
-                // We found the ID. Deleting the item via the content provider will also remove the file
-                long id = imageCursor.getLong(imageCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
-                Uri deleteUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
-                contentResolver.delete(deleteUri, null, null);
-            } else {
-                // File not found in image store DB, try to search in video store
-                Cursor videoCursor = contentResolver.query(imageQueryUri, projection, imageSelection, selectionArgs, null);
-                if (videoCursor != null && videoCursor.moveToFirst()) {
+            if (isStoragePermissionGranted()) {
+                // search the file in image store first
+                Cursor imageCursor = contentResolver.query(imageQueryUri, projection, imageSelection, selectionArgs, null);
+                if (imageCursor != null && imageCursor.moveToFirst()) {
                     // We found the ID. Deleting the item via the content provider will also remove the file
-                    long id = videoCursor.getLong(videoCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
+                    long id = imageCursor.getLong(imageCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
                     Uri deleteUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
                     contentResolver.delete(deleteUri, null, null);
                 } else {
-                    // can not find the file in media store DB at all -> do a simple delete
-                    file.delete(); 
+                    // File not found in image store DB, try to search in video store
+                    Cursor videoCursor = contentResolver.query(imageQueryUri, projection, imageSelection, selectionArgs, null);
+                    if (videoCursor != null && videoCursor.moveToFirst()) {
+                        // We found the ID. Deleting the item via the content provider will also remove the file
+                        long id = videoCursor.getLong(videoCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
+                        Uri deleteUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
+                        contentResolver.delete(deleteUri, null, null);
+                    } else {
+                        // can not find the file in media store DB at all -> do a simple delete
+                        file.delete();
+                    }
+                    if (videoCursor != null) videoCursor.close();
                 }
-                if (videoCursor != null) videoCursor.close();
+                if (imageCursor != null) imageCursor.close();
+            } else {
+                file.delete();
             }
-            if (imageCursor != null) imageCursor.close();
         } catch (Exception e) {
-            // fail silently
+            Log.e(TAG, e.getMessage());
+        }
+    }
+
+    public boolean isStoragePermissionGranted() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    == PackageManager.PERMISSION_GRANTED;
+        } else { //permission is automatically granted on SDK<23 upon installation
+            Log.v(TAG, "Permission is granted");
+            return true;
         }
     }
 }
