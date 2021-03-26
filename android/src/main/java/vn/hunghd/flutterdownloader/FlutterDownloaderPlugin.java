@@ -132,7 +132,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                         .setRequiredNetworkType(NetworkType.CONNECTED)
                         .build())
                 .addTag(TAG)
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.SECONDS)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
                 .setInputData(new Data.Builder()
                         .putString(DownloadWorker.ARG_URL, url)
                         .putString(DownloadWorker.ARG_SAVED_DIR, savedDir)
