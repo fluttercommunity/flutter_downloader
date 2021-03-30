@@ -11,19 +11,19 @@ import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
-import android.graphics.BitmapFactory;
 import android.os.Build;
-
-import androidx.annotation.NonNull;
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
-import androidx.core.content.ContextCompat;
-
 import android.os.Environment;
 import android.os.Handler;
 import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.util.Log;
+
+import androidx.annotation.NonNull;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
+import androidx.work.Worker;
+import androidx.work.WorkerParameters;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -44,9 +44,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import androidx.work.Worker;
-import androidx.work.WorkerParameters;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -182,35 +179,38 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         clickToOpenDownloadedFile = getInputData().getBoolean(ARG_OPEN_FILE_FROM_NOTIFICATION, false);
 
         DownloadTask task = taskDao.loadTask(getId().toString());
-        primaryId = task.primaryId;
+        if (task != null) {
+            primaryId = task.primaryId;
 
-        setupNotification(context);
+            setupNotification(context);
 
-        updateNotification(context, filename == null ? url : filename, DownloadStatus.RUNNING, task.progress, null, false);
-        taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, task.progress);
+            updateNotification(context, filename == null ? url : filename, DownloadStatus.RUNNING, task.progress, null, false);
+            taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, task.progress);
 
-        //automatic resume for partial files. (if the workmanager unexpectedly quited in background)
-        String saveFilePath = savedDir + File.separator + filename;
-        File partialFile = new File(saveFilePath);
-        if (partialFile.exists()) {
-            isResume = true;
-            log("exists file for "+ filename + "automatic resuming...");
+            //automatic resume for partial files. (if the workmanager unexpectedly quited in background)
+            String saveFilePath = savedDir + File.separator + filename;
+            File partialFile = new File(saveFilePath);
+            if (partialFile.exists()) {
+                isResume = true;
+                log("exists file for " + filename + "automatic resuming...");
+            }
+
+            try {
+                downloadFile(context, url, savedDir, filename, headers, isResume);
+                cleanUp();
+                dbHelper = null;
+                taskDao = null;
+                return Result.success();
+            } catch (Exception e) {
+                updateNotification(context, filename == null ? url : filename, DownloadStatus.FAILED, -1, null, true);
+                taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
+                e.printStackTrace();
+                dbHelper = null;
+                taskDao = null;
+                return Result.failure();
+            }
         }
 
-        try {
-            downloadFile(context, url, savedDir, filename, headers, isResume);
-            cleanUp();
-            dbHelper = null;
-            taskDao = null;
-            return Result.success();
-        } catch (Exception e) {
-            updateNotification(context, filename == null ? url : filename, DownloadStatus.FAILED, -1, null, true);
-            taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
-            e.printStackTrace();
-            dbHelper = null;
-            taskDao = null;
-            return Result.failure();
-        }
     }
 
     private void setupHeaders(HttpURLConnection conn, String headers) {
