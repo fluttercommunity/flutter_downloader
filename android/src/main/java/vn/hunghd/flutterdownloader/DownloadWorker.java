@@ -210,7 +210,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 return Result.failure();
             }
         }
-
+        return Result.failure();
     }
 
     private void setupHeaders(HttpURLConnection conn, String headers) {
