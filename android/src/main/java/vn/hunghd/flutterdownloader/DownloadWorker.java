@@ -179,38 +179,35 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         clickToOpenDownloadedFile = getInputData().getBoolean(ARG_OPEN_FILE_FROM_NOTIFICATION, false);
 
         DownloadTask task = taskDao.loadTask(getId().toString());
-        if (task != null) {
-            primaryId = task.primaryId;
+        primaryId = task.primaryId;
 
-            setupNotification(context);
+        setupNotification(context);
 
-            updateNotification(context, filename == null ? url : filename, DownloadStatus.RUNNING, task.progress, null, false);
-            taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, task.progress);
+        updateNotification(context, filename == null ? url : filename, DownloadStatus.RUNNING, task.progress, null, false);
+        taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, task.progress);
 
-            //automatic resume for partial files. (if the workmanager unexpectedly quited in background)
-            String saveFilePath = savedDir + File.separator + filename;
-            File partialFile = new File(saveFilePath);
-            if (partialFile.exists()) {
-                isResume = true;
-                log("exists file for " + filename + "automatic resuming...");
-            }
-
-            try {
-                downloadFile(context, url, savedDir, filename, headers, isResume);
-                cleanUp();
-                dbHelper = null;
-                taskDao = null;
-                return Result.success();
-            } catch (Exception e) {
-                updateNotification(context, filename == null ? url : filename, DownloadStatus.FAILED, -1, null, true);
-                taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
-                e.printStackTrace();
-                dbHelper = null;
-                taskDao = null;
-                return Result.failure();
-            }
+        //automatic resume for partial files. (if the workmanager unexpectedly quited in background)
+        String saveFilePath = savedDir + File.separator + filename;
+        File partialFile = new File(saveFilePath);
+        if (partialFile.exists()) {
+            isResume = true;
+            log("exists file for " + filename + "automatic resuming...");
         }
-        return Result.failure();
+
+        try {
+            downloadFile(context, url, savedDir, filename, headers, isResume);
+            cleanUp();
+            dbHelper = null;
+            taskDao = null;
+            return Result.success();
+        } catch (Exception e) {
+            updateNotification(context, filename == null ? url : filename, DownloadStatus.FAILED, -1, null, true);
+            taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
+            e.printStackTrace();
+            dbHelper = null;
+            taskDao = null;
+            return Result.failure();
+        }
     }
 
     private void setupHeaders(HttpURLConnection conn, String headers) {
