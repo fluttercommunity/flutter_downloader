@@ -26,7 +26,7 @@ public class TaskDbHelper extends SQLiteOpenHelper {
                     TaskEntry.COLUMN_NAME_RESUMABLE + " TINYINT DEFAULT 0, " +
                     TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION + " TINYINT DEFAULT 0, " +
                     TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION + " TINYINT DEFAULT 0, " +
-                    TaskEntry.COLUMN_NAME_NOTIFICATION_FILE_NAME + " TEXT, " +
+                    TaskEntry.COLUMN_NAME_NOTIFICATION_TITLE + " TEXT, " +
                     TaskEntry.COLUMN_NAME_TIME_CREATED + " INTEGER DEFAULT 0"
                     + ")";
 

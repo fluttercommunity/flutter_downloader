@@ -13,11 +13,11 @@ public class DownloadTask {
     boolean resumable;
     boolean showNotification;
     boolean openFileFromNotification;
-    String notificationFilename;
+    String notificationTitle;
     long timeCreated;
 
     DownloadTask(int primaryId, String taskId, int status, int progress, String url, String filename, String savedDir,
-                 String headers, String mimeType, boolean resumable, boolean showNotification, boolean openFileFromNotification, String notificationFilename, long timeCreated) {
+                 String headers, String mimeType, boolean resumable, boolean showNotification, boolean openFileFromNotification, String notificationTitle, long timeCreated) {
         this.primaryId = primaryId;
         this.taskId = taskId;
         this.status = status;
@@ -30,7 +30,7 @@ public class DownloadTask {
         this.resumable = resumable;
         this.showNotification = showNotification;
         this.openFileFromNotification = openFileFromNotification;
-        this.notificationFilename = notificationFilename;
+        this.notificationTitle = notificationTitle;
         this.timeCreated = timeCreated;
     }
 

@@ -57,9 +57,9 @@ class FlutterDownloader {
   /// (only Android). If it is `true`, user can click on the notification to
   /// open and preview the downloaded file, otherwise, nothing happens. The
   /// default value is `true`
-  /// * `notificationFileName`: if `showNotification` is `true`, sets name
-  /// of downloaded file in notification (only Android). If this parameter
-  /// is not set, the plugin will apply value of `fileName` parameter
+  /// * `notificationTitle`: if `showNotification` is `true`, sets title
+  /// of notification (only Android). If this parameter is not set, the plugin
+  /// will apply value of `fileName` parameter
   ///
   /// **return:**
   ///
@@ -72,7 +72,7 @@ class FlutterDownloader {
       Map<String, String> headers,
       bool showNotification = true,
       bool openFileFromNotification = true,
-      String notificationFileName,
+      String notificationTitle,
       bool requiresStorageNotLow = true}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
     assert(Directory(savedDir).existsSync());
@@ -94,7 +94,7 @@ class FlutterDownloader {
         'headers': headerBuilder.toString(),
         'show_notification': showNotification,
         'open_file_from_notification': openFileFromNotification,
-        'notification_file_name': notificationFileName,
+        'notification_title': notificationTitle,
         'requires_storage_not_low': requiresStorageNotLow,
       });
       return taskId;
