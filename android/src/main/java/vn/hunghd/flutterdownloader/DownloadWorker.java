@@ -65,6 +65,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     public static final String ARG_IS_RESUME = "is_resume";
     public static final String ARG_SHOW_NOTIFICATION = "show_notification";
     public static final String ARG_OPEN_FILE_FROM_NOTIFICATION = "open_file_from_notification";
+    public static final String ARG_NOTIFICATION_FILE_NAME = "notification_file_name";
     public static final String ARG_CALLBACK_HANDLE = "callback_handle";
     public static final String ARG_DEBUG = "debug";
 
@@ -180,13 +181,14 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
         showNotification = getInputData().getBoolean(ARG_SHOW_NOTIFICATION, false);
         clickToOpenDownloadedFile = getInputData().getBoolean(ARG_OPEN_FILE_FROM_NOTIFICATION, false);
+        String notificationFilename = getInputData().getString(ARG_NOTIFICATION_FILE_NAME);
 
         DownloadTask task = taskDao.loadTask(getId().toString());
         primaryId = task.primaryId;
 
         setupNotification(context);
 
-        updateNotification(context, filename == null ? url : filename, DownloadStatus.RUNNING, task.progress, null, false);
+        updateNotification(context, filename == null ? url : filename, DownloadStatus.RUNNING, task.progress, null, false, notificationFilename);
         taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, task.progress);
 
         //automatic resume for partial files. (if the workmanager unexpectedly quited in background)
@@ -198,13 +200,13 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         }
 
         try {
-            downloadFile(context, url, savedDir, filename, headers, isResume);
+            downloadFile(context, url, savedDir, filename, notificationFilename, headers, isResume);
             cleanUp();
             dbHelper = null;
             taskDao = null;
             return Result.success();
         } catch (Exception e) {
-            updateNotification(context, filename == null ? url : filename, DownloadStatus.FAILED, -1, null, true);
+            updateNotification(context, filename == null ? url : filename, DownloadStatus.FAILED, -1, null, true, notificationFilename);
             taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
             e.printStackTrace();
             dbHelper = null;
@@ -240,7 +242,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         return downloadedBytes;
     }
 
-    private void downloadFile(Context context, String fileURL, String savedDir, String filename, String headers, boolean isResume) throws IOException {
+    private void downloadFile(Context context, String fileURL, String savedDir, String filename, String notificationFilename, String headers, boolean isResume) throws IOException {
         String url = fileURL;
         URL resourceUrl, base, next;
         Map<String, Integer> visited;
@@ -349,7 +351,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     if ((lastProgress == 0 || progress > lastProgress + STEP_UPDATE || progress == 100)
                             && progress != lastProgress) {
                         lastProgress = progress;
-                        updateNotification(context, filename, DownloadStatus.RUNNING, progress, null, false);
+                        updateNotification(context, filename, DownloadStatus.RUNNING, progress, null, false, notificationFilename);
 
                         // This line possibly causes system overloaded because of accessing to DB too many ?!!!
                         // but commenting this line causes tasks loaded from DB missing current downloading progress,
@@ -379,19 +381,19 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                         }
                     }
                 }
-                updateNotification(context, filename, status, progress, pendingIntent, true);
+                updateNotification(context, filename, status, progress, pendingIntent, true, notificationFilename);
                 taskDao.updateTask(getId().toString(), status, progress);
 
                 log(isStopped() ? "Download canceled" : "File downloaded");
             } else {
                 DownloadTask task = taskDao.loadTask(getId().toString());
                 int status = isStopped() ? (task.resumable ? DownloadStatus.PAUSED : DownloadStatus.CANCELED) : DownloadStatus.FAILED;
-                updateNotification(context, filename == null ? fileURL : filename, status, -1, null, true);
+                updateNotification(context, filename == null ? fileURL : filename, status, -1, null, true, notificationFilename);
                 taskDao.updateTask(getId().toString(), status, lastProgress);
                 log(isStopped() ? "Download canceled" : "Server replied HTTP code: " + responseCode);
             }
         } catch (IOException e) {
-            updateNotification(context, filename == null ? fileURL : filename, DownloadStatus.FAILED, -1, null, true);
+            updateNotification(context, filename == null ? fileURL : filename, DownloadStatus.FAILED, -1, null, true, notificationFilename);
             taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
             e.printStackTrace();
         } finally {
@@ -465,14 +467,14 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         }
     }
 
-    private void updateNotification(Context context, String title, int status, int progress, PendingIntent intent, boolean finalize) {
+    private void updateNotification(Context context, String title, int status, int progress, PendingIntent intent, boolean finalize, String notificationFilename) {
         sendUpdateProcessEvent(status, progress);
 
         // Show the notification
         if (showNotification) {
             // Create the notification
             NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID).
-                    setContentTitle(title)
+                    setContentTitle(notificationFilename == null ? title : notificationFilename)
                     .setContentIntent(intent)
                     .setOnlyAlertOnce(true)
                     .setAutoCancel(true)

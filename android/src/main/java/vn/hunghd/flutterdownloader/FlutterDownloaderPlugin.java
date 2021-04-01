@@ -117,7 +117,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         }
     }
 
-    private WorkRequest buildRequest(String url, String savedDir, String filename, String headers, boolean showNotification, boolean openFileFromNotification, boolean isResume, boolean requiresStorageNotLow) {
+    private WorkRequest buildRequest(String url, String savedDir, String filename, String headers, boolean showNotification, boolean openFileFromNotification, String notificationFilename, boolean isResume, boolean requiresStorageNotLow) {
         WorkRequest request = new OneTimeWorkRequest.Builder(DownloadWorker.class)
                 .setConstraints(new Constraints.Builder()
                         .setRequiresStorageNotLow(requiresStorageNotLow)
@@ -132,6 +132,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                         .putString(DownloadWorker.ARG_HEADERS, headers)
                         .putBoolean(DownloadWorker.ARG_SHOW_NOTIFICATION, showNotification)
                         .putBoolean(DownloadWorker.ARG_OPEN_FILE_FROM_NOTIFICATION, openFileFromNotification)
+                        .putString(DownloadWorker.ARG_NOTIFICATION_FILE_NAME, notificationFilename)
                         .putBoolean(DownloadWorker.ARG_IS_RESUME, isResume)
                         .putLong(DownloadWorker.ARG_CALLBACK_HANDLE, callbackHandle)
                         .putBoolean(DownloadWorker.ARG_DEBUG, debugMode == 1)
@@ -173,13 +174,14 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         String headers = call.argument("headers");
         boolean showNotification = call.argument("show_notification");
         boolean openFileFromNotification = call.argument("open_file_from_notification");
+        String notificationFilename = call.argument("notification_file_name");
         boolean requiresStorageNotLow = call.argument("requires_storage_not_low");
-        WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, openFileFromNotification, false, requiresStorageNotLow);
+        WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, openFileFromNotification, notificationFilename, false, requiresStorageNotLow);
         WorkManager.getInstance(context).enqueue(request);
         String taskId = request.getId().toString();
         result.success(taskId);
         sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0);
-        taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, savedDir, headers, showNotification, openFileFromNotification);
+        taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, savedDir, headers, showNotification, openFileFromNotification, notificationFilename);
     }
 
     private void loadTasks(MethodCall call, MethodChannel.Result result) {
@@ -248,7 +250,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                 String partialFilePath = task.savedDir + File.separator + filename;
                 File partialFile = new File(partialFilePath);
                 if (partialFile.exists()) {
-                    WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, true, requiresStorageNotLow);
+                    WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, task.notificationFilename, true, requiresStorageNotLow);
                     String newTaskId = request.getId().toString();
                     result.success(newTaskId);
                     sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress);
@@ -272,7 +274,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         boolean requiresStorageNotLow = call.argument("requires_storage_not_low");
         if (task != null) {
             if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
-                WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, false, requiresStorageNotLow);
+                WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, task.notificationFilename, false, requiresStorageNotLow);
                 String newTaskId = request.getId().toString();
                 result.success(newTaskId);
                 sendUpdateProgress(newTaskId, DownloadStatus.ENQUEUED, task.progress);

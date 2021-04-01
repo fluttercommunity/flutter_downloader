@@ -242,6 +242,7 @@ final taskId = await FlutterDownloader.enqueue(
   savedDir: 'the path of directory where you want to save downloaded files',
   showNotification: true, // show download progress in status bar (for Android)
   openFileFromNotification: true, // click on notification to open downloaded file (for Android)
+  notificationFileName: 'Alternative file name', // show alternative file name in notification (for Android)
 );
 ````
 
@@ -318,6 +319,7 @@ CREATE TABLE `task` (
 	`headers`	TEXT,
 	`show_notification`	TINYINT DEFAULT 0,
 	`open_file_from_notification`	TINYINT DEFAULT 0,
+	`notification_file_name` TEXT,
 	`time_created`	INTEGER DEFAULT 0
 );
 ````
