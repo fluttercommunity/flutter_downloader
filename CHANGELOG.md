@@ -1,3 +1,7 @@
+## 1.6.0 - 12-04-2021
+
+* Stable version of nullsafety
+
 ## 1.6.0-nullsafety.0 - 28.02.2021
 
 * Fix bugs
