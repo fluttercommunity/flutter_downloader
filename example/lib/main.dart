@@ -209,7 +209,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           }
                         });
                       },
-                      onAtionClick: (task) {
+                      onActionClick: (task) {
                         if (task.status == DownloadTaskStatus.undefined) {
                           _requestDownload(task);
                         } else if (task.status == DownloadTaskStatus.running) {
@@ -402,9 +402,9 @@ class _MyHomePageState extends State<MyHomePage> {
 class DownloadItem extends StatelessWidget {
   final _ItemHolder? data;
   final Function(_TaskInfo?)? onItemClick;
-  final Function(_TaskInfo)? onAtionClick;
+  final Function(_TaskInfo)? onActionClick;
 
-  DownloadItem({this.data, this.onItemClick, this.onAtionClick});
+  DownloadItem({this.data, this.onItemClick, this.onActionClick});
 
   @override
   Widget build(BuildContext context) {
@@ -460,7 +460,7 @@ class DownloadItem extends StatelessWidget {
     if (task.status == DownloadTaskStatus.undefined) {
       return RawMaterialButton(
         onPressed: () {
-          onAtionClick!(task);
+          onActionClick!(task);
         },
         child: Icon(Icons.file_download),
         shape: CircleBorder(),
@@ -469,7 +469,7 @@ class DownloadItem extends StatelessWidget {
     } else if (task.status == DownloadTaskStatus.running) {
       return RawMaterialButton(
         onPressed: () {
-          onAtionClick!(task);
+          onActionClick!(task);
         },
         child: Icon(
           Icons.pause,
@@ -481,7 +481,7 @@ class DownloadItem extends StatelessWidget {
     } else if (task.status == DownloadTaskStatus.paused) {
       return RawMaterialButton(
         onPressed: () {
-          onAtionClick!(task);
+          onActionClick!(task);
         },
         child: Icon(
           Icons.play_arrow,
@@ -501,7 +501,7 @@ class DownloadItem extends StatelessWidget {
           ),
           RawMaterialButton(
             onPressed: () {
-              onAtionClick!(task);
+              onActionClick!(task);
             },
             child: Icon(
               Icons.delete_forever,
@@ -522,7 +522,7 @@ class DownloadItem extends StatelessWidget {
           Text('Failed', style: TextStyle(color: Colors.red)),
           RawMaterialButton(
             onPressed: () {
-              onAtionClick!(task);
+              onActionClick!(task);
             },
             child: Icon(
               Icons.refresh,
