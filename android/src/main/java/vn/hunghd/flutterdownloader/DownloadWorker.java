@@ -11,19 +11,19 @@ import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
-import android.graphics.BitmapFactory;
 import android.os.Build;
-
-import androidx.annotation.NonNull;
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
-import androidx.core.content.ContextCompat;
-
 import android.os.Environment;
 import android.os.Handler;
 import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.util.Log;
+
+import androidx.annotation.NonNull;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
+import androidx.work.Worker;
+import androidx.work.WorkerParameters;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -44,9 +44,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import androidx.work.Worker;
-import androidx.work.WorkerParameters;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -196,7 +193,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         File partialFile = new File(saveFilePath);
         if (partialFile.exists()) {
             isResume = true;
-            log("exists file for "+ filename + "automatic resuming...");
+            log("exists file for " + filename + "automatic resuming...");
         }
 
         try {
@@ -309,14 +306,11 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
             if ((responseCode == HttpURLConnection.HTTP_OK || (isResume && responseCode == HttpURLConnection.HTTP_PARTIAL)) && !isStopped()) {
                 String contentType = httpConn.getContentType();
                 long contentLength;
-                try
-                {
-                    length = mConnection.getContentLengthLong();
-                }
-                catch (NoSuchMethodError e)
-                {
+                try {
+                    contentLength = httpConn.getContentLengthLong();
+                } catch (NoSuchMethodError e) {
                     // getContentLengthLong has been added in Java 7 and Android SDK 24, fall back to integer on older runtime engines
-                    contentLength = mConnection.getContentLength();
+                    contentLength = httpConn.getContentLength();
                 }
                 log("Content-Type = " + contentType);
                 log("Content-Length = " + contentLength);
