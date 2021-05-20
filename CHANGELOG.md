@@ -1,3 +1,12 @@
+## 1.6.0 - 12-04-2021
+
+* Stable version of nullsafety
+
+## 1.6.0-nullsafety.0 - 28.02.2021
+
+* Fix bugs
+* Migrate to nullsafety
+
 ## 1.5.2 - 25.10.2020
 
 * Android: fix bug notification stuck in processing
