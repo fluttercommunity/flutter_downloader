@@ -88,7 +88,7 @@ import flutter_downloader
 
 private func registerPlugins(registry: FlutterPluginRegistry) { 
     if (!registry.hasPlugin("FlutterDownloaderPlugin")) {
-       FlutterDownloaderPlugin.register(with: registry.registrar(forPlugin: "FlutterDownloaderPlugin"))
+       FlutterDownloaderPlugin.register(with: registry.registrar(forPlugin: "FlutterDownloaderPlugin")!)
     }
 }
 
@@ -183,8 +183,7 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
  <provider
      android:name="androidx.work.impl.WorkManagerInitializer"
      android:authorities="${applicationId}.workmanager-init"
-     android:enabled="false"
-     android:exported="false" />
+     tools:node="remove" />
 
  <provider
      android:name="vn.hunghd.flutterdownloader.FlutterDownloaderInitializer"
@@ -228,7 +227,9 @@ import 'package:flutter_downloader/flutter_downloader.dart';
 
 ````dart
 WidgetsFlutterBinding.ensureInitialized();
-await FlutterDownloader.initialize();
+await FlutterDownloader.initialize(
+  debug: true // optional: set false to disable printing logs to console
+);
 ````
 
 - Note: the plugin must be initialized before using.

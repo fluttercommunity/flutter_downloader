@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/services.dart';
@@ -13,9 +14,14 @@ void callbackDispatcher() {
 
   backgroundChannel.setMethodCallHandler((MethodCall call) async {
     final List<dynamic> args = call.arguments;
+    final handle = CallbackHandle.fromRawHandle(args[0]);
+    final Function? callback =
+        PluginUtilities.getCallbackFromHandle(handle);
 
-    final Function callback = PluginUtilities.getCallbackFromHandle(
-        CallbackHandle.fromRawHandle(args[0]));
+    if (callback == null) {
+      print('Fatal: could not find callback');
+      exit(-1);
+    }
 
     final String id = args[1];
     final int status = args[2];

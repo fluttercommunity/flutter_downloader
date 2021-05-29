@@ -15,6 +15,8 @@
 
 @property (nonatomic) long long lastInsertedRowID;
 
+@property (nonatomic) BOOL debug;
+
 -(instancetype)initWithDatabaseFilePath:(NSString *)dbFilePath;
 
 -(NSArray *)loadDataFromDB:(NSString *)query;
