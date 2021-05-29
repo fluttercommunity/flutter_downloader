@@ -1,3 +1,8 @@
+## 1.6.1 - 29-05-2021
+
+* fix bug on Android: `getContentLength`
+* upgrade Android dependencies (WorkerManager 2.5.0)
+
 ## 1.6.0 - 12-04-2021
 
 * Stable version of nullsafety
