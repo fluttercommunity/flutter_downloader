@@ -1,9 +1,14 @@
 package vn.hunghd.flutterdownloader;
 
 import android.annotation.SuppressLint;
+import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.net.Uri;
+import android.provider.MediaStore;
 
 import androidx.core.app.NotificationManagerCompat;
 
@@ -43,6 +48,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
     private TaskDao taskDao;
     private Context context;
     private long callbackHandle;
+    private int debugMode;
     private final Object initializationLock = new Object();
 
     @SuppressLint("NewApi")
@@ -70,7 +76,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
     public void onMethodCall(MethodCall call, MethodChannel.Result result) {
         if (call.method.equals("initialize")) {
             initialize(call, result);
-        } else if (call.method.equals("registerCallback"))  {
+        } else if (call.method.equals("registerCallback")) {
             registerCallback(call, result);
         } else if (call.method.equals("enqueue")) {
             enqueue(call, result);
@@ -99,14 +105,16 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
 
     @Override
     public void onAttachedToEngine(FlutterPluginBinding binding) {
-        onAttachedToEngine(binding.getApplicationContext(), binding.getFlutterEngine().getDartExecutor());
+        onAttachedToEngine(binding.getApplicationContext(), binding.getBinaryMessenger());
     }
 
     @Override
     public void onDetachedFromEngine(FlutterPluginBinding binding) {
         context = null;
-        flutterChannel.setMethodCallHandler(null);
-        flutterChannel = null;
+        if (flutterChannel != null) {
+            flutterChannel.setMethodCallHandler(null);
+            flutterChannel = null;
+        }
     }
 
     private WorkRequest buildRequest(String url, String savedDir, String filename, String headers, boolean showNotification, boolean openFileFromNotification, boolean isResume, boolean requiresStorageNotLow) {
@@ -126,6 +134,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                         .putBoolean(DownloadWorker.ARG_OPEN_FILE_FROM_NOTIFICATION, openFileFromNotification)
                         .putBoolean(DownloadWorker.ARG_IS_RESUME, isResume)
                         .putLong(DownloadWorker.ARG_CALLBACK_HANDLE, callbackHandle)
+                        .putBoolean(DownloadWorker.ARG_DEBUG, debugMode == 1)
                         .build()
                 )
                 .build();
@@ -143,6 +152,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
     private void initialize(MethodCall call, MethodChannel.Result result) {
         List args = (List) call.arguments;
         long callbackHandle = Long.parseLong(args.get(0).toString());
+        debugMode = Integer.parseInt(args.get(1).toString());
 
         SharedPreferences pref = context.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
         pref.edit().putLong(CALLBACK_DISPATCHER_HANDLE_KEY, callbackHandle).apply();
@@ -245,6 +255,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                     taskDao.updateTask(taskId, newTaskId, DownloadStatus.RUNNING, task.progress, false);
                     WorkManager.getInstance(context).enqueue(request);
                 } else {
+                    taskDao.updateTask(taskId, false);
                     result.error("invalid_data", "not found partial downloaded data, this task cannot be resumed", null);
                 }
             } else {
@@ -319,6 +330,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                 String saveFilePath = task.savedDir + File.separator + filename;
                 File tempFile = new File(saveFilePath);
                 if (tempFile.exists()) {
+                    deleteFileInMediaStore(tempFile);
                     tempFile.delete();
                 }
             }
@@ -330,5 +342,43 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         } else {
             result.error("invalid_task_id", "not found task corresponding to given task id", null);
         }
+    }
+
+    private void deleteFileInMediaStore(File file) {
+        // Set up the projection (we only need the ID)
+        String[] projection = {MediaStore.Images.Media._ID};
+
+        // Match on the file path
+        String imageSelection = MediaStore.Images.Media.DATA + " = ?";
+        String videoSelection = MediaStore.Video.Media.DATA + " = ?";
+        String[] selectionArgs = new String[]{file.getAbsolutePath()};
+
+        // Query for the ID of the media matching the file path
+        Uri imageQueryUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+        Uri videoQueryUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+
+        ContentResolver contentResolver = context.getContentResolver();
+
+        // search the file in image store first
+        Cursor imageCursor = contentResolver.query(imageQueryUri, projection, imageSelection, selectionArgs, null);
+        if (imageCursor != null && imageCursor.moveToFirst()) {
+            // We found the ID. Deleting the item via the content provider will also remove the file
+            long id = imageCursor.getLong(imageCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
+            Uri deleteUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
+            contentResolver.delete(deleteUri, null, null);
+        } else {
+            // File not found in image store DB, try to search in video store
+            Cursor videoCursor = contentResolver.query(imageQueryUri, projection, imageSelection, selectionArgs, null);
+            if (videoCursor != null && videoCursor.moveToFirst()) {
+                // We found the ID. Deleting the item via the content provider will also remove the file
+                long id = videoCursor.getLong(videoCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
+                Uri deleteUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
+                contentResolver.delete(deleteUri, null, null);
+            } else {
+                // can not find the file in media store DB at all
+            }
+            if (videoCursor != null) videoCursor.close();
+        }
+        if (imageCursor != null) imageCursor.close();
     }
 }
