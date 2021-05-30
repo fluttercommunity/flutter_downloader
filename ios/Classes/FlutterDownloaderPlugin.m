@@ -564,7 +564,7 @@ static BOOL debug = YES;
 
 - (void)enqueueMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString *urlString = call.arguments[KEY_URL];
-    NSString *savedDir = call.arguments[KEY_SAVED_DIR]];
+    NSString *savedDir = call.arguments[KEY_SAVED_DIR];
     NSString *shortSavedDir = [self shortenSavedDirPath:savedDir];
     NSString *fileName = call.arguments[KEY_FILE_NAME];
     NSString *headers = call.arguments[KEY_HEADERS];
