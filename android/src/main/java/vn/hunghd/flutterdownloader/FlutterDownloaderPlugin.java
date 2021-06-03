@@ -121,7 +121,8 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         WorkRequest request = new OneTimeWorkRequest.Builder(DownloadWorker.class)
                 .setConstraints(new Constraints.Builder()
                         .setRequiresStorageNotLow(requiresStorageNotLow)
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        // fix https://github.com/fluttercommunity/flutter_downloader/issues/129
+                        //.setRequiredNetworkType(NetworkType.CONNECTED)
                         .build())
                 .addTag(TAG)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.SECONDS)
