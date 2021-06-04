@@ -837,8 +837,14 @@ static BOOL debug = YES;
     if (debug) {
         NSLog(@"applicationWillTerminate:");
     }
-    for (NSString* key in _runningTaskById) {
-        if ([_runningTaskById[key][KEY_STATUS] intValue] < STATUS_COMPLETE) {
+
+    NSMutableDictionary<NSString*, NSMutableDictionary*> *dic = [_runningTaskById mutableCopy];
+    for (NSString* key in dic) {
+        NSMutableDictionary *task = _runningTaskById[key];
+        if (!task) {
+            continue;
+        }
+        if ([task[KEY_STATUS] intValue] < STATUS_COMPLETE) {
             [self updateTask:key status:STATUS_CANCELED progress:-1];
         }
     }
