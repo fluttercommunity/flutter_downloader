@@ -160,8 +160,7 @@ static BOOL debug = YES;
         }
     }
     NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithRequest:request];
-    [task resume];
-
+    
     return task;
 }
 
@@ -576,18 +575,20 @@ static BOOL debug = YES;
 
     NSString *taskId = [self identifierForTask:task];
 
+    
     [_runningTaskById setObject: [NSMutableDictionary dictionaryWithObjectsAndKeys:
-                                  urlString, KEY_URL,
-                                  fileName, KEY_FILE_NAME,
-                                  savedDir, KEY_SAVED_DIR,
-                                  headers, KEY_HEADERS,
-                                  showNotification, KEY_SHOW_NOTIFICATION,
-                                  openFileFromNotification, KEY_OPEN_FILE_FROM_NOTIFICATION,
-                                  @(NO), KEY_RESUMABLE,
-                                  @(STATUS_ENQUEUED), KEY_STATUS,
-                                  @(0), KEY_PROGRESS, nil]
-                         forKey:taskId];
-
+                                          urlString, KEY_URL,
+                                          fileName, KEY_FILE_NAME,
+                                          savedDir, KEY_SAVED_DIR,
+                                          headers, KEY_HEADERS,
+                                          showNotification, KEY_SHOW_NOTIFICATION,
+                                          openFileFromNotification, KEY_OPEN_FILE_FROM_NOTIFICATION,
+                                          @(NO), KEY_RESUMABLE,
+                                          @(STATUS_ENQUEUED), KEY_STATUS,
+                                          @(0), KEY_PROGRESS, nil]
+                                 forKey:taskId];
+    [task resume];
+    
     __typeof__(self) __weak weakSelf = self;
     dispatch_sync(databaseQueue, ^{
         [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:shortSavedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
@@ -647,7 +648,6 @@ static BOOL debug = YES;
             if (resumeData != nil) {
                 NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithResumeData:resumeData];
                 NSString *newTaskId = [self identifierForTask:task];
-                [task resume];
 
                 // update memory-cache, assign a new taskId for paused task
                 NSMutableDictionary *newTask = [NSMutableDictionary dictionaryWithDictionary:taskDict];
@@ -655,6 +655,8 @@ static BOOL debug = YES;
                 newTask[KEY_RESUMABLE] = @(NO);
                 [_runningTaskById setObject:newTask forKey:newTaskId];
                 [_runningTaskById removeObjectForKey:taskId];
+                
+                [task resume];
 
                 result(newTaskId);
 
@@ -701,6 +703,7 @@ static BOOL debug = YES;
             newTaskDict[KEY_RESUMABLE] = @(NO);
             [_runningTaskById setObject:newTaskDict forKey:newTaskId];
             [_runningTaskById removeObjectForKey:taskId];
+            [newTask resume];
 
             __typeof__(self) __weak weakSelf = self;
             dispatch_sync([self databaseQueue], ^{
