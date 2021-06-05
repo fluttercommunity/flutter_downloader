@@ -292,7 +292,7 @@ static BOOL debug = YES;
 
 - (NSURL*)fileUrlFromDict:(NSDictionary*)dict
 {
-    NSString *savedDir = dict[KEY_SAVED_DIR];
+    NSString *savedDir = [self absoluteSavedDirPath:dict[KEY_SAVED_DIR]];
     NSString *filename = dict[KEY_FILE_NAME];
     if (debug) {
         NSLog(@"savedDir: %@", savedDir);
