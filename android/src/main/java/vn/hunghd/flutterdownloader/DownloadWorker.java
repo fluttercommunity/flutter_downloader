@@ -10,8 +10,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.content.res.Resources;
-import android.graphics.BitmapFactory;
 import android.os.Build;
 
 import androidx.annotation.NonNull;
@@ -48,14 +48,12 @@ import java.util.regex.Pattern;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
+import io.flutter.FlutterInjector;
+import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.embedding.engine.dart.DartExecutor;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
-import io.flutter.plugin.common.PluginRegistry;
-import io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback;
 import io.flutter.view.FlutterCallbackInformation;
-import io.flutter.view.FlutterMain;
-import io.flutter.view.FlutterNativeView;
-import io.flutter.view.FlutterRunArguments;
 
 public class DownloadWorker extends Worker implements MethodChannel.MethodCallHandler {
     public static final String ARG_URL = "url";
@@ -75,7 +73,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
     private static final AtomicBoolean isolateStarted = new AtomicBoolean(false);
     private static final ArrayDeque<List> isolateQueue = new ArrayDeque<>();
-    private static FlutterNativeView backgroundFlutterView;
+    private static FlutterEngine flutterEngine;
 
     private final Pattern charsetPattern = Pattern.compile("(?i)\\bcharset=\\s*\"?([^\\s;\"]*)");
     private final Pattern filenameStarPattern = Pattern.compile("(?i)\\bfilename\\*=([^']+)'([^']*)'\"?([^\"]+)\"?");
@@ -106,12 +104,9 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
     private void startBackgroundIsolate(Context context) {
         synchronized (isolateStarted) {
-            if (backgroundFlutterView == null) {
+            if (flutterEngine == null) {
                 SharedPreferences pref = context.getSharedPreferences(FlutterDownloaderPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
                 long callbackHandle = pref.getLong(FlutterDownloaderPlugin.CALLBACK_DISPATCHER_HANDLE_KEY, 0);
-
-                FlutterMain.startInitialization(context); // Starts initialization of the native system, if already initialized this does nothing
-                FlutterMain.ensureInitializationComplete(context, null);
 
                 FlutterCallbackInformation callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
                 if (callbackInfo == null) {
@@ -119,25 +114,14 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     return;
                 }
 
-                backgroundFlutterView = new FlutterNativeView(getApplicationContext(), true);
-
-                /// backward compatibility with V1 embedding
-                if (getApplicationContext() instanceof PluginRegistrantCallback) {
-                    PluginRegistrantCallback pluginRegistrantCallback = (PluginRegistrantCallback) getApplicationContext();
-                    PluginRegistry registry = backgroundFlutterView.getPluginRegistry();
-                    pluginRegistrantCallback.registerWith(registry);
-                }
-
-                FlutterRunArguments args = new FlutterRunArguments();
-                args.bundlePath = FlutterMain.findAppBundlePath();
-                args.entrypoint = callbackInfo.callbackName;
-                args.libraryPath = callbackInfo.callbackLibraryPath;
-
-                backgroundFlutterView.runFromBundle(args);
+                flutterEngine = new FlutterEngine(getApplicationContext());
+                final String appBundlePath = FlutterInjector.instance().flutterLoader().findAppBundlePath();
+                final AssetManager assets = getApplicationContext().getAssets();
+                flutterEngine.getDartExecutor().executeDartCallback(new DartExecutor.DartCallback(assets, appBundlePath, callbackInfo));
             }
         }
 
-        backgroundChannel = new MethodChannel(backgroundFlutterView, "vn.hunghd/downloader_background");
+        backgroundChannel = new MethodChannel(flutterEngine.getDartExecutor(), "vn.hunghd/downloader_background");
         backgroundChannel.setMethodCallHandler(this);
     }
 
