@@ -107,6 +107,10 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
             if (flutterEngine == null) {
                 SharedPreferences pref = context.getSharedPreferences(FlutterDownloaderPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
                 long callbackHandle = pref.getLong(FlutterDownloaderPlugin.CALLBACK_DISPATCHER_HANDLE_KEY, 0);
+                // We need to create an instance of `FlutterEngine` before looking up the
+                // callback. If we don't, the callback cache won't be initialized and the
+                // lookup will fail.
+                flutterEngine = new FlutterEngine(getApplicationContext());
 
                 FlutterCallbackInformation callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
                 if (callbackInfo == null) {
@@ -114,7 +118,6 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     return;
                 }
 
-                flutterEngine = new FlutterEngine(getApplicationContext());
                 final String appBundlePath = FlutterInjector.instance().flutterLoader().findAppBundlePath();
                 final AssetManager assets = getApplicationContext().getAssets();
                 flutterEngine.getDartExecutor().executeDartCallback(new DartExecutor.DartCallback(assets, appBundlePath, callbackInfo));
