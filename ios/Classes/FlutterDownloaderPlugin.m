@@ -294,6 +294,12 @@ static BOOL debug = YES;
 {
     NSString *savedDir = dict[KEY_SAVED_DIR];
     NSString *filename = dict[KEY_FILE_NAME];
+    if (!savedDir) {
+        savedDir = @"errorDir";
+    }
+    if (!filename) {
+        filename = @"errorFileName";
+    }
     if (debug) {
         NSLog(@"savedDir: %@", savedDir);
         NSLog(@"filename: %@", filename);
