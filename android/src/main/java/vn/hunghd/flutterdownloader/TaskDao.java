@@ -26,7 +26,8 @@ public class TaskDao {
             TaskContract.TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION,
             TaskContract.TaskEntry.COLUMN_NAME_NOTIFICATION_TITLE,
             TaskContract.TaskEntry.COLUMN_NAME_TIME_CREATED,
-            TaskContract.TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE
+            TaskContract.TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE,
+            TaskContract.TaskEntry.COLUMN_NAME_ALLOW_CELLULAR
     };
 
     public TaskDao(TaskDbHelper helper) {
@@ -34,7 +35,8 @@ public class TaskDao {
     }
 
     public void insertOrUpdateNewTask(String taskId, String url, int status, int progress, String fileName,
-                                       String savedDir, String headers, boolean showNotification, boolean openFileFromNotification, String notificationTitle, boolean saveInPublicStorage) {
+                                      String savedDir, String headers, boolean showNotification, boolean openFileFromNotification,
+                                     String notificationTitle, boolean saveInPublicStorage, boolean allowCellular) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
 
         ContentValues values = new ContentValues();
@@ -52,6 +54,7 @@ public class TaskDao {
         values.put(TaskContract.TaskEntry.COLUMN_NAME_RESUMABLE, 0);
         values.put(TaskContract.TaskEntry.COLUMN_NAME_TIME_CREATED, System.currentTimeMillis());
         values.put(TaskContract.TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE, saveInPublicStorage ? 1 : 0);
+        values.put(TaskContract.TaskEntry.COLUMN_NAME_ALLOW_CELLULAR, allowCellular ? 1 : 0);
 
         db.beginTransaction();
         try {
@@ -229,8 +232,9 @@ public class TaskDao {
         int clickToOpenDownloadedFile = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION));
         long timeCreated = cursor.getLong(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_TIME_CREATED));
         int saveInPublicStorage = cursor.getShort(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE));
+        int allowCellular = cursor.getInt(cursor.getColumnIndexOrThrow(TaskContract.TaskEntry.COLUMN_NAME_ALLOW_CELLULAR));
         return new DownloadTask(primaryId, taskId, status, progress, url, filename, savedDir, headers,
-                mimeType, resumable == 1, showNotification == 1, clickToOpenDownloadedFile == 1, notificationTitle, timeCreated, saveInPublicStorage == 1);
+                mimeType, resumable == 1, showNotification == 1, clickToOpenDownloadedFile == 1, notificationTitle, timeCreated, saveInPublicStorage == 1, allowCellular == 1);
     }
 
 }

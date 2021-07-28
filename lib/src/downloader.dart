@@ -96,6 +96,7 @@ class FlutterDownloader {
     bool openFileFromNotification = true,
     bool requiresStorageNotLow = true,
     bool saveInPublicStorage = false,
+    bool allowCellular = true,
   }) async {
     assert(_initialized, 'plugin flutter_downloader is not initialized');
     assert(Directory(savedDir).existsSync(), "savedDir does not exist");
@@ -120,6 +121,7 @@ class FlutterDownloader {
         'notification_title': notificationTitle,
         'requires_storage_not_low': requiresStorageNotLow,
         'save_in_public_storage': saveInPublicStorage,
+        'allow_cellular': allowCellular,
       });
       return taskId;
     } on PlatformException catch (e) {
@@ -166,14 +168,14 @@ class FlutterDownloader {
   ///   query: 'SELECT * FROM task WHERE status=3',
   /// );
   /// ```
+
   static Future<List<DownloadTask>?> loadTasksWithRawQuery({
     required String query,
   }) async {
     assert(_initialized, 'plugin flutter_downloader is not initialized');
 
     try {
-      List<dynamic> result = await _channel
-          .invokeMethod('loadTasksWithRawQuery', {'query': query});
+      List<dynamic> result = await _channel.invokeMethod('loadTasksWithRawQuery', {'query': query});
       return result
           .map((item) => DownloadTask(
               taskId: item['task_id'],
@@ -372,7 +374,6 @@ class FlutterDownloader {
       0 <= step && step <= 100,
       'step size is not in the inclusive <0;100> range',
     );
-
     _channel.invokeMethod(
       'registerCallback',
       <dynamic>[callbackHandle!.toRawHandle(), step],

@@ -16,9 +16,10 @@ public class DownloadTask {
     String notificationTitle;
     long timeCreated;
     boolean saveInPublicStorage;
+    boolean allowCellular;
 
     DownloadTask(int primaryId, String taskId, int status, int progress, String url, String filename, String savedDir,
-                 String headers, String mimeType, boolean resumable, boolean showNotification, boolean openFileFromNotification, String notificationTitle, long timeCreated, boolean saveInPublicStorage) {
+                 String headers, String mimeType, boolean resumable, boolean showNotification, boolean openFileFromNotification, String notificationTitle, long timeCreated, boolean saveInPublicStorage, boolean allowCellular) {
         this.primaryId = primaryId;
         this.taskId = taskId;
         this.status = status;
@@ -34,10 +35,11 @@ public class DownloadTask {
         this.notificationTitle = notificationTitle;
         this.timeCreated = timeCreated;
         this.saveInPublicStorage = saveInPublicStorage;
+        this.allowCellular = allowCellular;
     }
 
     @Override
     public String toString() {
-        return "DownloadTask{taskId=" + taskId + ", status=" + status + ", progress=" + progress + ", url=" + url + ", filename=" + filename + ", savedDir=" + savedDir + ", headers=" + headers + ", notificationTitle=" + notificationTitle + ", saveInPublicStorage= " + saveInPublicStorage + "}";
+        return "DownloadTask{taskId=" + taskId + ", status=" + status + ", progress=" + progress + ", url=" + url + ", filename=" + filename + ", savedDir=" + savedDir + ", headers=" + headers + ", notificationTitle=" + notificationTitle + ", saveInPublicStorage= " + saveInPublicStorage + ", allowCellular=" + allowCellular + "}";
     }
 }

@@ -22,6 +22,7 @@ public class TaskContract {
         public static final String COLUMN_NAME_NOTIFICATION_TITLE = "notification_title";
         public static final String COLUMN_NAME_TIME_CREATED = "time_created";
         public static final String COLUMN_SAVE_IN_PUBLIC_STORAGE = "save_in_public_storage";
+        public static final String COLUMN_NAME_ALLOW_CELLULAR = "wifi_only";
     }
 
 }

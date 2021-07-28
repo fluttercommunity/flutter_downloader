@@ -111,11 +111,12 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
 
     private WorkRequest buildRequest(String url, String savedDir, String filename, String headers,
                                      boolean showNotification, boolean openFileFromNotification, String notificationTitle,
-                                     boolean isResume, boolean requiresStorageNotLow, boolean saveInPublicStorage) {
+                                     boolean isResume, boolean requiresStorageNotLow, boolean saveInPublicStorage,
+                                     boolean allowCellular) {
         WorkRequest request = new OneTimeWorkRequest.Builder(DownloadWorker.class)
                 .setConstraints(new Constraints.Builder()
+                        .setRequiredNetworkType(allowCellular ? NetworkType.CONNECTED : NetworkType.UNMETERED)
                         .setRequiresStorageNotLow(requiresStorageNotLow)
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
                         .build())
                 .addTag(TAG)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
@@ -176,14 +177,17 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         String notificationTitle = call.argument("notification_title");
         boolean requiresStorageNotLow = call.argument("requires_storage_not_low");
         boolean saveInPublicStorage = call.argument("save_in_public_storage");
+        boolean allowCellular = call.argument("allow_cellular");
         WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification,
-                openFileFromNotification, notificationTitle, false, requiresStorageNotLow, saveInPublicStorage);
+                openFileFromNotification, notificationTitle, false, requiresStorageNotLow, saveInPublicStorage,
+                allowCellular);
         WorkManager.getInstance(context).enqueue(request);
         String taskId = request.getId().toString();
         result.success(taskId);
         sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0);
         taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename,
-                savedDir, headers, showNotification, openFileFromNotification, notificationTitle, saveInPublicStorage);
+                savedDir, headers, showNotification, openFileFromNotification, notificationTitle, saveInPublicStorage,
+                allowCellular);
     }
 
     private void loadTasks(MethodCall call, MethodChannel.Result result) {
@@ -257,7 +261,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                 if (partialFile.exists()) {
                     WorkRequest request = buildRequest(task.url, task.savedDir, task.filename,
                             task.headers, task.showNotification, task.openFileFromNotification,
-                            task.notificationTitle, true, requiresStorageNotLow, task.saveInPublicStorage);
+                            task.notificationTitle, true, requiresStorageNotLow, task.saveInPublicStorage, task.allowCellular);
                     String newTaskId = request.getId().toString();
                     result.success(newTaskId);
                     sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress);
@@ -283,7 +287,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
             if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
                 WorkRequest request = buildRequest(task.url, task.savedDir, task.filename,
                         task.headers, task.showNotification, task.openFileFromNotification,
-                        task.notificationTitle, false, requiresStorageNotLow, task.saveInPublicStorage);
+                        task.notificationTitle, false, requiresStorageNotLow, task.saveInPublicStorage, task.allowCellular);
                 String newTaskId = request.getId().toString();
                 result.success(newTaskId);
                 sendUpdateProgress(newTaskId, DownloadStatus.ENQUEUED, task.progress);
