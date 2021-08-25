@@ -170,7 +170,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     return _wifiSession;
 }
 
-- (NSURLSessionDownloadTask *)downloadTaskWithURL:(NSURL *)url fileName:(NSString *)fileName andSavedDir:(NSString *)savedDir andHeaders:(NSString *)headers wifiOnly:(bool)wifiOnly {
+- (NSURLSessionDownloadTask *)downloadTaskWithURL:(NSURL *)url fileName:(NSString *)fileName andSavedDir:(NSString *)savedDir andHeaders:(NSString *)headers allowCellular:(bool)allowCellular {
     NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:url];
     if (headers != nil && [headers length] > 0) {
         NSError *jsonError;
@@ -186,10 +186,10 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         }
     }
     NSURLSessionDownloadTask *task;
-    if (wifiOnly) {
-        task = [[self wifiSession] downloadTaskWithRequest:request];
-    } else {
+    if (allowCellular) {
         task = [[self currentSession] downloadTaskWithRequest:request];
+    } else {
+        task = [[self wifiSession] downloadTaskWithRequest:request];
     }
     // store task id in taskDescription
     task.taskDescription = [self createTaskId];
@@ -671,7 +671,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     NSNumber *openFileFromNotification = call.arguments[KEY_OPEN_FILE_FROM_NOTIFICATION];
     bool allowCellular = [call.arguments[KEY_ALLOW_CELLULAR] boolValue];
 
-    NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers wifiOnly:allowCellular];
+    NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers allowCellular:allowCellular];
 
     NSString *taskId = allowCellular ? [self identifierForTask:task ofSession:self.currentSession] : [self identifierForTask:task ofSession:self.wifiSession];
 
@@ -793,7 +793,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             NSString *headers = taskDict[KEY_HEADERS];
             bool allowCellular = (bool) taskDict[KEY_ALLOW_CELLULAR];
 
-            NSURLSessionDownloadTask *newTask = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers wifiOnly: allowCellular];
+            NSURLSessionDownloadTask *newTask = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers allowCellular:allowCellular];
             NSString *newTaskId = [self identifierForTask:newTask ofSession: (allowCellular ? self.currentSession : self.wifiSession)];
 
             // update memory-cache
