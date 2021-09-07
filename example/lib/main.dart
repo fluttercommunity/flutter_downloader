@@ -4,7 +4,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:device_info/device_info.dart';
-import 'package:ext_storage/ext_storage.dart';
+import 'package:android_path_provider/android_path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
@@ -326,7 +326,8 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<bool> _checkPermission() async {
     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
     AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-    if (widget.platform == TargetPlatform.android && androidInfo.version.sdkInt <= 28) {
+    if (widget.platform == TargetPlatform.android &&
+        androidInfo.version.sdkInt <= 28) {
       final status = await Permission.storage.status;
       if (status != PermissionStatus.granted) {
         final result = await Permission.storage.request();
@@ -407,15 +408,17 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<String?> _findLocalPath() async {
-    // final directory = widget.platform == TargetPlatform.android
-    //     ? await getExternalStorageDirectory()
-    //     : await getApplicationDocumentsDirectory();
-    // return directory?.path;
     var externalStorageDirPath;
     if (Platform.isAndroid) {
-      externalStorageDirPath = await ExtStorage.getExternalStoragePublicDirectory(ExtStorage.DIRECTORY_DOWNLOADS);
+      try {
+        externalStorageDirPath = await AndroidPathProvider.downloadsPath;
+      } catch (e) {
+        final directory = await getExternalStorageDirectory();
+        externalStorageDirPath = directory?.path;
+      }
     } else if (Platform.isIOS) {
-      externalStorageDirPath = (await getApplicationDocumentsDirectory()).absolute.path;
+      externalStorageDirPath =
+          (await getApplicationDocumentsDirectory()).absolute.path;
     }
     return externalStorageDirPath;
   }
