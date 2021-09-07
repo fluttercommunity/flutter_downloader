@@ -1,12 +1,12 @@
 import 'dart:isolate';
 import 'dart:ui';
+import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'dart:io';
 
 const debug = true;
 
@@ -36,11 +36,11 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget with WidgetsBindingObserver {
-  final TargetPlatform platform;
+  final TargetPlatform? platform;
 
-  MyHomePage({Key key, this.title, this.platform}) : super(key: key);
+  MyHomePage({Key? key, this.title, this.platform}) : super(key: key);
 
-  final String title;
+  final String? title;
 
   @override
   _MyHomePageState createState() => new _MyHomePageState();
@@ -106,11 +106,11 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   ];
 
-  List<_TaskInfo> _tasks;
-  List<_ItemHolder> _items;
-  bool _isLoading;
-  bool _permissionReady;
-  String _localPath;
+  List<_TaskInfo>? _tasks;
+  late List<_ItemHolder> _items;
+  late bool _isLoading;
+  late bool _permissionReady;
+  late String _localPath;
   ReceivePort _port = ReceivePort();
 
   @override
@@ -145,12 +145,12 @@ class _MyHomePageState extends State<MyHomePage> {
       if (debug) {
         print('UI Isolate Callback: $data');
       }
-      String id = data[0];
-      DownloadTaskStatus status = data[1];
-      int progress = data[2];
+      String? id = data[0];
+      DownloadTaskStatus? status = data[1];
+      int? progress = data[2];
 
-      final task = _tasks?.firstWhere((task) => task.taskId == id);
-      if (task != null) {
+      if (_tasks != null && _tasks!.isNotEmpty) {
+        final task = _tasks!.firstWhere((task) => task.taskId == id);
         setState(() {
           task.status = status;
           task.progress = progress;
@@ -170,7 +170,7 @@ class _MyHomePageState extends State<MyHomePage> {
           'Background Isolate Callback: task ($id) is in status ($status) and process ($progress)');
     }
     final SendPort send =
-        IsolateNameServer.lookupPortByName('downloader_send_port');
+        IsolateNameServer.lookupPortByName('downloader_send_port')!;
     send.send([id, status, progress]);
   }
 
@@ -178,7 +178,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return new Scaffold(
       appBar: new AppBar(
-        title: new Text(widget.title),
+        title: new Text(widget.title!),
       ),
       body: Builder(
           builder: (context) => _isLoading
@@ -186,219 +186,102 @@ class _MyHomePageState extends State<MyHomePage> {
                   child: new CircularProgressIndicator(),
                 )
               : _permissionReady
-                  ? new Container(
-                      child: new ListView(
-                        padding: const EdgeInsets.symmetric(vertical: 16.0),
-                        children: _items
-                            .map((item) => item.task == null
-                                ? new Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16.0, vertical: 8.0),
-                                    child: Text(
-                                      item.name,
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.blue,
-                                          fontSize: 18.0),
-                                    ),
-                                  )
-                                : new Container(
-                                    padding: const EdgeInsets.only(
-                                        left: 16.0, right: 8.0),
-                                    child: InkWell(
-                                      onTap: item.task.status ==
-                                              DownloadTaskStatus.complete
-                                          ? () {
-                                              _openDownloadedFile(item.task)
-                                                  .then((success) {
-                                                if (!success) {
-                                                  Scaffold.of(context)
-                                                      .showSnackBar(SnackBar(
-                                                          content: Text(
-                                                              'Cannot open this file')));
-                                                }
-                                              });
-                                            }
-                                          : null,
-                                      child: new Stack(
-                                        children: <Widget>[
-                                          new Container(
-                                            width: double.infinity,
-                                            height: 64.0,
-                                            child: new Row(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
-                                              children: <Widget>[
-                                                new Expanded(
-                                                  child: new Text(
-                                                    item.name,
-                                                    maxLines: 1,
-                                                    softWrap: true,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                                new Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                          left: 8.0),
-                                                  child: _buildActionForTask(
-                                                      item.task),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          item.task.status ==
-                                                      DownloadTaskStatus
-                                                          .running ||
-                                                  item.task.status ==
-                                                      DownloadTaskStatus.paused
-                                              ? new Positioned(
-                                                  left: 0.0,
-                                                  right: 0.0,
-                                                  bottom: 0.0,
-                                                  child:
-                                                      new LinearProgressIndicator(
-                                                    value: item.task.progress /
-                                                        100,
-                                                  ),
-                                                )
-                                              : new Container()
-                                        ]
-                                            .where((child) => child != null)
-                                            .toList(),
-                                      ),
-                                    ),
-                                  ))
-                            .toList(),
-                      ),
-                    )
-                  : new Container(
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 24.0),
-                              child: Text(
-                                'Please grant accessing storage permission to continue -_-',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                    color: Colors.blueGrey, fontSize: 18.0),
-                              ),
-                            ),
-                            SizedBox(
-                              height: 32.0,
-                            ),
-                            FlatButton(
-                                onPressed: () {
-                                  _checkPermission().then((hasGranted) {
-                                    setState(() {
-                                      _permissionReady = hasGranted;
-                                    });
-                                  });
-                                },
-                                child: Text(
-                                  'Retry',
-                                  style: TextStyle(
-                                      color: Colors.blue,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 20.0),
-                                ))
-                          ],
-                        ),
-                      ),
-                    )),
+                  ? _buildDownloadList()
+                  : _buildNoPermissionWarning()),
     );
   }
 
-  Widget _buildActionForTask(_TaskInfo task) {
-    if (task.status == DownloadTaskStatus.undefined) {
-      return new RawMaterialButton(
-        onPressed: () {
-          _requestDownload(task);
-        },
-        child: new Icon(Icons.file_download),
-        shape: new CircleBorder(),
-        constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
-      );
-    } else if (task.status == DownloadTaskStatus.running) {
-      return new RawMaterialButton(
-        onPressed: () {
-          _pauseDownload(task);
-        },
-        child: new Icon(
-          Icons.pause,
-          color: Colors.red,
+  Widget _buildDownloadList() => Container(
+        child: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          children: _items
+              .map((item) => item.task == null
+                  ? _buildListSection(item.name!)
+                  : DownloadItem(
+                      data: item,
+                      onItemClick: (task) {
+                        _openDownloadedFile(task).then((success) {
+                          if (!success) {
+                            Scaffold.of(context).showSnackBar(SnackBar(
+                                content: Text('Cannot open this file')));
+                          }
+                        });
+                      },
+                      onActionClick: (task) {
+                        if (task.status == DownloadTaskStatus.undefined) {
+                          _requestDownload(task);
+                        } else if (task.status == DownloadTaskStatus.running) {
+                          _pauseDownload(task);
+                        } else if (task.status == DownloadTaskStatus.paused) {
+                          _resumeDownload(task);
+                        } else if (task.status == DownloadTaskStatus.complete) {
+                          _delete(task);
+                        } else if (task.status == DownloadTaskStatus.failed) {
+                          _retryDownload(task);
+                        }
+                      },
+                    ))
+              .toList(),
         ),
-        shape: new CircleBorder(),
-        constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
       );
-    } else if (task.status == DownloadTaskStatus.paused) {
-      return new RawMaterialButton(
-        onPressed: () {
-          _resumeDownload(task);
-        },
-        child: new Icon(
-          Icons.play_arrow,
-          color: Colors.green,
+
+  Widget _buildListSection(String title) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Text(
+          title,
+          style: TextStyle(
+              fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 18.0),
         ),
-        shape: new CircleBorder(),
-        constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
       );
-    } else if (task.status == DownloadTaskStatus.complete) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          new Text(
-            'Ready',
-            style: new TextStyle(color: Colors.green),
+
+  Widget _buildNoPermissionWarning() => Container(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Text(
+                  'Please grant accessing storage permission to continue -_-',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.blueGrey, fontSize: 18.0),
+                ),
+              ),
+              SizedBox(
+                height: 32.0,
+              ),
+              FlatButton(
+                  onPressed: () {
+                    _retryRequestPermission();
+                  },
+                  child: Text(
+                    'Retry',
+                    style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20.0),
+                  ))
+            ],
           ),
-          RawMaterialButton(
-            onPressed: () {
-              _delete(task);
-            },
-            child: Icon(
-              Icons.delete_forever,
-              color: Colors.red,
-            ),
-            shape: new CircleBorder(),
-            constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
-          )
-        ],
+        ),
       );
-    } else if (task.status == DownloadTaskStatus.canceled) {
-      return new Text('Canceled', style: new TextStyle(color: Colors.red));
-    } else if (task.status == DownloadTaskStatus.failed) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          new Text('Failed', style: new TextStyle(color: Colors.red)),
-          RawMaterialButton(
-            onPressed: () {
-              _retryDownload(task);
-            },
-            child: Icon(
-              Icons.refresh,
-              color: Colors.green,
-            ),
-            shape: new CircleBorder(),
-            constraints: new BoxConstraints(minHeight: 32.0, minWidth: 32.0),
-          )
-        ],
-      );
-    } else {
-      return null;
+
+  Future<void> _retryRequestPermission() async {
+    final hasGranted = await _checkPermission();
+
+    if (hasGranted) {
+      await _prepareSaveDir();
     }
+
+    setState(() {
+      _permissionReady = hasGranted;
+    });
   }
 
   void _requestDownload(_TaskInfo task) async {
     task.taskId = await FlutterDownloader.enqueue(
-        url: task.link,
+        url: task.link!,
         headers: {"auth": "test_for_sql_encoding"},
         savedDir: _localPath,
         showNotification: true,
@@ -406,43 +289,44 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _cancelDownload(_TaskInfo task) async {
-    await FlutterDownloader.cancel(taskId: task.taskId);
+    await FlutterDownloader.cancel(taskId: task.taskId!);
   }
 
   void _pauseDownload(_TaskInfo task) async {
-    await FlutterDownloader.pause(taskId: task.taskId);
+    await FlutterDownloader.pause(taskId: task.taskId!);
   }
 
   void _resumeDownload(_TaskInfo task) async {
-    String newTaskId = await FlutterDownloader.resume(taskId: task.taskId);
+    String? newTaskId = await FlutterDownloader.resume(taskId: task.taskId!);
     task.taskId = newTaskId;
   }
 
   void _retryDownload(_TaskInfo task) async {
-    String newTaskId = await FlutterDownloader.retry(taskId: task.taskId);
+    String? newTaskId = await FlutterDownloader.retry(taskId: task.taskId!);
     task.taskId = newTaskId;
   }
 
-  Future<bool> _openDownloadedFile(_TaskInfo task) {
-    return FlutterDownloader.open(taskId: task.taskId);
+  Future<bool> _openDownloadedFile(_TaskInfo? task) {
+    if (task != null) {
+      return FlutterDownloader.open(taskId: task.taskId!);
+    } else {
+      return Future.value(false);
+    }
   }
 
   void _delete(_TaskInfo task) async {
     await FlutterDownloader.remove(
-        taskId: task.taskId, shouldDeleteContent: true);
+        taskId: task.taskId!, shouldDeleteContent: true);
     await _prepare();
     setState(() {});
   }
 
   Future<bool> _checkPermission() async {
     if (widget.platform == TargetPlatform.android) {
-      PermissionStatus permission = await PermissionHandler()
-          .checkPermissionStatus(PermissionGroup.storage);
-      if (permission != PermissionStatus.granted) {
-        Map<PermissionGroup, PermissionStatus> permissions =
-            await PermissionHandler()
-                .requestPermissions([PermissionGroup.storage]);
-        if (permissions[PermissionGroup.storage] == PermissionStatus.granted) {
+      final status = await Permission.storage.status;
+      if (status != PermissionStatus.granted) {
+        final result = await Permission.storage.request();
+        if (result == PermissionStatus.granted) {
           return true;
         }
       } else {
@@ -461,35 +345,35 @@ class _MyHomePageState extends State<MyHomePage> {
     _tasks = [];
     _items = [];
 
-    _tasks.addAll(_documents.map((document) =>
+    _tasks!.addAll(_documents.map((document) =>
         _TaskInfo(name: document['name'], link: document['link'])));
 
     _items.add(_ItemHolder(name: 'Documents'));
-    for (int i = count; i < _tasks.length; i++) {
-      _items.add(_ItemHolder(name: _tasks[i].name, task: _tasks[i]));
+    for (int i = count; i < _tasks!.length; i++) {
+      _items.add(_ItemHolder(name: _tasks![i].name, task: _tasks![i]));
       count++;
     }
 
-    _tasks.addAll(_images
+    _tasks!.addAll(_images
         .map((image) => _TaskInfo(name: image['name'], link: image['link'])));
 
     _items.add(_ItemHolder(name: 'Images'));
-    for (int i = count; i < _tasks.length; i++) {
-      _items.add(_ItemHolder(name: _tasks[i].name, task: _tasks[i]));
+    for (int i = count; i < _tasks!.length; i++) {
+      _items.add(_ItemHolder(name: _tasks![i].name, task: _tasks![i]));
       count++;
     }
 
-    _tasks.addAll(_videos
+    _tasks!.addAll(_videos
         .map((video) => _TaskInfo(name: video['name'], link: video['link'])));
 
     _items.add(_ItemHolder(name: 'Videos'));
-    for (int i = count; i < _tasks.length; i++) {
-      _items.add(_ItemHolder(name: _tasks[i].name, task: _tasks[i]));
+    for (int i = count; i < _tasks!.length; i++) {
+      _items.add(_ItemHolder(name: _tasks![i].name, task: _tasks![i]));
       count++;
     }
 
-    tasks?.forEach((task) {
-      for (_TaskInfo info in _tasks) {
+    tasks!.forEach((task) {
+      for (_TaskInfo info in _tasks!) {
         if (info.link == task.url) {
           info.taskId = task.taskId;
           info.status = task.status;
@@ -500,12 +384,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
     _permissionReady = await _checkPermission();
 
-    _localPath = (await _findLocalPath()) + Platform.pathSeparator + 'Download';
-
-    final savedDir = Directory(_localPath);
-    bool hasExisted = await savedDir.exists();
-    if (!hasExisted) {
-      savedDir.create();
+    if (_permissionReady) {
+      await _prepareSaveDir();
     }
 
     setState(() {
@@ -513,28 +393,181 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<String> _findLocalPath() async {
+  Future<void> _prepareSaveDir() async {
+    _localPath =
+        (await _findLocalPath())! + Platform.pathSeparator + 'Download';
+
+    final savedDir = Directory(_localPath);
+    bool hasExisted = await savedDir.exists();
+    if (!hasExisted) {
+      savedDir.create();
+    }
+  }
+
+  Future<String?> _findLocalPath() async {
     final directory = widget.platform == TargetPlatform.android
         ? await getExternalStorageDirectory()
         : await getApplicationDocumentsDirectory();
-    return directory.path;
+    return directory?.path;
+  }
+}
+
+class DownloadItem extends StatelessWidget {
+  final _ItemHolder? data;
+  final Function(_TaskInfo?)? onItemClick;
+  final Function(_TaskInfo)? onActionClick;
+
+  DownloadItem({this.data, this.onItemClick, this.onActionClick});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(left: 16.0, right: 8.0),
+      child: InkWell(
+        onTap: data!.task!.status == DownloadTaskStatus.complete
+            ? () {
+                onItemClick!(data!.task);
+              }
+            : null,
+        child: Stack(
+          children: <Widget>[
+            Container(
+              width: double.infinity,
+              height: 64.0,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      data!.name!,
+                      maxLines: 1,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: _buildActionForTask(data!.task!),
+                  ),
+                ],
+              ),
+            ),
+            data!.task!.status == DownloadTaskStatus.running ||
+                    data!.task!.status == DownloadTaskStatus.paused
+                ? Positioned(
+                    left: 0.0,
+                    right: 0.0,
+                    bottom: 0.0,
+                    child: LinearProgressIndicator(
+                      value: data!.task!.progress! / 100,
+                    ),
+                  )
+                : Container()
+          ].toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget? _buildActionForTask(_TaskInfo task) {
+    if (task.status == DownloadTaskStatus.undefined) {
+      return RawMaterialButton(
+        onPressed: () {
+          onActionClick!(task);
+        },
+        child: Icon(Icons.file_download),
+        shape: CircleBorder(),
+        constraints: BoxConstraints(minHeight: 32.0, minWidth: 32.0),
+      );
+    } else if (task.status == DownloadTaskStatus.running) {
+      return RawMaterialButton(
+        onPressed: () {
+          onActionClick!(task);
+        },
+        child: Icon(
+          Icons.pause,
+          color: Colors.red,
+        ),
+        shape: CircleBorder(),
+        constraints: BoxConstraints(minHeight: 32.0, minWidth: 32.0),
+      );
+    } else if (task.status == DownloadTaskStatus.paused) {
+      return RawMaterialButton(
+        onPressed: () {
+          onActionClick!(task);
+        },
+        child: Icon(
+          Icons.play_arrow,
+          color: Colors.green,
+        ),
+        shape: CircleBorder(),
+        constraints: BoxConstraints(minHeight: 32.0, minWidth: 32.0),
+      );
+    } else if (task.status == DownloadTaskStatus.complete) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(
+            'Ready',
+            style: TextStyle(color: Colors.green),
+          ),
+          RawMaterialButton(
+            onPressed: () {
+              onActionClick!(task);
+            },
+            child: Icon(
+              Icons.delete_forever,
+              color: Colors.red,
+            ),
+            shape: CircleBorder(),
+            constraints: BoxConstraints(minHeight: 32.0, minWidth: 32.0),
+          )
+        ],
+      );
+    } else if (task.status == DownloadTaskStatus.canceled) {
+      return Text('Canceled', style: TextStyle(color: Colors.red));
+    } else if (task.status == DownloadTaskStatus.failed) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text('Failed', style: TextStyle(color: Colors.red)),
+          RawMaterialButton(
+            onPressed: () {
+              onActionClick!(task);
+            },
+            child: Icon(
+              Icons.refresh,
+              color: Colors.green,
+            ),
+            shape: CircleBorder(),
+            constraints: BoxConstraints(minHeight: 32.0, minWidth: 32.0),
+          )
+        ],
+      );
+    } else if (task.status == DownloadTaskStatus.enqueued) {
+      return Text('Pending', style: TextStyle(color: Colors.orange));
+    } else {
+      return null;
+    }
   }
 }
 
 class _TaskInfo {
-  final String name;
-  final String link;
+  final String? name;
+  final String? link;
 
-  String taskId;
-  int progress = 0;
-  DownloadTaskStatus status = DownloadTaskStatus.undefined;
+  String? taskId;
+  int? progress = 0;
+  DownloadTaskStatus? status = DownloadTaskStatus.undefined;
 
   _TaskInfo({this.name, this.link});
 }
 
 class _ItemHolder {
-  final String name;
-  final _TaskInfo task;
+  final String? name;
+  final _TaskInfo? task;
 
   _ItemHolder({this.name, this.task});
 }

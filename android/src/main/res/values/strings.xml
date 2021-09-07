@@ -6,4 +6,6 @@
     <string name="flutter_downloader_notification_failed">failed</string>
     <string name="flutter_downloader_notification_complete">complete</string>
     <string name="flutter_downloader_notification_paused">paused</string>
+    <string name="flutter_downloader_notification_channel_name">Downloader</string>
+    <string name="flutter_downloader_notification_channel_description">Display download progress</string>
 </resources>

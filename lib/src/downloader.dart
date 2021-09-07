@@ -32,7 +32,7 @@ class FlutterDownloader {
 
     WidgetsFlutterBinding.ensureInitialized();
 
-    final callback = PluginUtilities.getCallbackHandle(callbackDispatcher);
+    final callback = PluginUtilities.getCallbackHandle(callbackDispatcher)!;
     await _channel.invokeMethod(
         'initialize', <dynamic>[callback.toRawHandle(), debug ? 1 : 0]);
     _initialized = true;
@@ -62,11 +62,11 @@ class FlutterDownloader {
   ///
   /// an unique identifier of the new download task
   ///
-  static Future<String> enqueue(
-      {@required String url,
-      @required String savedDir,
-      String fileName,
-      Map<String, String> headers,
+  static Future<String?> enqueue(
+      {required String url,
+      required String savedDir,
+      String? fileName,
+      Map<String, String>? headers,
       bool showNotification = true,
       bool openFileFromNotification = true,
       bool requiresStorageNotLow = true}) async {
@@ -83,7 +83,7 @@ class FlutterDownloader {
       headerBuilder.write('}');
     }
     try {
-      String taskId = await _channel.invokeMethod('enqueue', {
+      String? taskId = await _channel.invokeMethod('enqueue', {
         'url': url,
         'saved_dir': savedDir,
         'file_name': fileName,
@@ -106,7 +106,7 @@ class FlutterDownloader {
   ///
   /// A list of [DownloadTask] objects
   ///
-  static Future<List<DownloadTask>> loadTasks() async {
+  static Future<List<DownloadTask>?> loadTasks() async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     try {
@@ -147,8 +147,8 @@ class FlutterDownloader {
   /// FlutterDownloader.loadTasksWithRawQuery(query: 'SELECT * FROM task WHERE status=3');
   /// ```
   ///
-  static Future<List<DownloadTask>> loadTasksWithRawQuery(
-      {@required String query}) async {
+  static Future<List<DownloadTask>?> loadTasksWithRawQuery(
+      {required String query}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     try {
@@ -177,7 +177,7 @@ class FlutterDownloader {
   ///
   /// * `taskId`: unique identifier of the download task
   ///
-  static Future<Null> cancel({@required String taskId}) async {
+  static Future<Null> cancel({required String taskId}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     try {
@@ -209,7 +209,7 @@ class FlutterDownloader {
   ///
   /// * `taskId`: unique identifier of a running download task
   ///
-  static Future<Null> pause({@required String taskId}) async {
+  static Future<Null> pause({required String taskId}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     try {
@@ -232,8 +232,8 @@ class FlutterDownloader {
   /// An unique identifier of a new download task that is created to continue
   /// the partial download progress
   ///
-  static Future<String> resume({
-    @required String taskId,
+  static Future<String?> resume({
+    required String taskId,
     bool requiresStorageNotLow = true,
   }) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
@@ -261,8 +261,8 @@ class FlutterDownloader {
   /// An unique identifier of a new download task that is created to start the
   /// failed download progress from the beginning
   ///
-  static Future<String> retry({
-    @required String taskId,
+  static Future<String?> retry({
+    required String taskId,
     bool requiresStorageNotLow = true,
   }) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
@@ -290,7 +290,7 @@ class FlutterDownloader {
   /// plugin remove the downloaded file. The default value is `false`.
   ///
   static Future<Null> remove(
-      {@required String taskId, bool shouldDeleteContent = false}) async {
+      {required String taskId, bool shouldDeleteContent = false}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     try {
@@ -323,7 +323,7 @@ class FlutterDownloader {
   /// - The current device has at least an application that can read the file
   /// type of the file
   ///
-  static Future<bool> open({@required String taskId}) async {
+  static Future<bool> open({required String taskId}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     try {
@@ -383,7 +383,7 @@ class FlutterDownloader {
   ///
   /// {@end-tool}
   ///
-  static registerCallback(DownloadCallback callback) {
+  static registerCallback(DownloadCallback? callback) {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     if (callback != null) {
@@ -396,16 +396,15 @@ class FlutterDownloader {
           int process = call.arguments['progress'];
           callback(id, DownloadTaskStatus(status), process);
         }
-        return null;
       });
+
+      final callbackHandle = PluginUtilities.getCallbackHandle(callback)!;
+      assert(callbackHandle != null,
+          'callback must be a top-level or a static function');
+      _channel.invokeMethod(
+          'registerCallback', <dynamic>[callbackHandle.toRawHandle()]);
     } else {
       _channel.setMethodCallHandler(null);
     }
-
-    final callbackHandle = PluginUtilities.getCallbackHandle(callback);
-    assert(callbackHandle != null,
-        'callback must be a top-level or a static function');
-    _channel.invokeMethod(
-        'registerCallback', <dynamic>[callbackHandle.toRawHandle()]);
   }
 }
