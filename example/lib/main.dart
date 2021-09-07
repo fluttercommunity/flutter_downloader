@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'dart:async';
 import 'dart:io';
 
+import 'package:device_info/device_info.dart';
+import 'package:ext_storage/ext_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
@@ -322,7 +324,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<bool> _checkPermission() async {
-    if (widget.platform == TargetPlatform.android) {
+    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+    if (widget.platform == TargetPlatform.android && androidInfo.version.sdkInt <= 28) {
       final status = await Permission.storage.status;
       if (status != PermissionStatus.granted) {
         final result = await Permission.storage.request();
@@ -394,9 +398,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _prepareSaveDir() async {
-    _localPath =
-        (await _findLocalPath())! + Platform.pathSeparator + 'Download';
-
+    _localPath = (await _findLocalPath())!;
     final savedDir = Directory(_localPath);
     bool hasExisted = await savedDir.exists();
     if (!hasExisted) {
@@ -405,10 +407,17 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<String?> _findLocalPath() async {
-    final directory = widget.platform == TargetPlatform.android
-        ? await getExternalStorageDirectory()
-        : await getApplicationDocumentsDirectory();
-    return directory?.path;
+    // final directory = widget.platform == TargetPlatform.android
+    //     ? await getExternalStorageDirectory()
+    //     : await getApplicationDocumentsDirectory();
+    // return directory?.path;
+    var externalStorageDirPath;
+    if (Platform.isAndroid) {
+      externalStorageDirPath = await ExtStorage.getExternalStoragePublicDirectory(ExtStorage.DIRECTORY_DOWNLOADS);
+    } else if (Platform.isIOS) {
+      externalStorageDirPath = (await getApplicationDocumentsDirectory()).absolute.path;
+    }
+    return externalStorageDirPath;
   }
 }
 
