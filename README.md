@@ -273,6 +273,7 @@ void initState() {
 
 @override
 void dispose() {
+  FlutterDownloader.registerCallback(null);
 	IsolateNameServer.removePortNameMapping('downloader_send_port');
 	super.dispose();
 }
@@ -284,6 +285,7 @@ static void downloadCallback(String id, DownloadTaskStatus status, int progress)
 
 ````
 
+- Note: set `callback` as `null` to remove listener. You should clean up callback to prevent from leaking references.
 
 #### Load all tasks:
 

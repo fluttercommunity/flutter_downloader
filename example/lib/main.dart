@@ -129,6 +129,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
+    FlutterDownloader.registerCallback(null);
     _unbindBackgroundIsolate();
     super.dispose();
   }
