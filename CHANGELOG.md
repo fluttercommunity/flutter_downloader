@@ -1,3 +1,12 @@
+## 1.7.0 - 07-09-2021
+
+* support Android 11 (ScopedStorage, PackageVisibility)
+
+## 1.6.1 - 29-05-2021
+
+* fix bug on Android: `getContentLength`
+* upgrade Android dependencies (WorkerManager 2.5.0)
+
 ## 1.6.0 - 12-04-2021
 
 * Stable version of nullsafety
