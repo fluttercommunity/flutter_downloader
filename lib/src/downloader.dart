@@ -57,6 +57,12 @@ class FlutterDownloader {
   /// (only Android). If it is `true`, user can click on the notification to
   /// open and preview the downloaded file, otherwise, nothing happens. The
   /// default value is `true`
+  /// * `saveInPublicStorage`: From Android Q and above, switch this to `true`
+  /// to save file in shared/public storage such as:
+  ///   /storage/emulated/0/Download
+  ///   /storage/emulated/0/Documents
+  ///   /storage/emulated/0/...
+  /// The default value is `false`
   ///
   /// **return:**
   ///
@@ -69,7 +75,8 @@ class FlutterDownloader {
       Map<String, String>? headers,
       bool showNotification = true,
       bool openFileFromNotification = true,
-      bool requiresStorageNotLow = true}) async {
+      bool requiresStorageNotLow = true,
+      bool saveInPublicStorage = false}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
     assert(Directory(savedDir).existsSync());
 
@@ -91,6 +98,7 @@ class FlutterDownloader {
         'show_notification': showNotification,
         'open_file_from_notification': openFileFromNotification,
         'requires_storage_not_low': requiresStorageNotLow,
+        'save_in_public_storage': saveInPublicStorage,
       });
       return taskId;
     } on PlatformException catch (e) {
