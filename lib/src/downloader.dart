@@ -72,7 +72,7 @@ class FlutterDownloader {
       Map<String, String>? headers,
       bool showNotification = true,
       bool openFileFromNotification = true,
-      String notificationTitle,
+      String? notificationTitle,
       bool requiresStorageNotLow = true}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
     assert(Directory(savedDir).existsSync());
