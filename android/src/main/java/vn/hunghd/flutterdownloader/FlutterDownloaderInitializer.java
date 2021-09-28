@@ -17,7 +17,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.work.Configuration;
 import androidx.work.WorkManager;
-import androidx.work.impl.WorkManagerInitializer;
 
 public class FlutterDownloaderInitializer extends ContentProvider {
     private final String TAG = "DownloaderInitializer";
