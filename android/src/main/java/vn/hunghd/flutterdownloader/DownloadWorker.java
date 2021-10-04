@@ -423,8 +423,9 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                         }
                     }
                 }
-                updateNotification(context, filename, status, progress, pendingIntent, true);
                 taskDao.updateTask(getId().toString(), status, progress);
+                updateNotification(context, filename, status, progress, pendingIntent, true);
+               
 
                 log(isStopped() ? "Download canceled" : "File downloaded");
             } else {
