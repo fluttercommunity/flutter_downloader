@@ -72,6 +72,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     public static final String ARG_OPEN_FILE_FROM_NOTIFICATION = "open_file_from_notification";
     public static final String ARG_CALLBACK_HANDLE = "callback_handle";
     public static final String ARG_DEBUG = "debug";
+    public static final String ARG_SAVE_IN_PUBLIC_STORAGE = "save_in_public_storage";
 
     private static final String TAG = DownloadWorker.class.getSimpleName();
     private static final int BUFFER_SIZE = 4096;
@@ -96,6 +97,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     private int primaryId;
     private String msgStarted, msgInProgress, msgCanceled, msgFailed, msgPaused, msgComplete;
     private long lastCallUpdateNotification = 0;
+    private boolean saveInPublicStorage;
 
     public DownloadWorker(@NonNull final Context context,
                           @NonNull WorkerParameters params) {
@@ -187,6 +189,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
         showNotification = getInputData().getBoolean(ARG_SHOW_NOTIFICATION, false);
         clickToOpenDownloadedFile = getInputData().getBoolean(ARG_OPEN_FILE_FROM_NOTIFICATION, false);
+        saveInPublicStorage = getInputData().getBoolean(ARG_SAVE_IN_PUBLIC_STORAGE, false);
 
         DownloadTask task = taskDao.loadTask(getId().toString());
         primaryId = task.primaryId;
@@ -254,7 +257,6 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         HttpURLConnection httpConn = null;
         InputStream inputStream = null;
         OutputStream outputStream = null;
-        String saveFilePath;
         String location;
         long downloadedBytes = 0;
         int responseCode;
@@ -338,7 +340,6 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                         }
                     }
                 }
-                saveFilePath = savedDir + File.separator + filename;
 
                 log("fileName = " + filename);
 
@@ -348,18 +349,18 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 inputStream = httpConn.getInputStream();
 
                 // opens an output stream to save into file
-                Uri uriApi29 = null;
-                File fileApi21 = null;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    uriApi29 = addFileToDownloadsApi29(filename);
+                Uri uriApi29AndAbove = null;
+                File fileApiBelow29 = null;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && saveInPublicStorage) {
+                    uriApi29AndAbove = addFileToDownloadsApi29(filename);
                     if (isResume) {
-                        outputStream = context.getContentResolver().openOutputStream(uriApi29, "wa");
+                        outputStream = context.getContentResolver().openOutputStream(uriApi29AndAbove, "wa");
                     } else {
-                        outputStream = context.getContentResolver().openOutputStream(uriApi29, "w");
+                        outputStream = context.getContentResolver().openOutputStream(uriApi29AndAbove, "w");
                     }
                 } else {
-                    fileApi21 = addFileToDownloadsApi21(filename);
-                    outputStream = new FileOutputStream(fileApi21, isResume);
+                    fileApiBelow29 = addFileApiBelow29(filename, savedDir);
+                    outputStream = new FileOutputStream(fileApiBelow29, isResume);
                 }
 
                 long count = downloadedBytes;
@@ -391,8 +392,8 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 if (status == DownloadStatus.COMPLETE) {
 
                     String fileSavedPath = null;
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        String savedPath = getMediaStoreEntryPathApi29(uriApi29);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && saveInPublicStorage) {
+                        String savedPath = getMediaStoreEntryPathApi29(uriApi29AndAbove);
                         log("File downloaded (" + savedPath + ")");
                         if (savedPath != null) {
                             scanFilePath(savedPath, contentType, uriResponse -> {
@@ -401,12 +402,12 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                         }
                         fileSavedPath = savedPath;
                     } else {
-                        if (fileApi21 != null) {
-                            log("File downloaded (" + fileApi21.getPath() + ")");
-                            scanFilePath(fileApi21.getPath(), contentType, uriResponse -> {
-                                log("MediaStore updated (" + uriResponse + ")");
-                            });
-                            fileSavedPath = fileApi21.getPath();
+                        if (fileApiBelow29 != null) {
+                            log("File downloaded (" + fileApiBelow29.getPath() + ")");
+                            fileSavedPath = fileApiBelow29.getPath();
+                            if (isImageOrVideoFile(contentType) && isExternalStoragePath(fileSavedPath)) {
+                                addImageOrVideoToGallery(filename, fileSavedPath, getContentTypeWithoutCharset(contentType));
+                            }
                         }
                     }
 
@@ -459,11 +460,10 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     }
 
     /**
-     * Create a file inside the Download folder using java.io API
+     * Create a file using java.io API
      */
-    private File addFileToDownloadsApi21(String filename) {
-        File downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-        File newFile = new File(downloadsFolder, filename);
+    private File addFileApiBelow29(String filename, String savedDir) {
+        File newFile = new File(savedDir, filename);
         try {
             boolean rs = newFile.createNewFile();
             if(rs) {
@@ -707,6 +707,58 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
             return null;
 
         return URLDecoder.decode(name, charset != null ? charset : "ISO-8859-1");
+    }
+
+    private String getContentTypeWithoutCharset(String contentType) {
+        if (contentType == null)
+            return null;
+        return contentType.split(";")[0].trim();
+    }
+
+    private boolean isImageOrVideoFile(String contentType) {
+        contentType = getContentTypeWithoutCharset(contentType);
+        return (contentType != null && (contentType.startsWith("image/") || contentType.startsWith("video")));
+    }
+
+    private boolean isExternalStoragePath(String filePath) {
+        File externalStorageDir = Environment.getExternalStorageDirectory();
+        return filePath != null && externalStorageDir != null && filePath.startsWith(externalStorageDir.getPath());
+    }
+
+    private void addImageOrVideoToGallery(String fileName, String filePath, String contentType) {
+        if (contentType != null && filePath != null && fileName != null) {
+            if (contentType.startsWith("image/")) {
+                ContentValues values = new ContentValues();
+
+                values.put(MediaStore.Images.Media.TITLE, fileName);
+                values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
+                values.put(MediaStore.Images.Media.DESCRIPTION, "");
+                values.put(MediaStore.Images.Media.MIME_TYPE, contentType);
+                values.put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis());
+                values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis());
+                values.put(MediaStore.Images.Media.DATA, filePath);
+
+                log("insert " + values + " to MediaStore");
+
+                ContentResolver contentResolver = getApplicationContext().getContentResolver();
+                contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            } else if (contentType.startsWith("video")) {
+                ContentValues values = new ContentValues();
+
+                values.put(MediaStore.Video.Media.TITLE, fileName);
+                values.put(MediaStore.Video.Media.DISPLAY_NAME, fileName);
+                values.put(MediaStore.Video.Media.DESCRIPTION, "");
+                values.put(MediaStore.Video.Media.MIME_TYPE, contentType);
+                values.put(MediaStore.Video.Media.DATE_ADDED, System.currentTimeMillis());
+                values.put(MediaStore.Video.Media.DATE_TAKEN, System.currentTimeMillis());
+                values.put(MediaStore.Video.Media.DATA, filePath);
+
+                log("insert " + values + " to MediaStore");
+
+                ContentResolver contentResolver = getApplicationContext().getContentResolver();
+                contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values);
+            }
+        }
     }
 
     private void log(String message) {
