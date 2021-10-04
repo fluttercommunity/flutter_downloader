@@ -345,14 +345,17 @@ static BOOL debug = YES;
     if (debug) {
         NSLog(@"Absolute savedDir path: %@", absolutePath);
     }
+    
     if (absolutePath) {
         NSString* documentDirPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
         NSRange foundRank = [absolutePath rangeOfString:documentDirPath];
         if (foundRank.length > 0) {
             // we increase the location of range by one because we want to remove the file separator as well.
-            return [absolutePath substringWithRange:NSMakeRange(foundRank.length + 1, absolutePath.length - documentDirPath.length - 1)];
+            NSString *shortenSavedDirPath = [absolutePath substringWithRange:NSMakeRange(foundRank.length + 1, absolutePath.length - documentDirPath.length - 1)];
+            return shortenSavedDirPath != nil ? shortenSavedDirPath : @"";
         }
     }
+   
     return absolutePath;
 }
 
