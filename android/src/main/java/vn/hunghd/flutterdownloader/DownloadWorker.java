@@ -163,6 +163,22 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         }
     }
 
+    @Override
+    public void onStopped() {
+        Context context = getApplicationContext();
+        dbHelper = TaskDbHelper.getInstance(context);
+        taskDao = new TaskDao(dbHelper);
+
+        String url = getInputData().getString(ARG_URL);
+        String filename = getInputData().getString(ARG_FILE_NAME);
+
+        DownloadTask task = taskDao.loadTask(getId().toString());
+        if (task.status == DownloadStatus.ENQUEUED) {
+            updateNotification(context, filename == null ? url : filename, DownloadStatus.CANCELED, -1, null, true);
+            taskDao.updateTask(getId().toString(), DownloadStatus.CANCELED, lastProgress);
+        }
+    }
+
     @NonNull
     @Override
     public Result doWork() {
@@ -185,13 +201,19 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         msgPaused = res.getString(R.string.flutter_downloader_notification_paused);
         msgComplete = res.getString(R.string.flutter_downloader_notification_complete);
 
-        log("DownloadWorker{url=" + url + ",filename=" + filename + ",savedDir=" + savedDir + ",header=" + headers + ",isResume=" + isResume);
+        DownloadTask task = taskDao.loadTask(getId().toString());
+
+        log("DownloadWorker{url=" + url + ",filename=" + filename + ",savedDir=" + savedDir + ",header=" + headers + ",isResume=" + isResume + ",status=" + (task != null ? task.status : "GONE"));
+
+        // Task has been deleted or cancelled
+        if (task == null || task.status == DownloadStatus.CANCELED) {
+            return Result.success();
+        }
 
         showNotification = getInputData().getBoolean(ARG_SHOW_NOTIFICATION, false);
         clickToOpenDownloadedFile = getInputData().getBoolean(ARG_OPEN_FILE_FROM_NOTIFICATION, false);
         saveInPublicStorage = getInputData().getBoolean(ARG_SAVE_IN_PUBLIC_STORAGE, false);
 
-        DownloadTask task = taskDao.loadTask(getId().toString());
         primaryId = task.primaryId;
 
         setupNotification(context);
