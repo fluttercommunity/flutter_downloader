@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.media.MediaScannerConnection;
@@ -53,14 +54,15 @@ import java.util.regex.Pattern;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
+import io.flutter.FlutterInjector;
+import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.embedding.engine.dart.DartExecutor;
+import io.flutter.embedding.engine.loader.FlutterLoader;
+import io.flutter.embedding.engine.plugins.shim.ShimPluginRegistry;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.PluginRegistry;
-import io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback;
 import io.flutter.view.FlutterCallbackInformation;
-import io.flutter.view.FlutterMain;
-import io.flutter.view.FlutterNativeView;
-import io.flutter.view.FlutterRunArguments;
 
 public class DownloadWorker extends Worker implements MethodChannel.MethodCallHandler {
     public static final String ARG_URL = "url";
@@ -81,7 +83,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
     private static final AtomicBoolean isolateStarted = new AtomicBoolean(false);
     private static final ArrayDeque<List> isolateQueue = new ArrayDeque<>();
-    private static FlutterNativeView backgroundFlutterView;
+    private static FlutterEngine backgroundFlutterEngine;
 
     private final Pattern charsetPattern = Pattern.compile("(?i)\\bcharset=\\s*\"?([^\\s;\"]*)");
     private final Pattern filenameStarPattern = Pattern.compile("(?i)\\bfilename\\*=([^']+)'([^']*)'\"?([^\"]+)\"?");
@@ -113,38 +115,35 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
     private void startBackgroundIsolate(Context context) {
         synchronized (isolateStarted) {
-            if (backgroundFlutterView == null) {
+            if (backgroundFlutterEngine == null) {
                 SharedPreferences pref = context.getSharedPreferences(FlutterDownloaderPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
                 long callbackHandle = pref.getLong(FlutterDownloaderPlugin.CALLBACK_DISPATCHER_HANDLE_KEY, 0);
 
-                FlutterMain.startInitialization(context); // Starts initialization of the native system, if already initialized this does nothing
-                FlutterMain.ensureInitializationComplete(context, null);
+                String appBundlePath =  FlutterInjector.instance().flutterLoader().findAppBundlePath();;
+                AssetManager assets = context.getAssets();
 
-                FlutterCallbackInformation callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
-                if (callbackInfo == null) {
-                    Log.e(TAG, "Fatal: failed to find callback");
-                    return;
-                }
+                // We need to create an instance of `FlutterEngine` before looking up the
+                // callback. If we don't, the callback cache won't be initialized and the
+                // lookup will fail.
+                FlutterCallbackInformation flutterCallback =
+                        FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
 
-                backgroundFlutterView = new FlutterNativeView(getApplicationContext(), true);
+                backgroundFlutterEngine = new FlutterEngine(context);
+
+                DartExecutor executor = backgroundFlutterEngine.getDartExecutor();
+                DartExecutor.DartCallback dartCallback = new DartExecutor.DartCallback(assets, appBundlePath, flutterCallback);
+                executor.executeDartCallback(dartCallback);
 
                 /// backward compatibility with V1 embedding
-                if (getApplicationContext() instanceof PluginRegistrantCallback) {
-                    PluginRegistrantCallback pluginRegistrantCallback = (PluginRegistrantCallback) getApplicationContext();
-                    PluginRegistry registry = backgroundFlutterView.getPluginRegistry();
-                    pluginRegistrantCallback.registerWith(registry);
+                if (getApplicationContext() instanceof PluginRegistry.PluginRegistrantCallback) {
+                    PluginRegistry.PluginRegistrantCallback pluginRegistrantCallback = (PluginRegistry.PluginRegistrantCallback) getApplicationContext();
+                    pluginRegistrantCallback.registerWith(new ShimPluginRegistry(backgroundFlutterEngine));
                 }
-
-                FlutterRunArguments args = new FlutterRunArguments();
-                args.bundlePath = FlutterMain.findAppBundlePath();
-                args.entrypoint = callbackInfo.callbackName;
-                args.libraryPath = callbackInfo.callbackLibraryPath;
-
-                backgroundFlutterView.runFromBundle(args);
             }
         }
 
-        backgroundChannel = new MethodChannel(backgroundFlutterView, "vn.hunghd/downloader_background");
+        DartExecutor executor = backgroundFlutterEngine.getDartExecutor();
+        backgroundChannel = new MethodChannel(executor, "vn.hunghd/downloader_background");
         backgroundChannel.setMethodCallHandler(this);
     }
 
