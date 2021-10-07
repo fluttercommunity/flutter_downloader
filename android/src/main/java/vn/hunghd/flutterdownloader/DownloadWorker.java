@@ -372,24 +372,35 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 // opens input stream from the HTTP connection
                 inputStream = httpConn.getInputStream();
 
+
+                String savedFilePath;
                 // opens an output stream to save into file
-                Uri uriApi29AndAbove = null;
-                File fileApiBelow29 = null;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && saveInPublicStorage) {
-                    uriApi29AndAbove = addFileToDownloadsApi29(filename);
-                    if (isResume) {
-                        outputStream = context.getContentResolver().openOutputStream(uriApi29AndAbove, "wa");
-                    } else {
-                        outputStream = context.getContentResolver().openOutputStream(uriApi29AndAbove, "w");
-                    }
+                // there are two case:
+                if (isResume) {
+                    // 1. continue downloading (append data to partial downloaded file)
+                    savedFilePath = savedDir + File.separator + filename;
+                    outputStream = new FileOutputStream(savedFilePath, true);
                 } else {
-                    fileApiBelow29 = addFileApiBelow29(filename, savedDir);
-                    outputStream = new FileOutputStream(fileApiBelow29, isResume);
+                    // 2. new download, create new file
+                    // there are two case according to Android SDK version and save path
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && saveInPublicStorage) {
+                        // in Android 11, file is only downloaded to app-specific directory (internal storage)
+                        // or public shared download directory (external storage).
+                        // The second option will ignore `savedDir` parameter.
+                        Uri uri = createDownloadFileInScopedStorageModel(filename);
+                        savedFilePath = getMediaStoreEntryPathApi29(uri);
+                        outputStream = context.getContentResolver().openOutputStream(uri, "w");
+                    } else {
+                        File file = createDownloadFileWithDirectFilePath(filename, savedDir);
+                        savedFilePath = file.getPath();
+                        outputStream = new FileOutputStream(file, false);
+                    }
                 }
 
                 long count = downloadedBytes;
                 int bytesRead = -1;
                 byte[] buffer = new byte[BUFFER_SIZE];
+                // using isStopped() to monitor canceling task
                 while ((bytesRead = inputStream.read(buffer)) != -1 && !isStopped()) {
                     count += bytesRead;
                     int progress = (int) ((count * 100) / (contentLength + downloadedBytes));
@@ -415,37 +426,22 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 int storage = ContextCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
                 PendingIntent pendingIntent = null;
                 if (status == DownloadStatus.COMPLETE) {
-
-                    String fileSavedPath = null;
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && saveInPublicStorage) {
-                        String savedPath = getMediaStoreEntryPathApi29(uriApi29AndAbove);
-                        log("File downloaded (" + savedPath + ")");
-                        if (savedPath != null) {
-                            scanFilePath(savedPath, contentType, uriResponse -> {
-                                log("MediaStore updated (" + uriResponse + ")");
-                            });
-                        }
-                        fileSavedPath = savedPath;
-                    } else {
-                        if (fileApiBelow29 != null) {
-                            log("File downloaded (" + fileApiBelow29.getPath() + ")");
-                            fileSavedPath = fileApiBelow29.getPath();
-                            if (isImageOrVideoFile(contentType) && isExternalStoragePath(fileSavedPath)) {
-                                addImageOrVideoToGallery(filename, fileSavedPath, getContentTypeWithoutCharset(contentType));
-                            }
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                        if (isImageOrVideoFile(contentType) && isExternalStoragePath(savedFilePath)) {
+                            addImageOrVideoToGallery(filename, savedFilePath, getContentTypeWithoutCharset(contentType));
                         }
                     }
 
                     if (clickToOpenDownloadedFile) {
                         if(android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && storage != PackageManager.PERMISSION_GRANTED)
                             return;
-                        Intent intent = IntentUtils.validatedFileIntent(getApplicationContext(), fileSavedPath, contentType);
+                        Intent intent = IntentUtils.validatedFileIntent(getApplicationContext(), savedFilePath, contentType);
                         if (intent != null) {
-                            log("Setting an intent to open the file " + fileSavedPath);
+                            log("Setting an intent to open the file " + savedFilePath);
                             int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE : PendingIntent.FLAG_CANCEL_CURRENT;
                             pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, flags);
                         } else {
-                            log("There's no application that can open the file " + fileSavedPath);
+                            log("There's no application that can open the file " + savedFilePath);
                         }
                     }
                 }
@@ -466,6 +462,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
             e.printStackTrace();
         } finally {
             if (outputStream != null) {
+                outputStream.flush();
                 try {
                     outputStream.close();
                 } catch (IOException e) {
@@ -488,16 +485,18 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     /**
      * Create a file using java.io API
      */
-    private File addFileApiBelow29(String filename, String savedDir) {
+    private File createDownloadFileWithDirectFilePath(String filename, String savedDir) {
         File newFile = new File(savedDir, filename);
         try {
             boolean rs = newFile.createNewFile();
             if(rs) {
                 return newFile;
+            } else {
+                logError("It looks like you are trying to save file in public storage but not setting 'saveInPublicStorage' to 'true'");
             }
         } catch (IOException e) {
             e.printStackTrace();
-            log("Create a file using java.io API failed ");
+            logError("Create a file using java.io API failed ");
         }
         return null;
     }
@@ -506,7 +505,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
      * Create a file inside the Download folder using MediaStore API
      */
     @RequiresApi(Build.VERSION_CODES.Q)
-    private Uri addFileToDownloadsApi29(String filename) {
+    private Uri createDownloadFileInScopedStorageModel(String filename) {
         Uri collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
         try {
             ContentValues values = new ContentValues();
@@ -515,7 +514,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
             return contentResolver.insert(collection, values);
         } catch (Exception e) {
             e.printStackTrace();
-            log("Create a file using MediaStore API failed ");
+            logError("Create a file using MediaStore API failed ");
         }
         return null;
     }
@@ -538,7 +537,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
             return cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA));
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
-            log("Get a path for a MediaStore failed");
+            logError("Get a path for a MediaStore failed");
             return null;
         }
     }
@@ -790,6 +789,12 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     private void log(String message) {
         if (debug) {
             Log.d(TAG, message);
+        }
+    }
+
+    private void logError(String message) {
+        if (debug) {
+            Log.e(TAG, message);
         }
     }
 
