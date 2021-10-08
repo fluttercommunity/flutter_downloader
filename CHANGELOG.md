@@ -1,3 +1,9 @@
+
+## 1.7.1 - 08-10-2021
+
+* fix bug resume download on Android
+* upgrade Android dependencies (WorkerManager 2.7.0-rc01)
+
 ## 1.7.0 - 07-09-2021
 
 * support Android 11 (ScopedStorage, PackageVisibility)
