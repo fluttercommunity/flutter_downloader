@@ -8,7 +8,9 @@ A plugin for creating and managing download tasks. Supports iOS and Android.
 
 This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownloadTask`][2] in iOS to run download task in background mode.
 
+### *Development note*:
 
+*The changes of external storage APIs in Android 11 cause some problems with the current implementation. I decide to re-design this plugin with new strategy to manage download file location. It is still in triage and discussion in this [PR](https://github.com/fluttercommunity/flutter_downloader/pull/550). It is very appreciated to have contribution and feedback from Flutter developer to get better design for the plugin.*
 
 ## iOS integration
 
