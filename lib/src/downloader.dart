@@ -58,10 +58,10 @@ class FlutterDownloader {
   /// open and preview the downloaded file, otherwise, nothing happens. The
   /// default value is `true`
   /// * `saveInPublicStorage`: From Android Q and above, switch this to `true`
-  /// to save file in shared/public storage such as:
-  ///   /storage/emulated/0/Download
-  ///   /storage/emulated/0/Documents
-  ///   /storage/emulated/0/...
+  /// to save file in Downloads folder (Android Q changes the APIs to access
+  /// external storage, app can no longer create dedicated or app-specific directory
+  /// with external storage, in this case plugin will ignore `savedDir` value
+  /// and using only `filename` value to save downloaded file in Downloads folder)
   /// The default value is `false`
   ///
   /// **return:**

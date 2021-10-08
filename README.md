@@ -180,20 +180,30 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
 * **Configure maximum number of concurrent tasks:** the plugin depends on `WorkManager` library and `WorkManager` depends on the number of available processor to configure the maximum number of tasks running at a moment. You can setup a fixed number for this configuration by adding following codes to your `AndroidManifest.xml`:
 
 ````xml
- <provider
-     android:name="androidx.work.impl.WorkManagerInitializer"
-     android:authorities="${applicationId}.workmanager-init"
-     tools:node="remove" />
+<!-- Begin FlutterDownloader customization -->
+<!-- disable default Initializer -->
+<provider
+    android:name="androidx.startup.InitializationProvider"
+    android:authorities="${applicationId}.androidx-startup"
+    android:exported="false"
+    tools:node="merge">
+    <meta-data
+        android:name="androidx.work.WorkManagerInitializer"
+        android:value="androidx.startup"
+        tools:node="remove" />
+</provider>
 
- <provider
-     android:name="vn.hunghd.flutterdownloader.FlutterDownloaderInitializer"
-     android:authorities="${applicationId}.flutter-downloader-init"
-     android:exported="false">
-     <!-- changes this number to configure the maximum number of concurrent tasks -->
-     <meta-data
-         android:name="vn.hunghd.flutterdownloader.MAX_CONCURRENT_TASKS"
-         android:value="5" />
- </provider>
+<!-- declare customized Initializer -->
+<provider
+    android:name="vn.hunghd.flutterdownloader.FlutterDownloaderInitializer"
+    android:authorities="${applicationId}.flutter-downloader-init"
+    android:exported="false">
+    <!-- changes this number to configure the maximum number of concurrent tasks -->
+    <meta-data
+        android:name="vn.hunghd.flutterdownloader.MAX_CONCURRENT_TASKS"
+        android:value="5" />
+</provider>
+<!-- End FlutterDownloader customization -->
  ````
 
 * **Localize notification messages:** you can localize notification messages of download progress by localizing following messages. (you can find the detail of string localization in Android in this [link][4])
