@@ -57,7 +57,7 @@ class FlutterDownloader {
   /// (only Android). If it is `true`, user can click on the notification to
   /// open and preview the downloaded file, otherwise, nothing happens. The
   /// default value is `true`
-  /// * `saveInPublicStorage`: From Android Q and above, switch this to `true`
+  /// * `saveInPublicStorage`: From Android Q onwards, switch this to `true`
   /// to save file in Downloads folder (Android Q changes the APIs to access
   /// external storage, app can no longer create dedicated or app-specific directory
   /// with external storage, in this case plugin will ignore `savedDir` value

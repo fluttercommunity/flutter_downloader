@@ -57,7 +57,6 @@ import androidx.work.WorkerParameters;
 import io.flutter.FlutterInjector;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.dart.DartExecutor;
-import io.flutter.embedding.engine.loader.FlutterLoader;
 import io.flutter.embedding.engine.plugins.shim.ShimPluginRegistry;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -268,6 +267,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         conn.setRequestProperty("Accept-Encoding", "identity");
         conn.setRequestProperty("Range", "bytes=" + downloadedBytes + "-");
         conn.setDoInput(true);
+
         return downloadedBytes;
     }
 
@@ -335,9 +335,9 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
             }
 
             httpConn.connect();
-
+            String contentType;
             if ((responseCode == HttpURLConnection.HTTP_OK || (isResume && responseCode == HttpURLConnection.HTTP_PARTIAL)) && !isStopped()) {
-                String contentType = httpConn.getContentType();
+                contentType = httpConn.getContentType();
                 long contentLength = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N ? httpConn.getContentLengthLong() : httpConn.getContentLength();
                 log("Content-Type = " + contentType);
                 log("Content-Length = " + contentLength);
@@ -382,15 +382,15 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 } else {
                     // 2. new download, create new file
                     // there are two case according to Android SDK version and save path
+                    // From Android 11 onwards, file is only downloaded to app-specific directory (internal storage)
+                    // or public shared download directory (external storage).
+                    // The second option will ignore `savedDir` parameter.
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && saveInPublicStorage) {
-                        // in Android 11, file is only downloaded to app-specific directory (internal storage)
-                        // or public shared download directory (external storage).
-                        // The second option will ignore `savedDir` parameter.
-                        Uri uri = createDownloadFileInScopedStorageModel(filename);
+                        Uri uri = createFileInPublicDownloadsDir(filename, contentType);
                         savedFilePath = getMediaStoreEntryPathApi29(uri);
                         outputStream = context.getContentResolver().openOutputStream(uri, "w");
                     } else {
-                        File file = createDownloadFileWithDirectFilePath(filename, savedDir);
+                        File file = createFileInAppSpecificDir(filename, savedDir);
                         savedFilePath = file.getPath();
                         outputStream = new FileOutputStream(file, false);
                     }
@@ -484,7 +484,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     /**
      * Create a file using java.io API
      */
-    private File createDownloadFileWithDirectFilePath(String filename, String savedDir) {
+    private File createFileInAppSpecificDir(String filename, String savedDir) {
         File newFile = new File(savedDir, filename);
         try {
             boolean rs = newFile.createNewFile();
@@ -504,16 +504,18 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
      * Create a file inside the Download folder using MediaStore API
      */
     @RequiresApi(Build.VERSION_CODES.Q)
-    private Uri createDownloadFileInScopedStorageModel(String filename) {
-        Uri collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+    private Uri createFileInPublicDownloadsDir(String filename, String mimeType) {
+        Uri collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Downloads.DISPLAY_NAME, filename);
+        values.put(MediaStore.Downloads.MIME_TYPE, mimeType);
+        values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+        ContentResolver contentResolver = getApplicationContext().getContentResolver();
         try {
-            ContentValues values = new ContentValues();
-            values.put(MediaStore.Downloads.DISPLAY_NAME, filename);
-            ContentResolver contentResolver = getApplicationContext().getContentResolver();
             return contentResolver.insert(collection, values);
         } catch (Exception e) {
             e.printStackTrace();
-            logError("Create a file using MediaStore API failed ");
+            logError("Create a file using MediaStore API failed.");
         }
         return null;
     }
@@ -543,10 +545,10 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
     void scanFilePath(String path, String mimeType, CallbackUri callback) {
         MediaScannerConnection.scanFile(
-            getApplicationContext(),
-            new String[]{path},
-            new String[]{mimeType},
-            (path1, uri) -> callback.invoke(uri));
+                getApplicationContext(),
+                new String[]{path},
+                new String[]{mimeType},
+                (path1, uri) -> callback.invoke(uri));
     }
 
     private void cleanUp() {
