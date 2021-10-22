@@ -578,8 +578,10 @@ static BOOL debug = YES;
     NSString *headers = call.arguments[KEY_HEADERS];
     NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
     NSNumber *openFileFromNotification = call.arguments[KEY_OPEN_FILE_FROM_NOTIFICATION];
-    NSString *httpMethod = call.arguments[KEY_HTTP_METHOD];
-    NSString *httpBody = call.arguments[KEY_HTTP_BODY];
+    NSObject *httpMethodArg = call.arguments[KEY_HTTP_METHOD];
+    NSObject *httpBodyArg = call.arguments[KEY_HTTP_BODY];
+    NSString *httpMethod = [httpMethodArg isKindOfClass:[NSString class]] ? (NSString*)httpMethodArg : nil;
+    NSString *httpBody = [httpBodyArg isKindOfClass:[NSString class]] ? (NSString*)httpBodyArg : nil;
 
     NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers andHttpMethod:httpMethod andHttpBody:httpBody];
 
