@@ -38,9 +38,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+//import java.net.HttpURLConnection;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -53,6 +56,13 @@ import java.util.regex.Pattern;
 
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import io.flutter.FlutterInjector;
 import io.flutter.embedding.engine.FlutterEngine;
@@ -74,6 +84,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     public static final String ARG_CALLBACK_HANDLE = "callback_handle";
     public static final String ARG_DEBUG = "debug";
     public static final String ARG_SAVE_IN_PUBLIC_STORAGE = "save_in_public_storage";
+    public static final String ARG_IGNORESSL = "ignoreSsl";
 
     private static final String TAG = DownloadWorker.class.getSimpleName();
     private static final int BUFFER_SIZE = 4096;
@@ -94,6 +105,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     private boolean showNotification;
     private boolean clickToOpenDownloadedFile;
     private boolean debug;
+    private boolean ignoreSsl;
     private int lastProgress = 0;
     private int primaryId;
     private String msgStarted, msgInProgress, msgCanceled, msgFailed, msgPaused, msgComplete;
@@ -190,6 +202,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         String headers = getInputData().getString(ARG_HEADERS);
         boolean isResume = getInputData().getBoolean(ARG_IS_RESUME, false);
         debug = getInputData().getBoolean(ARG_DEBUG, false);
+        ignoreSsl = getInputData().getBoolean(ARG_IGNORESSL, false);
 
         Resources res = getApplicationContext().getResources();
         msgStarted = res.getString(R.string.flutter_downloader_notification_started);
@@ -299,9 +312,21 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     throw new IOException("Stuck in redirect loop");
 
                 resourceUrl = new URL(url);
-                log("Open connection to " + url);
-                httpConn = (HttpURLConnection) resourceUrl.openConnection();
 
+                if(ignoreSsl) {
+                    trustAllHosts();
+                    HttpsURLConnection https = (HttpsURLConnection)resourceUrl.openConnection();
+                    if (resourceUrl.getProtocol().toLowerCase().equals("https")) {
+                        https.setHostnameVerifier(DO_NOT_VERIFY);
+                        httpConn = https;
+                    } else {
+                        httpConn = (HttpURLConnection)resourceUrl.openConnection();
+                    }
+                } else {
+                    httpConn = (HttpsURLConnection) resourceUrl.openConnection();
+                }
+
+                log("Open connection to " + url);
                 httpConn.setConnectTimeout(15000);
                 httpConn.setReadTimeout(15000);
                 httpConn.setInstanceFollowRedirects(false);   // Make the logic below easier to detect redirections
@@ -801,5 +826,43 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
     public interface CallbackUri {
         void invoke(Uri uri);
+    }
+
+    final static HostnameVerifier DO_NOT_VERIFY = new HostnameVerifier() {
+
+        public boolean verify(String hostname, SSLSession session) {
+            return true;
+        }
+    };
+
+    /**
+     * Trust every server - dont check for any certificate
+     */
+    private static void trustAllHosts() {
+        final String TAG = "trustAllHosts";
+        // Create a trust manager that does not validate certificate chains
+        TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
+
+            public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                return new java.security.cert.X509Certificate[] {};
+            }
+
+            public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+                Log.i(TAG, "checkClientTrusted");
+            }
+
+            public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+                Log.i(TAG, "checkServerTrusted");
+            }
+        } };
+
+        // Install the all-trusting trust manager
+        try {
+            SSLContext sc = SSLContext.getInstance("TLS");
+            sc.init(null, trustAllCerts, new java.security.SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
