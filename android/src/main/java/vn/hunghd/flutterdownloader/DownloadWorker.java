@@ -126,6 +126,10 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 // lookup will fail.
                 FlutterCallbackInformation flutterCallback =
                         FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
+                if (flutterCallback == null) {
+                    log("Fatal: failed to find callback");
+                    return;
+                }
 
                 backgroundFlutterEngine = new FlutterEngine(context);
 
