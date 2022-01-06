@@ -118,7 +118,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 SharedPreferences pref = context.getSharedPreferences(FlutterDownloaderPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
                 long callbackHandle = pref.getLong(FlutterDownloaderPlugin.CALLBACK_DISPATCHER_HANDLE_KEY, 0);
 
-                String appBundlePath =  FlutterInjector.instance().flutterLoader().findAppBundlePath();;
+                String appBundlePath = FlutterInjector.instance().flutterLoader().findAppBundlePath();
                 AssetManager assets = context.getAssets();
 
                 // We need to create an instance of `FlutterEngine` before looking up the
