@@ -432,7 +432,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     }
 
                     if (clickToOpenDownloadedFile) {
-                        if(android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && storage != PackageManager.PERMISSION_GRANTED)
+                        if (android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && storage != PackageManager.PERMISSION_GRANTED)
                             return;
                         Intent intent = IntentUtils.validatedFileIntent(getApplicationContext(), savedFilePath, contentType);
                         if (intent != null) {
@@ -488,7 +488,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         File newFile = new File(savedDir, filename);
         try {
             boolean rs = newFile.createNewFile();
-            if(rs) {
+            if (rs) {
                 return newFile;
             } else {
                 logError("It looks like you are trying to save file in public storage but not setting 'saveInPublicStorage' to 'true'");
