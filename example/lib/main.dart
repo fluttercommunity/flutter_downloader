@@ -190,6 +190,7 @@ class _MyHomePageState extends State<MyHomePage> {
               : _permissionReady
                   ? _buildDownloadList()
                   : _buildNoPermissionWarning()),
+                  // What's happening here??????
     );
   }
 
