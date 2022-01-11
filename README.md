@@ -8,7 +8,9 @@ A plugin for creating and managing download tasks. Supports iOS and Android.
 
 This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownloadTask`][2] in iOS to run download task in background mode.
 
+### *Development note*:
 
+*The changes of external storage APIs in Android 11 cause some problems with the current implementation. I decide to re-design this plugin with new strategy to manage download file location. It is still in triage and discussion in this [PR](https://github.com/fluttercommunity/flutter_downloader/pull/550). It is very appreciated to have contribution and feedback from Flutter developer to get better design for the plugin.*
 
 ## iOS integration
 
@@ -180,20 +182,30 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
 * **Configure maximum number of concurrent tasks:** the plugin depends on `WorkManager` library and `WorkManager` depends on the number of available processor to configure the maximum number of tasks running at a moment. You can setup a fixed number for this configuration by adding following codes to your `AndroidManifest.xml`:
 
 ````xml
- <provider
-     android:name="androidx.work.impl.WorkManagerInitializer"
-     android:authorities="${applicationId}.workmanager-init"
-     tools:node="remove" />
+<!-- Begin FlutterDownloader customization -->
+<!-- disable default Initializer -->
+<provider
+    android:name="androidx.startup.InitializationProvider"
+    android:authorities="${applicationId}.androidx-startup"
+    android:exported="false"
+    tools:node="merge">
+    <meta-data
+        android:name="androidx.work.WorkManagerInitializer"
+        android:value="androidx.startup"
+        tools:node="remove" />
+</provider>
 
- <provider
-     android:name="vn.hunghd.flutterdownloader.FlutterDownloaderInitializer"
-     android:authorities="${applicationId}.flutter-downloader-init"
-     android:exported="false">
-     <!-- changes this number to configure the maximum number of concurrent tasks -->
-     <meta-data
-         android:name="vn.hunghd.flutterdownloader.MAX_CONCURRENT_TASKS"
-         android:value="5" />
- </provider>
+<!-- declare customized Initializer -->
+<provider
+    android:name="vn.hunghd.flutterdownloader.FlutterDownloaderInitializer"
+    android:authorities="${applicationId}.flutter-downloader-init"
+    android:exported="false">
+    <!-- changes this number to configure the maximum number of concurrent tasks -->
+    <meta-data
+        android:name="vn.hunghd.flutterdownloader.MAX_CONCURRENT_TASKS"
+        android:value="5" />
+</provider>
+<!-- End FlutterDownloader customization -->
  ````
 
 * **Localize notification messages:** you can localize notification messages of download progress by localizing following messages. (you can find the detail of string localization in Android in this [link][4])
