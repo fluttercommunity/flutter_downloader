@@ -118,7 +118,8 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 SharedPreferences pref = context.getSharedPreferences(FlutterDownloaderPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
                 long callbackHandle = pref.getLong(FlutterDownloaderPlugin.CALLBACK_DISPATCHER_HANDLE_KEY, 0);
 
-                String appBundlePath =  FlutterInjector.instance().flutterLoader().findAppBundlePath();;
+                String appBundlePath = FlutterInjector.instance().flutterLoader().findAppBundlePath();
+                ;
                 AssetManager assets = context.getAssets();
 
                 // We need to create an instance of `FlutterEngine` before looking up the
@@ -131,7 +132,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     return;
                 }
 
-                backgroundFlutterEngine = new FlutterEngine(context);
+                backgroundFlutterEngine = new FlutterEngine(context, null, false);
 
                 DartExecutor executor = backgroundFlutterEngine.getDartExecutor();
                 DartExecutor.DartCallback dartCallback = new DartExecutor.DartCallback(assets, appBundlePath, flutterCallback);
@@ -228,7 +229,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         File partialFile = new File(saveFilePath);
         if (partialFile.exists()) {
             isResume = true;
-            log("exists file for "+ filename + "automatic resuming...");
+            log("exists file for " + filename + "automatic resuming...");
         }
 
         try {
@@ -436,7 +437,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     }
 
                     if (clickToOpenDownloadedFile) {
-                        if(android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && storage != PackageManager.PERMISSION_GRANTED)
+                        if (android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && storage != PackageManager.PERMISSION_GRANTED)
                             return;
                         Intent intent = IntentUtils.validatedFileIntent(getApplicationContext(), savedFilePath, contentType);
                         if (intent != null) {
@@ -492,7 +493,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         File newFile = new File(savedDir, filename);
         try {
             boolean rs = newFile.createNewFile();
-            if(rs) {
+            if (rs) {
                 return newFile;
             } else {
                 logError("It looks like you are trying to save file in public storage but not setting 'saveInPublicStorage' to 'true'");
