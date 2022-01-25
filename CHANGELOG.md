@@ -1,3 +1,18 @@
+
+## 1.7.2 - 24-01-2022
+
+* fix bug on Android
+* upgrade Android dependencies (WorkerManager 2.7.1)
+
+## 1.7.1 - 08-10-2021
+
+* fix bug resume download on Android
+* upgrade Android dependencies (WorkerManager 2.7.0-rc01)
+
+## 1.7.0 - 07-09-2021
+
+* support Android 11 (ScopedStorage, PackageVisibility)
+
 ## 1.6.1 - 29-05-2021
 
 * fix bug on Android: `getContentLength`
