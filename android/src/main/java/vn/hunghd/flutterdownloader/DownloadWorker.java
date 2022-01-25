@@ -132,9 +132,9 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 final AssetManager assets = getApplicationContext().getAssets();
                 backgroundFlutterEngine.getDartExecutor().executeDartCallback(new DartExecutor.DartCallback(assets, appBundlePath, flutterCallback));
             }
-            backgroundChannel = new MethodChannel(backgroundFlutterEngine.getDartExecutor(), "vn.hunghd/downloader_background");
-            backgroundChannel.setMethodCallHandler(this);
         }
+        backgroundChannel = new MethodChannel(backgroundFlutterEngine.getDartExecutor(), "vn.hunghd/downloader_background");
+        backgroundChannel.setMethodCallHandler(this);
     }
 
     @Override
