@@ -131,7 +131,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     return;
                 }
 
-                backgroundFlutterEngine = new FlutterEngine(context);
+                backgroundFlutterEngine = new FlutterEngine(context, null, false);
 
                 DartExecutor executor = backgroundFlutterEngine.getDartExecutor();
                 DartExecutor.DartCallback dartCallback = new DartExecutor.DartCallback(assets, appBundlePath, flutterCallback);
