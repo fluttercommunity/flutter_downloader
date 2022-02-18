@@ -116,7 +116,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 SharedPreferences pref = context.getSharedPreferences(FlutterDownloaderPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
                 long callbackHandle = pref.getLong(FlutterDownloaderPlugin.CALLBACK_DISPATCHER_HANDLE_KEY, 0);
 
-                backgroundFlutterEngine = new FlutterEngine(getApplicationContext());
+                backgroundFlutterEngine = new FlutterEngine(getApplicationContext(), null, false);
 
                 // We need to create an instance of `FlutterEngine` before looking up the
                 // callback. If we don't, the callback cache won't be initialized and the
