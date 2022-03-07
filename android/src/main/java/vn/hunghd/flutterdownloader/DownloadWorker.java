@@ -58,10 +58,8 @@ import androidx.work.WorkerParameters;
 import io.flutter.FlutterInjector;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.dart.DartExecutor;
-import io.flutter.embedding.engine.plugins.shim.ShimPluginRegistry;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
-import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.view.FlutterCallbackInformation;
 
 public class DownloadWorker extends Worker implements MethodChannel.MethodCallHandler {
@@ -119,31 +117,24 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 SharedPreferences pref = context.getSharedPreferences(FlutterDownloaderPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
                 long callbackHandle = pref.getLong(FlutterDownloaderPlugin.CALLBACK_DISPATCHER_HANDLE_KEY, 0);
 
-                String appBundlePath =  FlutterInjector.instance().flutterLoader().findAppBundlePath();;
-                AssetManager assets = context.getAssets();
+                backgroundFlutterEngine = new FlutterEngine(getApplicationContext(), null, false);
 
                 // We need to create an instance of `FlutterEngine` before looking up the
                 // callback. If we don't, the callback cache won't be initialized and the
                 // lookup will fail.
                 FlutterCallbackInformation flutterCallback =
                         FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
-
-                backgroundFlutterEngine = new FlutterEngine(context);
-
-                DartExecutor executor = backgroundFlutterEngine.getDartExecutor();
-                DartExecutor.DartCallback dartCallback = new DartExecutor.DartCallback(assets, appBundlePath, flutterCallback);
-                executor.executeDartCallback(dartCallback);
-
-                /// backward compatibility with V1 embedding
-                if (getApplicationContext() instanceof PluginRegistry.PluginRegistrantCallback) {
-                    PluginRegistry.PluginRegistrantCallback pluginRegistrantCallback = (PluginRegistry.PluginRegistrantCallback) getApplicationContext();
-                    pluginRegistrantCallback.registerWith(new ShimPluginRegistry(backgroundFlutterEngine));
+                if (flutterCallback == null) {
+                    log("Fatal: failed to find callback");
+                    return;
                 }
+
+                final String appBundlePath = FlutterInjector.instance().flutterLoader().findAppBundlePath();
+                final AssetManager assets = getApplicationContext().getAssets();
+                backgroundFlutterEngine.getDartExecutor().executeDartCallback(new DartExecutor.DartCallback(assets, appBundlePath, flutterCallback));
             }
         }
-
-        DartExecutor executor = backgroundFlutterEngine.getDartExecutor();
-        backgroundChannel = new MethodChannel(executor, "vn.hunghd/downloader_background");
+        backgroundChannel = new MethodChannel(backgroundFlutterEngine.getDartExecutor(), "vn.hunghd/downloader_background");
         backgroundChannel.setMethodCallHandler(this);
     }
 
@@ -172,7 +163,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         String filename = getInputData().getString(ARG_FILE_NAME);
 
         DownloadTask task = taskDao.loadTask(getId().toString());
-        if (task.status == DownloadStatus.ENQUEUED) {
+        if (task != null && task.status == DownloadStatus.ENQUEUED) {
             updateNotification(context, filename == null ? url : filename, DownloadStatus.CANCELED, -1, null, true);
             taskDao.updateTask(getId().toString(), DownloadStatus.CANCELED, lastProgress);
         }
@@ -433,7 +424,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     }
 
                     if (clickToOpenDownloadedFile) {
-                        if(android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && storage != PackageManager.PERMISSION_GRANTED)
+                        if (android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && storage != PackageManager.PERMISSION_GRANTED)
                             return;
                         Intent intent = IntentUtils.validatedFileIntent(getApplicationContext(), savedFilePath, contentType);
                         if (intent != null) {
@@ -489,7 +480,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         File newFile = new File(savedDir, filename);
         try {
             boolean rs = newFile.createNewFile();
-            if(rs) {
+            if (rs) {
                 return newFile;
             } else {
                 logError("It looks like you are trying to save file in public storage but not setting 'saveInPublicStorage' to 'true'");

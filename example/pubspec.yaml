@@ -22,7 +22,7 @@ dependencies:
   flutter_downloader:
     path: ../
 
-  android_path_provider: ^0.2.1
+  android_path_provider: ^0.3.0
   device_info: ^2.0.2
 
   # The following adds the Cupertino Icons font to your application.
