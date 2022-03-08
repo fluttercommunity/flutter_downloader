@@ -6,6 +6,9 @@ import 'package:flutter/widgets.dart';
 
 import 'models.dart';
 
+// pragma annotation is needed to avoid tree shaking in release mode
+// https://github.com/dart-lang/sdk/blob/master/runtime/docs/compiler/aot/entry_point_pragma.md
+@pragma('vm:entry-point')
 void callbackDispatcher() {
   const MethodChannel backgroundChannel =
       MethodChannel('vn.hunghd/downloader_background');

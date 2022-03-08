@@ -289,12 +289,15 @@ void dispose() {
 	super.dispose();
 }
 
+@pragma('vm:entry-point')
 static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
 	final SendPort send = IsolateNameServer.lookupPortByName('downloader_send_port');
 	send.send([id, status, progress]);
 }
 
 ````
+
+`@pragma('vm:entry-point')` must be placed above the `callback` function to avoid tree shaking in release mode for Android.
 
 
 #### Load all tasks:
