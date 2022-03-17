@@ -1,5 +1,6 @@
 #import "FlutterDownloaderPlugin.h"
 #import "DBManager.h"
+#import "SyncMutableDictionary.h"
 
 #define STATUS_UNDEFINED 0
 #define STATUS_ENQUEUED 1
@@ -39,7 +40,7 @@
     NSObject<FlutterPluginRegistrar> *_registrar;
     NSURLSession *_session;
     DBManager *_dbManager;
-    NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById;
+    SyncMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById;
     NSString *_allFilesDownloadedMsg;
     NSMutableArray *_eventQueue;
     int64_t _callbackHandle;
@@ -159,8 +160,7 @@ static BOOL debug = YES;
         }
     }
     NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithRequest:request];
-    [task resume];
-
+    
     return task;
 }
 
@@ -294,6 +294,12 @@ static BOOL debug = YES;
 {
     NSString *savedDir = dict[KEY_SAVED_DIR];
     NSString *filename = dict[KEY_FILE_NAME];
+    if (!savedDir) {
+        savedDir = @"errorDir";
+    }
+    if (!filename) {
+        filename = @"errorFileName";
+    }
     if (debug) {
         NSLog(@"savedDir: %@", savedDir);
         NSLog(@"filename: %@", filename);
@@ -578,18 +584,20 @@ static BOOL debug = YES;
 
     NSString *taskId = [self identifierForTask:task];
 
+    
     [_runningTaskById setObject: [NSMutableDictionary dictionaryWithObjectsAndKeys:
-                                  urlString, KEY_URL,
-                                  fileName, KEY_FILE_NAME,
-                                  savedDir, KEY_SAVED_DIR,
-                                  headers, KEY_HEADERS,
-                                  showNotification, KEY_SHOW_NOTIFICATION,
-                                  openFileFromNotification, KEY_OPEN_FILE_FROM_NOTIFICATION,
-                                  @(NO), KEY_RESUMABLE,
-                                  @(STATUS_ENQUEUED), KEY_STATUS,
-                                  @(0), KEY_PROGRESS, nil]
-                         forKey:taskId];
-
+                                          urlString, KEY_URL,
+                                          fileName, KEY_FILE_NAME,
+                                          savedDir, KEY_SAVED_DIR,
+                                          headers, KEY_HEADERS,
+                                          showNotification, KEY_SHOW_NOTIFICATION,
+                                          openFileFromNotification, KEY_OPEN_FILE_FROM_NOTIFICATION,
+                                          @(NO), KEY_RESUMABLE,
+                                          @(STATUS_ENQUEUED), KEY_STATUS,
+                                          @(0), KEY_PROGRESS, nil]
+                                 forKey:taskId];
+    [task resume];
+    
     __typeof__(self) __weak weakSelf = self;
     dispatch_sync(databaseQueue, ^{
         [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:shortSavedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
@@ -649,7 +657,6 @@ static BOOL debug = YES;
             if (resumeData != nil) {
                 NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithResumeData:resumeData];
                 NSString *newTaskId = [self identifierForTask:task];
-                [task resume];
 
                 // update memory-cache, assign a new taskId for paused task
                 NSMutableDictionary *newTask = [NSMutableDictionary dictionaryWithDictionary:taskDict];
@@ -657,6 +664,8 @@ static BOOL debug = YES;
                 newTask[KEY_RESUMABLE] = @(NO);
                 [_runningTaskById setObject:newTask forKey:newTaskId];
                 [_runningTaskById removeObjectForKey:taskId];
+                
+                [task resume];
 
                 result(newTaskId);
 
@@ -703,6 +712,7 @@ static BOOL debug = YES;
             newTaskDict[KEY_RESUMABLE] = @(NO);
             [_runningTaskById setObject:newTaskDict forKey:newTaskId];
             [_runningTaskById removeObjectForKey:taskId];
+            [newTask resume];
 
             __typeof__(self) __weak weakSelf = self;
             dispatch_sync([self databaseQueue], ^{
@@ -840,16 +850,17 @@ static BOOL debug = YES;
     if (debug) {
         NSLog(@"applicationWillTerminate:");
     }
-    for (NSString* key in _runningTaskById) {
-        if ([_runningTaskById[key][KEY_STATUS] intValue] < STATUS_COMPLETE) {
+
+    NSMutableDictionary<NSString*, NSMutableDictionary*> *dic = [_runningTaskById mutableCopy];
+    for (NSString* key in dic) {
+        NSMutableDictionary *task = _runningTaskById[key];
+        if (!task) {
+            continue;
+        }
+        if ([task[KEY_STATUS] intValue] < STATUS_COMPLETE) {
             [self updateTask:key status:STATUS_CANCELED progress:-1];
         }
     }
-    _session = nil;
-    _mainChannel = nil;
-    _dbManager = nil;
-    databaseQueue = nil;
-    _runningTaskById = nil;
 }
 
 # pragma mark - NSURLSessionTaskDelegate
