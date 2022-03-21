@@ -162,7 +162,7 @@
             }
         }
         else {
-            // In the database cannot be opened then show the error message on the debugger.
+            // If the database cannot be opened then show the error message on the debugger.
             if (debug) {
                 NSLog(@"%s", sqlite3_errmsg(sqlite3Database));
             }
