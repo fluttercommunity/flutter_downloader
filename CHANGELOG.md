@@ -1,4 +1,13 @@
 
+## 1.7.3 - 17-03-2022
+
+* fix bug [#614](https://github.com/fluttercommunity/flutter_downloader/issues/614)
+
+## 1.7.2 - 24-01-2022
+
+* fix bug on Android
+* upgrade Android dependencies (WorkerManager 2.7.1)
+
 ## 1.7.1 - 08-10-2021
 
 * fix bug resume download on Android
