@@ -884,8 +884,6 @@ static BOOL debug = YES;
         NSLog(@"%s HTTP status code: %ld", __FUNCTION__, httpStatusCode);
     }
     
-    NSLog(@"%s HTTP status code: %ld", __FUNCTION__, httpStatusCode);
-    
     bool isSuccess = (httpStatusCode >= 200 && httpStatusCode < 300);
     
     if (isSuccess) {
