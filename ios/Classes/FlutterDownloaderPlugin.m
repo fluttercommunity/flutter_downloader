@@ -765,7 +765,7 @@ static BOOL debug = YES;
             }];
         }
         
-        dispatch_sync([weakSelf databaseQueue], ^{
+        dispatch_sync([self databaseQueue], ^{
             [weakSelf deleteTask:taskId];
         });
         
