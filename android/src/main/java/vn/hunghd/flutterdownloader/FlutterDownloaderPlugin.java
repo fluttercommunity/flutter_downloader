@@ -45,6 +45,8 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
     private Context context;
     private long callbackHandle;
     private int debugMode;
+    private int ignoreSsl;
+
     private final Object initializationLock = new Object();
 
     public void onAttachedToEngine(Context applicationContext, BinaryMessenger messenger) {
@@ -125,6 +127,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                         .putBoolean(DownloadWorker.ARG_IS_RESUME, isResume)
                         .putLong(DownloadWorker.ARG_CALLBACK_HANDLE, callbackHandle)
                         .putBoolean(DownloadWorker.ARG_DEBUG, debugMode == 1)
+                        .putBoolean(DownloadWorker.ARG_IGNORESSL, ignoreSsl == 1)
                         .putBoolean(DownloadWorker.ARG_SAVE_IN_PUBLIC_STORAGE, saveInPublicStorage)
                         .build()
                 )
@@ -144,6 +147,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         List args = (List) call.arguments;
         long callbackHandle = Long.parseLong(args.get(0).toString());
         debugMode = Integer.parseInt(args.get(1).toString());
+        ignoreSsl = Integer.parseInt(args.get(2).toString());
 
         SharedPreferences pref = context.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
         pref.edit().putLong(CALLBACK_DISPATCHER_HANDLE_KEY, callbackHandle).apply();
