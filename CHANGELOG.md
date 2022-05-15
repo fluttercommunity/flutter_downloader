@@ -1,4 +1,9 @@
 
+## 1.7.4 - 16-05-2022
+
+* fix bug SSL on Android
+* merged PRs: [#635](https://github.com/fluttercommunity/flutter_downloader/pull/635), [#637](https://github.com/fluttercommunity/flutter_downloader/pull/637)
+
 ## 1.7.3 - 17-03-2022
 
 * fix bug [#614](https://github.com/fluttercommunity/flutter_downloader/issues/614)
