@@ -741,13 +741,14 @@ static BOOL debug = YES;
 }
 
 - (void)removeMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    __typeof__(self) __weak weakSelf = self;
+
     NSString *taskId = call.arguments[KEY_TASK_ID];
     Boolean shouldDeleteContent = [call.arguments[@"should_delete_content"] boolValue];
     NSDictionary* taskDict = [self loadTaskWithId:taskId];
     if (taskDict != nil) {
         NSNumber* status = taskDict[KEY_STATUS];
         if ([status intValue] == STATUS_ENQUEUED || [status intValue] == STATUS_RUNNING) {
-            __typeof__(self) __weak weakSelf = self;
             [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
                 for (NSURLSessionDownloadTask *download in downloads) {
                     NSURLSessionTaskState state = download.state;
@@ -763,7 +764,11 @@ static BOOL debug = YES;
                 };
             }];
         }
-        [self deleteTask:taskId];
+        
+        dispatch_sync([self databaseQueue], ^{
+            [weakSelf deleteTask:taskId];
+        });
+        
         if (shouldDeleteContent) {
             NSURL *destinationURL = [self fileUrlFromDict:taskDict];
 
