@@ -14,7 +14,7 @@ const debug = true;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FlutterDownloader.initialize(debug: debug);
+  await FlutterDownloader.initialize(debug: debug, ignoreSsl: true);
 
   runApp(new MyApp());
 }
