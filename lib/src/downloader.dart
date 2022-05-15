@@ -8,65 +8,70 @@ import 'package:flutter/widgets.dart';
 import 'callback_dispatcher.dart';
 import 'models.dart';
 
-///
 /// A signature function for download progress updating callback
 ///
 /// * `id`: unique identifier of a download task
 /// * `status`: current status of a download task
 /// * `progress`: current progress value of a download task, the value is in
-/// range of 0 and 100
+///   range of 0 and 100
 ///
-typedef void DownloadCallback(
-    String id, DownloadTaskStatus status, int progress);
+typedef DownloadCallback = void Function(
+  String id,
+  DownloadTaskStatus status,
+  int progress,
+);
 
 ///
 /// A convenient class wraps all api functions of **FlutterDownloader** plugin
 ///
 class FlutterDownloader {
-  static const _channel = const MethodChannel('vn.hunghd/downloader');
+  static const _channel = MethodChannel('vn.hunghd/downloader');
   static bool _initialized = false;
 
-  static Future<Null> initialize({bool debug = true,bool ignoreSsl = false}) async {
+  static Future<void> initialize({
+    bool debug = true,
+    bool ignoreSsl = false,
+  }) async {
     assert(!_initialized,
         'FlutterDownloader.initialize() must be called only once!');
 
     WidgetsFlutterBinding.ensureInitialized();
 
     final callback = PluginUtilities.getCallbackHandle(callbackDispatcher)!;
-    await _channel.invokeMethod(
-        'initialize', <dynamic>[callback.toRawHandle(), debug ? 1 : 0 ,ignoreSsl? 1:0]);
+    await _channel.invokeMethod('initialize',
+        <dynamic>[callback.toRawHandle(), debug ? 1 : 0, ignoreSsl ? 1 : 0]);
     _initialized = true;
-    return null;
   }
 
-  ///
-  /// Create a new download task
+  /// Creates a new download task.
   ///
   /// **parameters:**
   ///
   /// * `url`: download link
-  /// * `savedDir`: absolute path of the directory where downloaded file is saved
+  /// * `savedDir`: absolute path of the directory where downloaded file is
+  ///   saved
   /// * `fileName`: name of downloaded file. If this parameter is not set, the
-  /// plugin will try to extract a file name from HTTP headers response or `url`
+  ///   plugin will try to extract a file name from HTTP headers response or
+  ///   `url`
   /// * `headers`: HTTP headers
   /// * `showNotification`: sets `true` to show a notification displaying the
-  /// download progress (only Android), otherwise, `false` value will disable
-  /// this feature. The default value is `true`
+  ///   download progress (only Android), otherwise, `false` value will disable
+  ///   this feature. The default value is `true`
   /// * `openFileFromNotification`: if `showNotification` is `true`, this flag
-  /// controls the way to response to user's click action on the notification
-  /// (only Android). If it is `true`, user can click on the notification to
-  /// open and preview the downloaded file, otherwise, nothing happens. The
-  /// default value is `true`
-  /// * `saveInPublicStorage`: From Android Q onwards, switch this to `true`
-  /// to save file in Downloads folder (Android Q changes the APIs to access
-  /// external storage, app can no longer create dedicated or app-specific directory
-  /// with external storage, in this case plugin will ignore `savedDir` value
-  /// and using only `filename` value to save downloaded file in Downloads folder)
-  /// The default value is `false`
+  ///   controls the way to response to user's click action on the notification
+  ///   (only Android). If it is `true`, user can click on the notification to
+  ///   open and preview the downloaded file, otherwise, nothing happens. The
+  ///   default value is `true`
+  /// * `saveInPublicStorage`: From Android Q onwards, switch this to `true` to
+  ///   save file in Downloads folder (Android Q changes the APIs to access
+  ///   external storage, app can no longer create dedicated or app-specific
+  ///   directory with external storage, in this case plugin will ignore
+  ///   `savedDir` value and using only `filename` value to save downloaded file
+  ///   in Downloads folder) The default value is `false`
   ///
   /// **return:**
   ///
-  /// an unique identifier of the new download task
+  /// a unique identifier of the new download task
   ///
   static Future<String?> enqueue(
       {required String url,
@@ -84,8 +89,7 @@ class FlutterDownloader {
     if (headers != null) {
       headerBuilder.write('{');
       headerBuilder.writeAll(
-          headers.entries
-              .map((entry) => '\"${entry.key}\": \"${entry.value}\"'),
+          headers.entries.map((entry) => '"${entry.key}": "${entry.value}"'),
           ',');
       headerBuilder.write('}');
     }
@@ -107,20 +111,14 @@ class FlutterDownloader {
     }
   }
 
-  ///
-  /// Load all tasks from Sqlite database
-  ///
-  /// **return:**
-  ///
-  /// A list of [DownloadTask] objects
-  ///
+  /// Loads all tasks from SQLite database.
   static Future<List<DownloadTask>?> loadTasks() async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     try {
       List<dynamic> result = await _channel.invokeMethod('loadTasks');
       return result
-          .map((item) => new DownloadTask(
+          .map((item) => DownloadTask(
               taskId: item['task_id'],
               status: DownloadTaskStatus(item['status']),
               progress: item['progress'],
@@ -135,35 +133,33 @@ class FlutterDownloader {
     }
   }
 
-  ///
-  /// Load tasks from Sqlite database with SQL statements
+  /// Loads tasks from SQLite database using raw [query].
   ///
   /// **parameters:**
   ///
   /// * `query`: SQL statement. Note that the plugin will parse loaded data from
-  /// database into [DownloadTask] object, in order to make it work, you should
-  /// load tasks with all fields from database. In other words, using `SELECT *`
-  /// statement.
+  ///   database into [DownloadTask] object, in order to make it work, you
+  ///   should load tasks with all fields from database. In other words, using
+  ///   `SELECT *` statement.
   ///
-  /// **return:**
-  ///
-  /// A list of [DownloadTask] objects
-  ///
-  /// **example:**
+  /// Example:
   ///
   /// ```dart
-  /// FlutterDownloader.loadTasksWithRawQuery(query: 'SELECT * FROM task WHERE status=3');
+  /// FlutterDownloader.loadTasksWithRawQuery(
+  ///   query: 'SELECT * FROM task WHERE status=3',
+  /// );
   /// ```
   ///
-  static Future<List<DownloadTask>?> loadTasksWithRawQuery(
-      {required String query}) async {
+  static Future<List<DownloadTask>?> loadTasksWithRawQuery({
+    required String query,
+  }) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     try {
       List<dynamic> result = await _channel
           .invokeMethod('loadTasksWithRawQuery', {'query': query});
       return result
-          .map((item) => new DownloadTask(
+          .map((item) => DownloadTask(
               taskId: item['task_id'],
               status: DownloadTaskStatus(item['status']),
               progress: item['progress'],
@@ -178,68 +174,47 @@ class FlutterDownloader {
     }
   }
 
-  ///
-  /// Cancel a given download task
-  ///
-  /// **parameters:**
-  ///
-  /// * `taskId`: unique identifier of the download task
-  ///
-  static Future<Null> cancel({required String taskId}) async {
+  /// Cancels download task with id [taskId].
+  static Future<void> cancel({required String taskId}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     try {
       return await _channel.invokeMethod('cancel', {'task_id': taskId});
     } on PlatformException catch (e) {
       print(e.message);
-      return null;
+      return;
     }
   }
 
-  ///
-  /// Cancel all enqueued and running download tasks
-  ///
-  static Future<Null> cancelAll() async {
+  /// Cancels all enqueued and running download tasks.
+  static Future<void> cancelAll() async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     try {
       return await _channel.invokeMethod('cancelAll');
     } on PlatformException catch (e) {
       print(e.message);
-      return null;
+      return;
     }
   }
 
+  /// Pauses a running download task with id [taskId].
   ///
-  /// Pause a running download task
-  ///
-  /// **parameters:**
-  ///
-  /// * `taskId`: unique identifier of a running download task
-  ///
-  static Future<Null> pause({required String taskId}) async {
+  static Future<void> pause({required String taskId}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     try {
       return await _channel.invokeMethod('pause', {'task_id': taskId});
     } on PlatformException catch (e) {
       print(e.message);
-      return null;
+      return;
     }
   }
 
+  /// Resumes a paused download task with id [taskId].
   ///
-  /// Resume a paused download task
-  ///
-  /// **parameters:**
-  ///
-  /// * `taskId`: unique identifier of a paused download task
-  ///
-  /// **return:**
-  ///
-  /// An unique identifier of a new download task that is created to continue
-  /// the partial download progress
-  ///
+  /// Returns a new [DownloadTask] that is created to continue the partial
+  /// download progress. The new [DownloadTask] has a new [taskId].
   static Future<String?> resume({
     required String taskId,
     bool requiresStorageNotLow = true,
@@ -287,17 +262,17 @@ class FlutterDownloader {
   }
 
   ///
-  /// Delete a download task from DB. If the given task is running, it is canceled
-  /// as well. If the task is completed and `shouldDeleteContent` is `true`,
-  /// the downloaded file will be deleted.
+  /// Delete a download task from DB. If the given task is running, it is
+  /// canceled as well. If the task is completed and `shouldDeleteContent` is
+  /// `true`, the downloaded file will be deleted.
   ///
   /// **parameters:**
   ///
   /// * `taskId`: unique identifier of a download task
   /// * `shouldDeleteContent`: if the task is completed, set `true` to let the
-  /// plugin remove the downloaded file. The default value is `false`.
+  ///   plugin remove the downloaded file. The default value is `false`.
   ///
-  static Future<Null> remove(
+  static Future<void> remove(
       {required String taskId, bool shouldDeleteContent = false}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
@@ -306,7 +281,7 @@ class FlutterDownloader {
           {'task_id': taskId, 'should_delete_content': shouldDeleteContent});
     } on PlatformException catch (e) {
       print(e.message);
-      return null;
+      return;
     }
   }
 
@@ -324,12 +299,12 @@ class FlutterDownloader {
   ///
   /// **Note:**
   ///
-  /// In Android case, there're two requirements in order to be able to open
-  /// a file:
+  /// In Android case, there're two requirements in order to be able to open a
+  /// file:
   /// - The file have to be saved in external storage where other applications
-  /// have permission to read this file
+  ///   have permission to read this file
   /// - The current device has at least an application that can read the file
-  /// type of the file
+  ///   type of the file
   ///
   static Future<bool> open({required String taskId}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
@@ -342,14 +317,13 @@ class FlutterDownloader {
     }
   }
 
-  ///
-  /// Register a callback to track status and progress of download task
+  /// Registers a callback to track status and progress of a download task.
   ///
   /// **parameters:**
   ///
   /// * `callback`: a top-level or static function of [DownloadCallback] type
-  /// which is called whenever the status or progress value of a download task
-  /// has been changed.
+  ///   which is called whenever the status or progress value of a download task
+  ///   has been changed.
   ///
   /// **Note:**
   ///
@@ -364,40 +338,45 @@ class FlutterDownloader {
   ///
   /// ```dart
   ///
-  /// ReceivePort _port = ReceivePort();
+  ///ReceivePort _port = ReceivePort();
   ///
-  /// @override
-  /// void initState() {
-  ///   super.initState();
+  ///@override
+  ///void initState() {
+  ///  super.initState();
   ///
-  ///   IsolateNameServer.registerPortWithName(_port.sendPort, 'downloader_send_port');
-  ///   _port.listen((dynamic data) {
-  ///      String id = data[0];
-  ///      DownloadTaskStatus status = data[1];
-  ///      int progress = data[2];
-  ///      setState((){ });
-  ///   });
+  ///  IsolateNameServer.registerPortWithName(_port.sendPort, 'downloader_send_port');
+  ///  _port.listen((dynamic data) {
+  ///     String id = data[0];
+  ///     DownloadTaskStatus status = data[1];
+  ///     int progress = data[2];
+  ///     setState((){ });
+  ///  });
   ///
-  ///   FlutterDownloader.registerCallback(downloadCallback);
+  ///  FlutterDownloader.registerCallback(downloadCallback);
   ///
-  /// }
+  ///}
   ///
-  /// static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
-  ///   final SendPort send = IsolateNameServer.lookupPortByName('downloader_send_port');
-  ///   send.send([id, status, progress]);
-  /// }
+  ///static void downloadCallback(
+  /// String id,
+  /// DownloadTaskStatus status,
+  /// int progress,
+  /// ) {
+  ///  final SendPort send = IsolateNameServer.lookupPortByName(
+  ///   'downloader_send_port',
+  ///  );
+  ///  send.send([id, status, progress]);
+  ///}
   ///
-  /// ```
+  ///```
   ///
   /// {@end-tool}
-  ///
   static registerCallback(DownloadCallback callback) {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     final callbackHandle = PluginUtilities.getCallbackHandle(callback)!;
-    assert(callbackHandle != null,
-        'callback must be a top-level or a static function');
     _channel.invokeMethod(
-        'registerCallback', <dynamic>[callbackHandle.toRawHandle()]);
+      'registerCallback',
+      <dynamic>[callbackHandle.toRawHandle()],
+    );
   }
 }

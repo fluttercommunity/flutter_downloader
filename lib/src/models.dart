@@ -1,6 +1,4 @@
-///
-/// A class defines a set of possible statuses of a download task
-///
+/// Defines a set of possible statuses of a download task.
 class DownloadTaskStatus {
   final int _value;
 
@@ -10,13 +8,13 @@ class DownloadTaskStatus {
 
   static DownloadTaskStatus from(int value) => DownloadTaskStatus(value);
 
-  static const undefined = const DownloadTaskStatus(0);
-  static const enqueued = const DownloadTaskStatus(1);
-  static const running = const DownloadTaskStatus(2);
-  static const complete = const DownloadTaskStatus(3);
-  static const failed = const DownloadTaskStatus(4);
-  static const canceled = const DownloadTaskStatus(5);
-  static const paused = const DownloadTaskStatus(6);
+  static const undefined = DownloadTaskStatus(0);
+  static const enqueued = DownloadTaskStatus(1);
+  static const running = DownloadTaskStatus(2);
+  static const complete = DownloadTaskStatus(3);
+  static const failed = DownloadTaskStatus(4);
+  static const canceled = DownloadTaskStatus(5);
+  static const paused = DownloadTaskStatus(6);
 
   @override
   bool operator ==(Object o) {
@@ -32,7 +30,6 @@ class DownloadTaskStatus {
   String toString() => 'DownloadTaskStatus($_value)';
 }
 
-///
 /// A model class encapsulates all task information according to data in Sqlite
 /// database.
 ///
