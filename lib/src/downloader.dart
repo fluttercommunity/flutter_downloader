@@ -250,7 +250,7 @@ class FlutterDownloader {
     required String taskId,
     bool requiresStorageNotLow = true,
   }) async {
-    assert(_initialized, 'FlutterDownloader.initialize() must be called first');
+    assert(_initialized, 'plugin flutter_downloader is not initialized');
 
     try {
       return await _channel.invokeMethod('retry', {

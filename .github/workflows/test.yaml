@@ -3,7 +3,8 @@ name: flutter_downloader test
 on:
   push:
     branches: [master]
-    ignore-tags: ["flutter_downloader-v*"]
+    # don't run this workflow on version tags
+    ignore-tags: ["v*"]
   pull_request:
     branches: [master]
 
