@@ -21,8 +21,9 @@ void callbackDispatcher() {
     final callback = PluginUtilities.getCallbackFromHandle(handle);
 
     if (callback == null) {
-      print('Fatal: could not find callback');
-      exit(-1);
+      // ignore: avoid_print
+      print('fatal error: could not find callback');
+      exit(1);
     }
 
     final String id = args[1];
