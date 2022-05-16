@@ -17,10 +17,10 @@ class DownloadTaskStatus {
   static const paused = DownloadTaskStatus(6);
 
   @override
-  bool operator ==(Object o) {
-    if (identical(this, o)) return true;
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
 
-    return o is DownloadTaskStatus && o._value == _value;
+    return other is DownloadTaskStatus && other._value == _value;
   }
 
   @override
@@ -30,34 +30,40 @@ class DownloadTaskStatus {
   String toString() => 'DownloadTaskStatus($_value)';
 }
 
-/// A model class encapsulates all task information according to data in Sqlite
-/// database.
+/// Encapsulates all information of a single download task.
 ///
-/// * [taskId] the unique identifier of a download task
-/// * [status] the latest status of a download task
-/// * [progress] the latest progress value of a download task
-/// * [url] the download link
-/// * [filename] the local file name of a downloaded file
-/// * [savedDir] the absolute path of the directory where the downloaded file is saved
-/// * [timeCreated] milliseconds since the Unix epoch (midnight, January 1, 1970 UTC)
-///
+/// This is also the structure of the record saved in the SQLite database.
 class DownloadTask {
+  /// Unique identifier of this task.
   final String taskId;
+
+  /// Status of this task.
   final DownloadTaskStatus status;
+
+  /// Progress between 0 (inclusive) and 100 (inclusive).
   final int progress;
+
+  /// URL from which the file is downloaded.
   final String url;
+
+  /// Local file name of the downloaded file.
   final String? filename;
+
+  /// Absolute path to the directory where the downloaded file will saved.
   final String savedDir;
+
+  /// Timestamp when the task was created.
   final int timeCreated;
 
-  DownloadTask(
-      {required this.taskId,
-      required this.status,
-      required this.progress,
-      required this.url,
-      required this.filename,
-      required this.savedDir,
-      required this.timeCreated});
+  DownloadTask({
+    required this.taskId,
+    required this.status,
+    required this.progress,
+    required this.url,
+    required this.filename,
+    required this.savedDir,
+    required this.timeCreated,
+  });
 
   @override
   String toString() =>

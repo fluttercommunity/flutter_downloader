@@ -8,22 +8,19 @@ import 'package:flutter/widgets.dart';
 import 'callback_dispatcher.dart';
 import 'models.dart';
 
-/// A signature function for download progress updating callback
-///
-/// * `id`: unique identifier of a download task
-/// * `status`: current status of a download task
-/// * `progress`: current progress value of a download task, the value is in
-///   range of 0 and 100
-///
+/// Singature for a function which gets called when the download status changes.
 typedef DownloadCallback = void Function(
+  /// Unique identifier of a download task
   String id,
+
+  /// Current status of a download task
   DownloadTaskStatus status,
+
+  /// Current progress value of a download task, the value is in range <0, 100>.
   int progress,
 );
 
-///
-/// A convenient class wraps all api functions of **FlutterDownloader** plugin
-///
+/// Provides access to all functions of the plugin in a single place.
 class FlutterDownloader {
   static const _channel = MethodChannel('vn.hunghd/downloader');
   static bool _initialized = false;
@@ -73,15 +70,16 @@ class FlutterDownloader {
   ///
   /// a unique identifier of the new download task
   ///
-  static Future<String?> enqueue(
-      {required String url,
-      required String savedDir,
-      String? fileName,
-      Map<String, String>? headers,
-      bool showNotification = true,
-      bool openFileFromNotification = true,
-      bool requiresStorageNotLow = true,
-      bool saveInPublicStorage = false}) async {
+  static Future<String?> enqueue({
+    required String url,
+    required String savedDir,
+    String? fileName,
+    Map<String, String>? headers,
+    bool showNotification = true,
+    bool openFileFromNotification = true,
+    bool requiresStorageNotLow = true,
+    bool saveInPublicStorage = false,
+  }) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
     assert(Directory(savedDir).existsSync());
 
@@ -149,7 +147,6 @@ class FlutterDownloader {
   ///   query: 'SELECT * FROM task WHERE status=3',
   /// );
   /// ```
-  ///
   static Future<List<DownloadTask>?> loadTasksWithRawQuery({
     required String query,
   }) async {
@@ -232,8 +229,7 @@ class FlutterDownloader {
     }
   }
 
-  ///
-  /// Retry a failed download task
+  /// Retries a failed download task.
   ///
   /// **parameters:**
   ///
@@ -243,7 +239,6 @@ class FlutterDownloader {
   ///
   /// An unique identifier of a new download task that is created to start the
   /// failed download progress from the beginning
-  ///
   static Future<String?> retry({
     required String taskId,
     bool requiresStorageNotLow = true,
@@ -261,9 +256,8 @@ class FlutterDownloader {
     }
   }
 
-  ///
-  /// Delete a download task from DB. If the given task is running, it is
-  /// canceled as well. If the task is completed and `shouldDeleteContent` is
+  /// Deletes a download task from the database. If the given task is running,
+  /// it is also canceled. If the task is completed and `shouldDeleteContent` is
   /// `true`, the downloaded file will be deleted.
   ///
   /// **parameters:**
@@ -271,9 +265,10 @@ class FlutterDownloader {
   /// * `taskId`: unique identifier of a download task
   /// * `shouldDeleteContent`: if the task is completed, set `true` to let the
   ///   plugin remove the downloaded file. The default value is `false`.
-  ///
-  static Future<void> remove(
-      {required String taskId, bool shouldDeleteContent = false}) async {
+  static Future<void> remove({
+    required String taskId,
+    bool shouldDeleteContent = false,
+  }) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
     try {
@@ -285,8 +280,7 @@ class FlutterDownloader {
     }
   }
 
-  ///
-  /// Open and preview a downloaded file
+  /// Opens and preview a downloaded file
   ///
   /// **parameters:**
   ///
@@ -299,13 +293,12 @@ class FlutterDownloader {
   ///
   /// **Note:**
   ///
-  /// In Android case, there're two requirements in order to be able to open a
+  /// In Android case, there are two requirements in order to be able to open a
   /// file:
   /// - The file have to be saved in external storage where other applications
   ///   have permission to read this file
-  /// - The current device has at least an application that can read the file
+  /// - The current device has at least 1 application that can read the file
   ///   type of the file
-  ///
   static Future<bool> open({required String taskId}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 

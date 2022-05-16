@@ -16,10 +16,9 @@ void callbackDispatcher() {
   WidgetsFlutterBinding.ensureInitialized();
 
   backgroundChannel.setMethodCallHandler((MethodCall call) async {
-    final List<dynamic> args = call.arguments;
+    final args = call.arguments;
     final handle = CallbackHandle.fromRawHandle(args[0]);
-    final Function? callback =
-        PluginUtilities.getCallbackFromHandle(handle);
+    final callback = PluginUtilities.getCallbackFromHandle(handle);
 
     if (callback == null) {
       print('Fatal: could not find callback');
