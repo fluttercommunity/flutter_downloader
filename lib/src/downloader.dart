@@ -8,15 +8,11 @@ import 'package:flutter/widgets.dart';
 import 'callback_dispatcher.dart';
 import 'models.dart';
 
-/// Singature for a function which gets called when the download status changes.
+/// Singature for a function which gets called when the download state of a task
+/// with [id] changes.
 typedef DownloadCallback = void Function(
-  /// Unique identifier of a download task
   String id,
-
-  /// Current status of a download task
   DownloadTaskStatus status,
-
-  /// Current progress value of a download task, the value is in range <0, 100>.
   int progress,
 );
 
@@ -40,36 +36,33 @@ class FlutterDownloader {
     _initialized = true;
   }
 
-  /// Creates a new download task.
+  /// Creates a new task which downloads a file from [url] to [savedDir] and
+  /// returns a unique identifier of that new download task.
   ///
-  /// **parameters:**
+  /// Name of the downloaded file is determined from the HTTP response and from
+  /// the [url]. Set [fileName] if you want a custom filename,.
   ///
-  /// * `url`: download link
-  /// * `savedDir`: absolute path of the directory where downloaded file is
-  ///   saved
-  /// * `fileName`: name of downloaded file. If this parameter is not set, the
-  ///   plugin will try to extract a file name from HTTP headers response or
-  ///   `url`
-  /// * `headers`: HTTP headers
-  /// * `showNotification`: sets `true` to show a notification displaying the
-  ///   download progress (only Android), otherwise, `false` value will disable
-  ///   this feature. The default value is `true`
-  /// * `openFileFromNotification`: if `showNotification` is `true`, this flag
-  ///   controls the way to response to user's click action on the notification
-  ///   (only Android). If it is `true`, user can click on the notification to
-  ///   open and preview the downloaded file, otherwise, nothing happens. The
-  ///   default value is `true`
-  /// * `saveInPublicStorage`: From Android Q onwards, switch this to `true` to
-  ///   save file in Downloads folder (Android Q changes the APIs to access
-  ///   external storage, app can no longer create dedicated or app-specific
-  ///   directory with external storage, in this case plugin will ignore
-  ///   `savedDir` value and using only `filename` value to save downloaded file
-  ///   in Downloads folder) The default value is `false`
+  /// [savedDir] must be an absolute path.
   ///
-  /// **return:**
+  /// [headers] are HTTP headers that will be sent with the request.
   ///
-  /// a unique identifier of the new download task
+  /// ### Android-only
   ///
+  /// If [showNotification] is true, a notification with the current download
+  /// progress will be shown.
+  ///
+  /// If [requiresStorageNotLow] is true, the download won't run unless the
+  /// device's available storage is at an acceptable level.
+  ///
+  /// If [openFileFromNotification] is true, the user can tap on the
+  /// notification to open the downloaded file. If it is false, nothing happens
+  /// when the tapping the notification.
+  ///
+  /// Android Q (API 29) changed the APIs for accessing external storage. This
+  /// means that apps must store their data in an app-specific directory on
+  /// external storage. If you want to save the file in the public Downloads
+  /// directory instead, set [saveInPublicStorage] to true. In that case,
+  /// [savedDir] will be ignored.
   static Future<String?> enqueue({
     required String url,
     required String savedDir,
@@ -87,8 +80,9 @@ class FlutterDownloader {
     if (headers != null) {
       headerBuilder.write('{');
       headerBuilder.writeAll(
-          headers.entries.map((entry) => '"${entry.key}": "${entry.value}"'),
-          ',');
+        headers.entries.map((entry) => '"${entry.key}": "${entry.value}"'),
+        ',',
+      );
       headerBuilder.write('}');
     }
     try {
@@ -257,8 +251,8 @@ class FlutterDownloader {
   }
 
   /// Deletes a download task from the database. If the given task is running,
-  /// it is also canceled. If the task is completed and `shouldDeleteContent` is
-  /// `true`, the downloaded file will be deleted.
+  /// it is also canceled. If the task is completed and [shouldDeleteContent] is
+  /// true, the downloaded file will be deleted.
   ///
   /// **parameters:**
   ///
@@ -280,25 +274,14 @@ class FlutterDownloader {
     }
   }
 
-  /// Opens and preview a downloaded file
+  /// Opens the downloaded file with [taskId]. Returns true if the downloaded
+  /// file can be opened, false otherwise.
   ///
-  /// **parameters:**
-  ///
-  /// * `taskId`: An unique identifier of a completed download task
-  ///
-  /// **return:**
-  ///
-  /// Returns `true` if the downloaded file can be open on the current device,
-  /// `false` in otherwise.
-  ///
-  /// **Note:**
-  ///
-  /// In Android case, there are two requirements in order to be able to open a
-  /// file:
-  /// - The file have to be saved in external storage where other applications
-  ///   have permission to read this file
-  /// - The current device has at least 1 application that can read the file
-  ///   type of the file
+  /// On Android, there are two requirements for opening the file:
+  /// - The file must be saved in external storage where other applications have
+  ///   permission to read the file
+  /// - There is at least 1 application that can read the files of type of the
+  ///   file.
   static Future<bool> open({required String taskId}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
 
@@ -310,7 +293,7 @@ class FlutterDownloader {
     }
   }
 
-  /// Registers a callback to track status and progress of a download task.
+  /// Registers a callback to track the status and progress of a download task.
   ///
   /// **parameters:**
   ///
