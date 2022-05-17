@@ -56,7 +56,7 @@ class FlutterDownloader {
   /// returns a unique identifier of that new download task.
   ///
   /// Name of the downloaded file is determined from the HTTP response and from
-  /// the [url]. Set [fileName] if you want a custom filename,.
+  /// the [url]. Set [fileName] if you want a custom filename.
   ///
   /// [savedDir] must be an absolute path.
   ///
