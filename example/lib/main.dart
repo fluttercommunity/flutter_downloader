@@ -1,13 +1,13 @@
-import 'dart:isolate';
-import 'dart:ui';
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:ui';
 
-import 'package:device_info/device_info.dart';
 import 'package:android_path_provider/android_path_provider.dart';
+import 'package:device_info/device_info.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 const debug = true;
@@ -204,7 +204,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       onItemClick: (task) {
                         _openDownloadedFile(task).then((success) {
                           if (!success) {
-                            Scaffold.of(context).showSnackBar(SnackBar(
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                 content: Text('Cannot open this file')));
                           }
                         });
@@ -253,7 +253,7 @@ class _MyHomePageState extends State<MyHomePage> {
               SizedBox(
                 height: 32.0,
               ),
-              FlatButton(
+              TextButton(
                   onPressed: () {
                     _retryRequestPermission();
                   },
@@ -292,9 +292,10 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void _cancelDownload(_TaskInfo task) async {
-    await FlutterDownloader.cancel(taskId: task.taskId!);
-  }
+  // Not used in the example.
+  // void _cancelDownload(_TaskInfo task) async {
+  //   await FlutterDownloader.cancel(taskId: task.taskId!);
+  // }
 
   void _pauseDownload(_TaskInfo task) async {
     await FlutterDownloader.pause(taskId: task.taskId!);
