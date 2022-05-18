@@ -304,17 +304,22 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
                 resourceUrl = new URL(url);
 
-                if(ignoreSsl) {
+                final boolean isProtocolHttps = resourceUrl.getProtocol().toLowerCase().equals("https");
+                if (ignoreSsl) {
                     trustAllHosts();
-                    if (resourceUrl.getProtocol().toLowerCase().equals("https")) {
-                        HttpsURLConnection https = (HttpsURLConnection)resourceUrl.openConnection();
+                    if (isProtocolHttps) {
+                        HttpsURLConnection https = (HttpsURLConnection) resourceUrl.openConnection();
                         https.setHostnameVerifier(DO_NOT_VERIFY);
                         httpConn = https;
                     } else {
-                        httpConn = (HttpURLConnection)resourceUrl.openConnection();
+                        httpConn = (HttpURLConnection) resourceUrl.openConnection();
                     }
                 } else {
-                    httpConn = (HttpsURLConnection) resourceUrl.openConnection();
+                    if (isProtocolHttps) {
+                        httpConn = (HttpsURLConnection) resourceUrl.openConnection();
+                    } else {
+                        httpConn = (HttpURLConnection) resourceUrl.openConnection();
+                    }
                 }
 
                 log("Open connection to " + url);
