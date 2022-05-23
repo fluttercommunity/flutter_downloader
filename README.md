@@ -1,15 +1,14 @@
-[![Flutter Community:
-flutter_downloader](https://fluttercommunity.dev/_github/header/flutter_downloader)](https://github.com/fluttercommunity/community)
+[![flutter_community][fluttercommunity_badge]][fluttercommunity_link]
 
 # Flutter Downloader
 
-[![pub
-package](https://img.shields.io/pub/v/flutter_downloader.svg)](https://pub.dartlang.org/packages/flutter_downloader)
+[![flutter_downloader on pub.dev][pub_badge]][pub_link]
 
 A plugin for creating and managing download tasks. Supports iOS and Android.
 
-This plugin is based on [`WorkManager`][1] in Android and
-[`NSURLSessionDownloadTask`][2] in iOS to run download task in background mode.
+This plugin is using [`WorkManager`][work_manager] on Android and
+[`NSURLSessionDownloadTask`][url_session_download_task] on iOS to run download
+tasks in background.
 
 ### _Development note_:
 
@@ -24,23 +23,22 @@ better design for the plugin._
 
 ### Required configuration:
 
-**Note:** following steps requires to open your `ios` project in Xcode.
+The following steps require to open your `ios` project in Xcode.
 
-- Enable background mode.
+1. Enable background mode.
 
-<img width="512"
-src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/enable_background_mode.png?raw=true"/>
+<img width="512" src="screenshot/enable_background_mode.png?raw=true"/>
 
-- Add `sqlite` library.
+2. Add `sqlite` library.
 
 <p>
-    <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/add_sqlite_1.png?raw=true" />
+    <img width="512" src="screenshot/add_sqlite_1.png?raw=true" />
 </p>
 <p style="margin-top:30;">
-    <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/add_sqlite_2.png?raw=true" />
+    <img width="512" src="screenshot/add_sqlite_2.png?raw=true" />
 </p>
 
-- Configure `AppDelegate`:
+3. Configure `AppDelegate`:
 
 Objective-C:
 
@@ -249,15 +247,16 @@ Add the following to `AndroidManifest.xml`:
 ```
 
 - **PackageInstaller:** in order to open APK files, your application needs
-  `REQUEST_INSTALL_PACKAGES` permission. Add following codes in your
+  `REQUEST_INSTALL_PACKAGES` permission. Add the following code in your
   `AndroidManifest.xml`:
 
 ```xml
 <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 ```
 
-- [Fix Cleartext Traffic Error in Android 9
-  Pie](https://medium.com/@son.rommer/fix-cleartext-traffic-error-in-android-9-pie-2f4e9e2235e6)
+See also:
+
+- [Fix Cleartext Traffic error on Android 9 Pie][android_9_cleartext_traffic]
 
 ## Usage
 
@@ -272,7 +271,7 @@ void main() {
   // Plugin must be initialized before using
   await FlutterDownloader.initialize(
     debug: true // optional: set to false to disable printing logs to console (default: true)
-    ignoreSsl: true // option: set to false to disable working with http links, (default: false)
+    ignoreSsl: true // option: set to false to disable working with http links (default: false)
   );
 
   runApp(/*...*/)
@@ -296,7 +295,7 @@ final taskId = await FlutterDownloader.enqueue(
 FlutterDownloader.registerCallback(callback); // callback is a top-level or static function
 ```
 
-**Important:**
+**Important**
 
 UI is rendered on the main isolate, while download events come from the
 background isolate (in other words, code in `callback` is run in the background
@@ -402,10 +401,10 @@ FlutterDownloader.pause(taskId: taskId);
 FlutterDownloader.resume(taskId: taskId);
 ```
 
-- Note: `resume()` will return a new `taskId` corresponding to a new background
-  task that is created to continue the download process. You should replace the
-  original `taskId` (that is marked as `paused` status) by this new `taskId` to
-  continue tracking the download progress.
+`resume()` will return a new `taskId` corresponding to a new background task
+that is created to continue the download process. You should replace the old
+`taskId` (that has `paused` status) by the new `taskId` to continue tracking the
+download progress.
 
 ### Retry a failed task
 
@@ -413,7 +412,7 @@ FlutterDownloader.resume(taskId: taskId);
 FlutterDownloader.retry(taskId: taskId);
 ```
 
-- Note: `retry()` will return a new `taskId` (like `resume()`)
+`retry()` will return a new `taskId` (just like `resume()`)
 
 ### Remove a task
 
@@ -427,7 +426,7 @@ FlutterDownloader.remove(taskId: taskId, shouldDeleteContent:false);
 FlutterDownloader.open(taskId: taskId);
 ```
 
-On Android, you can only open a downloaded file if: it is placed in the external
+On Android, you can only open a downloaded file if it is placed in the external
 storage and there's at least one application that can read that file type on
 your device.
 
@@ -438,7 +437,12 @@ plugin is missing some feature.
 
 Pull request are also very welcome!
 
-[1]: https://developer.android.com/topic/libraries/architecture/workmanager
-[2]: https://developer.apple.com/documentation/foundation/nsurlsessiondownloadtask?language=objc
+[fluttercommunity_badge]: https://fluttercommunity.dev/_github/header/flutter_downloader
+[fluttercommunity_link]: https://github.com/fluttercommunity/community
+[pub_badge]: https://img.shields.io/pub/v/flutter_downloader.svg
+[pub_link]: https://pub.dartlang.org/packages/flutter_downloader
+[work_manager]: https://developer.android.com/topic/libraries/architecture/workmanager
+[url_session_download_task]: https://developer.apple.com/documentation/foundation/nsurlsessiondownloadtask?language=objc
+[android_9_cleartext_traffic]: https://medium.com/@son.rommer/fix-cleartext-traffic-error-in-android-9-pie-2f4e9e2235e6
 [3]: https://medium.com/@guerrix/info-plist-localization-ad5daaea732a
 [4]: https://developer.android.com/training/basics/supporting-devices/languages
