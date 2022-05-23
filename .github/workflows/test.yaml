@@ -1,4 +1,4 @@
-name: flutter_downloader test
+name: test
 
 on:
   push:
