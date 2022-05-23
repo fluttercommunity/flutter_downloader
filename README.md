@@ -307,29 +307,29 @@ ReceivePort _port = ReceivePort();
 
 @override
 void initState() {
-	super.initState();
+  super.initState();
 
-	IsolateNameServer.registerPortWithName(_port.sendPort, 'downloader_send_port');
-	_port.listen((dynamic data) {
-		String id = data[0];
-		DownloadTaskStatus status = data[1];
-		int progress = data[2];
-		setState((){ });
-	});
+  IsolateNameServer.registerPortWithName(_port.sendPort, 'downloader_send_port');
+  _port.listen((dynamic data) {
+    String id = data[0];
+    DownloadTaskStatus status = data[1];
+    int progress = data[2];
+    setState((){ });
+  });
 
-	FlutterDownloader.registerCallback(downloadCallback);
+  FlutterDownloader.registerCallback(downloadCallback);
 }
 
 @override
 void dispose() {
-	IsolateNameServer.removePortNameMapping('downloader_send_port');
-	super.dispose();
+  IsolateNameServer.removePortNameMapping('downloader_send_port');
+  super.dispose();
 }
 
 @pragma('vm:entry-point')
 static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
-	final SendPort send = IsolateNameServer.lookupPortByName('downloader_send_port');
-	send.send([id, status, progress]);
+  final SendPort send = IsolateNameServer.lookupPortByName('downloader_send_port');
+  send.send([id, status, progress]);
 }
 
 ```
@@ -362,18 +362,18 @@ information about download tasks
 
 ```SQL
 CREATE TABLE `task` (
-	`id`	INTEGER PRIMARY KEY AUTOINCREMENT,
-	`task_id`	VARCHAR ( 256 ),
-	`url`	TEXT,
-	`status`	INTEGER DEFAULT 0,
-	`progress`	INTEGER DEFAULT 0,
-	`file_name`	TEXT,
-	`saved_dir`	TEXT,
-	`resumable`	TINYINT DEFAULT 0,
-	`headers`	TEXT,
-	`show_notification`	TINYINT DEFAULT 0,
-	`open_file_from_notification`	TINYINT DEFAULT 0,
-	`time_created`	INTEGER DEFAULT 0
+  `id`  INTEGER PRIMARY KEY AUTOINCREMENT,
+  `task_id` VARCHAR ( 256 ),
+  `url` TEXT,
+  `status`  INTEGER DEFAULT 0,
+  `progress`  INTEGER DEFAULT 0,
+  `file_name` TEXT,
+  `saved_dir` TEXT,
+  `resumable` TINYINT DEFAULT 0,
+  `headers` TEXT,
+  `show_notification` TINYINT DEFAULT 0,
+  `open_file_from_notification` TINYINT DEFAULT 0,
+  `time_created`  INTEGER DEFAULT 0
 );
 ```
 
