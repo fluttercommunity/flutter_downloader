@@ -1,3 +1,10 @@
+## 1.8.0 - 17-05-2022
+
+* Bump minimum Dart version to 2.17.
+
+* Improve documentation
+
+* Make it possible to disable logging using `FlutterDownloader.initialize(debug: false)`
 
 ## 1.7.4 - 16-05-2022
 
