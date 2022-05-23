@@ -296,10 +296,12 @@ final taskId = await FlutterDownloader.enqueue(
 FlutterDownloader.registerCallback(callback); // callback is a top-level or static function
 ```
 
-**Important note:** your UI is rendered in the main isolate, while download
-events come from a background isolate (in other words, codes in `callback` are
-run in the background isolate), so you have to handle the communication between
-two isolates. For example:
+**Important:**
+
+UI is rendered on the main isolate, while download events come from the
+background isolate (in other words, code in `callback` is run in the background
+isolate), so you have to handle the communication between two isolates. For
+example:
 
 ```dart
 ReceivePort _port = ReceivePort();
@@ -348,16 +350,16 @@ final tasks = await FlutterDownloader.loadTasks();
 final tasks = await FlutterDownloader.loadTasksWithRawQuery(query: query);
 ```
 
-- Note: In order to parse data into `DownloadTask` object successfully, you
-  should load data with all fields from DB (in the other word, use: `SELECT *`
-  ). For example:
+In order to parse data into `DownloadTask` object successfully, you should load
+data with all fields from the database (in the other words, use `SELECT *` ).
+For example:
 
 ```SQL
 SELECT * FROM task WHERE status=3
 ```
 
-- Note: the following is the schema of `task` table where this plugin stores
-  tasks information
+Below is the schema of the `task` table where `flutter_downloader` plugin stores
+information about download tasks
 
 ```SQL
 CREATE TABLE `task` (
@@ -425,9 +427,9 @@ FlutterDownloader.remove(taskId: taskId, shouldDeleteContent:false);
 FlutterDownloader.open(taskId: taskId);
 ```
 
-- Note: in Android, you can only open a downloaded file if it is placed in the
-  external storage and there's at least one application that can read that file
-  type on your device.
+On Android, you can only open a downloaded file if: it is placed in the external
+storage and there's at least one application that can read that file type on
+your device.
 
 ## Bugs/Requests
 
