@@ -241,6 +241,7 @@ import 'package:flutter_downloader/flutter_downloader.dart';
 WidgetsFlutterBinding.ensureInitialized();
 await FlutterDownloader.initialize(
   debug: true // optional: set false to disable printing logs to console
+  ignoreSsl: true // set false to disable working with http links, by default: false
 );
 ````
 
