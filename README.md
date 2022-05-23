@@ -8,9 +8,9 @@ A plugin for creating and managing download tasks. Supports iOS and Android.
 
 This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownloadTask`][2] in iOS to run download task in background mode.
 
-### *Development note*:
+### _Development note_:
 
-*The changes of external storage APIs in Android 11 cause some problems with the current implementation. I decide to re-design this plugin with new strategy to manage download file location. It is still in triage and discussion in this [PR](https://github.com/fluttercommunity/flutter_downloader/pull/550). It is very appreciated to have contribution and feedback from Flutter developer to get better design for the plugin.*
+_The changes of external storage APIs in Android 11 cause some problems with the current implementation. I decide to re-design this plugin with new strategy to manage download file location. It is still in triage and discussion in this [PR](https://github.com/fluttercommunity/flutter_downloader/pull/550). It is very appreciated to have contribution and feedback from Flutter developer to get better design for the plugin._
 
 ## iOS integration
 
@@ -18,11 +18,11 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
 
 **Note:** following steps requires to open your `ios` project in Xcode.
 
-* Enable background mode.
+- Enable background mode.
 
 <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/enable_background_mode.png?raw=true"/>
 
-* Add `sqlite` library.
+- Add `sqlite` library.
 
 <p>
     <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/add_sqlite_1.png?raw=true" />
@@ -31,9 +31,10 @@ This plugin is based on [`WorkManager`][1] in Android and [`NSURLSessionDownload
     <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/add_sqlite_2.png?raw=true" />
 </p>
 
-* Configure `AppDelegate`:
+- Configure `AppDelegate`:
 
 Objective-C:
+
 ```objective-c
 /// AppDelegate.h
 #import <Flutter/Flutter.h>
@@ -52,7 +53,7 @@ Objective-C:
 
 @implementation AppDelegate
 
-void registerPlugins(NSObject<FlutterPluginRegistry>* registry) {   
+void registerPlugins(NSObject<FlutterPluginRegistry>* registry) {
   if (![registry hasPlugin:@"FlutterDownloaderPlugin"]) {
      [FlutterDownloaderPlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterDownloaderPlugin"]];
   }
@@ -71,6 +72,7 @@ void registerPlugins(NSObject<FlutterPluginRegistry>* registry) {
 ```
 
 Or Swift:
+
 ```swift
 import UIKit
 import Flutter
@@ -88,7 +90,7 @@ import flutter_downloader
   }
 }
 
-private func registerPlugins(registry: FlutterPluginRegistry) { 
+private func registerPlugins(registry: FlutterPluginRegistry) {
     if (!registry.hasPlugin("FlutterDownloaderPlugin")) {
        FlutterDownloaderPlugin.register(with: registry.registrar(forPlugin: "FlutterDownloaderPlugin")!)
     }
@@ -98,11 +100,11 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
 
 ### Optional configuration:
 
-* **Support HTTP request:** if you want to download file with HTTP request, you need to disable Apple Transport Security (ATS) feature. There're two options:
+- **Support HTTP request:** if you want to download file with HTTP request, you need to disable Apple Transport Security (ATS) feature. There're two options:
 
 1. Disable ATS for a specific domain only: (add following codes to your `Info.plist` file)
 
-````xml
+```xml
 <key>NSAppTransportSecurity</key>
 <dict>
   <key>NSExceptionDomains</key>
@@ -121,47 +123,47 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
     </dict>
   </dict>
 </dict>
-````
+```
 
 2. Completely disable ATS: (add following codes to your `Info.plist` file)
 
-````xml
+```xml
 <key>NSAppTransportSecurity</key>
 <dict>
     <key>NSAllowsArbitraryLoads</key><true/>
 </dict>
-````
+```
 
-* **Configure maximum number of concurrent tasks:** the plugin allows 3 download tasks running at a moment by default (if you enqueue more than 3 tasks, there're only 3 tasks running, other tasks are put in pending state). You can change this number by adding following codes to your `Info.plist` file.
+- **Configure maximum number of concurrent tasks:** the plugin allows 3 download tasks running at a moment by default (if you enqueue more than 3 tasks, there're only 3 tasks running, other tasks are put in pending state). You can change this number by adding following codes to your `Info.plist` file.
 
-````xml
+```xml
 <!-- changes this number to configure the maximum number of concurrent tasks -->
 <key>FDMaximumConcurrentTasks</key>
 <integer>5</integer>
-````
+```
 
-* **Localize notification messages:** the plugin will send a notification message to notify user in case all files are downloaded while your application is not running in foreground. This message is English by default. You can localize this message by adding and localizing following message in `Info.plist` file. (you can find the detail of `Info.plist` localization in this [link][3])
+- **Localize notification messages:** the plugin will send a notification message to notify user in case all files are downloaded while your application is not running in foreground. This message is English by default. You can localize this message by adding and localizing following message in `Info.plist` file. (you can find the detail of `Info.plist` localization in this [link][3])
 
-````xml
+```xml
 <key>FDAllFilesDownloadedMessage</key>
 <string>All files have been downloaded</string>
-````
+```
 
 **Note:**
- - This plugin only supports save files in `NSDocumentDirectory`
 
+- This plugin only supports save files in `NSDocumentDirectory`
 
 ## Android integration
 
 ### Required configuration:
 
-* If your project is running on Flutter versions prior v1.12, have a look at [this document](android_integration_note.md) to configure your Android project.
+- If your project is running on Flutter versions prior v1.12, have a look at [this document](android_integration_note.md) to configure your Android project.
 
-* From Flutter v1.12 with Android v2 embedding there's no additional configurations required to work with background isolation in Android (but you need to setup your project properly. See [upgrading pre 1.12 Android projects](https://github.com/flutter/flutter/wiki/Upgrading-pre-1.12-Android-projects))
+- From Flutter v1.12 with Android v2 embedding there's no additional configurations required to work with background isolation in Android (but you need to setup your project properly. See [upgrading pre 1.12 Android projects](https://github.com/flutter/flutter/wiki/Upgrading-pre-1.12-Android-projects))
 
-* In order to handle click action on notification to open the downloaded file on Android, you need to add some additional configurations. Add the following codes to your `AndroidManifest.xml`:
+- In order to handle click action on notification to open the downloaded file on Android, you need to add some additional configurations. Add the following codes to your `AndroidManifest.xml`:
 
-````xml
+```xml
 <provider
     android:name="vn.hunghd.flutterdownloader.DownloadedFileProvider"
     android:authorities="${applicationId}.flutter_downloader.provider"
@@ -171,17 +173,18 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
         android:name="android.support.FILE_PROVIDER_PATHS"
         android:resource="@xml/provider_paths"/>
 </provider>
-````
+```
 
 **Note:**
- - You have to save your downloaded files in external storage (where the other applications have permission to read your files)
- - The downloaded files are only able to be opened if your device has at least an application that can read these file types (mp3, pdf, etc)
- 
+
+- You have to save your downloaded files in external storage (where the other applications have permission to read your files)
+- The downloaded files are only able to be opened if your device has at least an application that can read these file types (mp3, pdf, etc)
+
 ### Optional configuration:
 
-* **Configure maximum number of concurrent tasks:** the plugin depends on `WorkManager` library and `WorkManager` depends on the number of available processor to configure the maximum number of tasks running at a moment. You can setup a fixed number for this configuration by adding following codes to your `AndroidManifest.xml`:
+- **Configure maximum number of concurrent tasks:** the plugin depends on `WorkManager` library and `WorkManager` depends on the number of available processor to configure the maximum number of tasks running at a moment. You can setup a fixed number for this configuration by adding following codes to your `AndroidManifest.xml`:
 
-````xml
+```xml
 <!-- Begin FlutterDownloader customization -->
 <!-- disable default Initializer -->
 <provider
@@ -206,67 +209,67 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
         android:value="5" />
 </provider>
 <!-- End FlutterDownloader customization -->
- ````
+```
 
-* **Localize notification messages:** you can localize notification messages of download progress by localizing following messages. (you can find the detail of string localization in Android in this [link][4])
+- **Localize notification messages:** you can localize notification messages of download progress by localizing following messages. (you can find the detail of string localization in Android in this [link][4])
 
-````xml
+```xml
 <string name="flutter_downloader_notification_started">Download started</string>
 <string name="flutter_downloader_notification_in_progress">Download in progress</string>
 <string name="flutter_downloader_notification_canceled">Download canceled</string>
 <string name="flutter_downloader_notification_failed">Download failed</string>
 <string name="flutter_downloader_notification_complete">Download complete</string>
 <string name="flutter_downloader_notification_paused">Download paused</string>
-````
+```
 
-* **PackageInstaller:** in order to open APK files, your application needs `REQUEST_INSTALL_PACKAGES` permission. Add following codes in your `AndroidManifest.xml`:
+- **PackageInstaller:** in order to open APK files, your application needs `REQUEST_INSTALL_PACKAGES` permission. Add following codes in your `AndroidManifest.xml`:
 
-````xml
+```xml
 <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-````
+```
 
-* [Fix Cleartext Traffic Error in Android 9 Pie](https://medium.com/@son.rommer/fix-cleartext-traffic-error-in-android-9-pie-2f4e9e2235e6)
+- [Fix Cleartext Traffic Error in Android 9 Pie](https://medium.com/@son.rommer/fix-cleartext-traffic-error-in-android-9-pie-2f4e9e2235e6)
 
 ## Usage
 
 #### Import package:
 
-````dart
+```dart
 import 'package:flutter_downloader/flutter_downloader.dart';
-````
+```
 
 #### Initialize
 
-````dart
+```dart
 WidgetsFlutterBinding.ensureInitialized();
 await FlutterDownloader.initialize(
   debug: true // optional: set false to disable printing logs to console
   ignoreSsl: true // set false to disable working with http links, by default: false
 );
-````
+```
 
 - Note: the plugin must be initialized before using.
 
 #### Create new download task:
 
-````dart
+```dart
 final taskId = await FlutterDownloader.enqueue(
   url: 'your download link',
   savedDir: 'the path of directory where you want to save downloaded files',
   showNotification: true, // show download progress in status bar (for Android)
   openFileFromNotification: true, // click on notification to open downloaded file (for Android)
 );
-````
+```
 
 #### Update download progress:
 
-````dart
+```dart
 FlutterDownloader.registerCallback(callback); // callback is a top-level or static function
-````
+```
 
 **Important note:** your UI is rendered in the main isolate, while download events come from a background isolate (in other words, codes in `callback` are run in the background isolate), so you have to handle the communication between two isolates. For example:
 
-````dart
+```dart
 ReceivePort _port = ReceivePort();
 
 @override
@@ -296,32 +299,31 @@ static void downloadCallback(String id, DownloadTaskStatus status, int progress)
 	send.send([id, status, progress]);
 }
 
-````
+```
 
 `@pragma('vm:entry-point')` must be placed above the `callback` function to avoid tree shaking in release mode for Android.
 
-
 #### Load all tasks:
 
-````dart
+```dart
 final tasks = await FlutterDownloader.loadTasks();
-````
+```
 
 #### Load tasks with conditions:
 
-````dart
+```dart
 final tasks = await FlutterDownloader.loadTasksWithRawQuery(query: query);
-````
+```
 
 - Note: In order to parse data into `DownloadTask` object successfully, you should load data with all fields from DB (in the other word, use: `SELECT *` ). For example:
 
-````SQL
+```SQL
 SELECT * FROM task WHERE status=3
-````
+```
 
 - Note: the following is the schema of `task` table where this plugin stores tasks information
 
-````SQL
+```SQL
 CREATE TABLE `task` (
 	`id`	INTEGER PRIMARY KEY AUTOINCREMENT,
 	`task_id`	VARCHAR ( 256 ),
@@ -336,39 +338,39 @@ CREATE TABLE `task` (
 	`open_file_from_notification`	TINYINT DEFAULT 0,
 	`time_created`	INTEGER DEFAULT 0
 );
-````
+```
 
 #### Cancel a task:
 
-````dart
+```dart
 FlutterDownloader.cancel(taskId: taskId);
-````
+```
 
 #### Cancel all tasks:
 
-````dart
+```dart
 FlutterDownloader.cancelAll();
-````
+```
 
 #### Pause a task:
 
-````dart
+```dart
 FlutterDownloader.pause(taskId: taskId);
-````
+```
 
 #### Resume a task:
 
-````dart
+```dart
 FlutterDownloader.resume(taskId: taskId);
-````
+```
 
 - Note: `resume()` will return a new `taskId` corresponding to a new background task that is created to continue the download process. You should replace the original `taskId` (that is marked as `paused` status) by this new `taskId` to continue tracking the download progress.
 
 #### Retry a failed task:
 
-````dart
+```dart
 FlutterDownloader.retry(taskId: taskId);
-````
+```
 
 - Note: `retry()` will return a new `taskId` (like `resume()`)
 
@@ -380,13 +382,14 @@ FlutterDownloader.remove(taskId: taskId, shouldDeleteContent:false);
 
 #### Open and preview a downloaded file:
 
-````dart
+```dart
 FlutterDownloader.open(taskId: taskId);
-````
+```
 
 - Note: in Android, you can only open a downloaded file if it is placed in the external storage and there's at least one application that can read that file type on your device.
 
 ## Bugs/Requests
+
 If you encounter any problems feel free to open an issue. If you feel the library is
 missing a feature, please raise a ticket on Github. Pull request are also welcome.
 
