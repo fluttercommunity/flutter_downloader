@@ -373,7 +373,7 @@ static BOOL debug = YES;
         return @"";
     }
     return revert
-    ? [origin stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding]
+    ? [origin stringByRemovingPercentEncoding]
     : [origin stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLQueryAllowedCharacterSet];
 }
 
