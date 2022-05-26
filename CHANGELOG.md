@@ -1,8 +1,12 @@
+## 1.8.0+1
+
+- Fix broken images in README on pub.dev
+
 ## 1.8.0
 
-- Bump minimum Flutter version to 3.0.
+- Bump minimum Flutter version to 3.0
 
-- Bump minimum Dart version to 2.17.
+- Bump minimum Dart version to 2.17
 
 - Improve documentation
 

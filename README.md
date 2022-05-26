@@ -27,15 +27,15 @@ The following steps require to open your `ios` project in Xcode.
 
 1. Enable background mode.
 
-<img width="512" src="screenshot/enable_background_mode.png?raw=true"/>
+<img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/enable_background_mode.png?raw=true"/>
 
 2. Add `sqlite` library.
 
 <p>
-    <img width="512" src="screenshot/add_sqlite_1.png?raw=true" />
+    <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/add_sqlite_1.png?raw=true" />
 </p>
 <p style="margin-top:30;">
-    <img width="512" src="screenshot/add_sqlite_2.png?raw=true" />
+    <img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/add_sqlite_2.png?raw=true" />
 </p>
 
 3. Configure `AppDelegate`:
