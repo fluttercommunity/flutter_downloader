@@ -90,7 +90,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     private static final int STEP_UPDATE = 5;
 
     private static final AtomicBoolean isolateStarted = new AtomicBoolean(false);
-    private static final ArrayDeque<List> isolateQueue = new ArrayDeque<>();
+    private static final ArrayDeque<List<Object>> isolateQueue = new ArrayDeque<>();
     private static FlutterEngine backgroundFlutterEngine;
 
     private final Pattern charsetPattern = Pattern.compile("(?i)\\bcharset=\\s*\"?([^\\s;\"]*)");
@@ -114,12 +114,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                           @NonNull WorkerParameters params) {
         super(context, params);
 
-        new Handler(context.getMainLooper()).post(new Runnable() {
-            @Override
-            public void run() {
-                startBackgroundIsolate(context);
-            }
-        });
+        new Handler(context.getMainLooper()).post(() -> startBackgroundIsolate(context));
     }
 
     private void startBackgroundIsolate(Context context) {
@@ -150,7 +145,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     }
 
     @Override
-    public void onMethodCall(MethodCall call, MethodChannel.Result result) {
+    public void onMethodCall(MethodCall call, @NonNull MethodChannel.Result result) {
         if (call.method.equals("didInitializeDispatcher")) {
             synchronized (isolateStarted) {
                 while (!isolateQueue.isEmpty()) {
@@ -819,12 +814,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         void invoke(Uri uri);
     }
 
-    final static HostnameVerifier DO_NOT_VERIFY = new HostnameVerifier() {
-
-        public boolean verify(String hostname, SSLSession session) {
-            return true;
-        }
-    };
+    final static HostnameVerifier DO_NOT_VERIFY = (hostname, session) -> true;
 
     /**
      * Trust every server - dont check for any certificate
@@ -838,11 +828,11 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 return new java.security.cert.X509Certificate[] {};
             }
 
-            public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            public void checkClientTrusted(X509Certificate[] chain, String authType) {
                 Log.i(TAG, "checkClientTrusted");
             }
 
-            public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            public void checkServerTrusted(X509Certificate[] chain, String authType) {
                 Log.i(TAG, "checkServerTrusted");
             }
         } };

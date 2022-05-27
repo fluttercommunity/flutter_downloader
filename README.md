@@ -27,7 +27,8 @@ The following steps require to open your `ios` project in Xcode.
 
 1. Enable background mode.
 
-<img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/enable_background_mode.png?raw=true"/>
+<img width="512"
+src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/enable_background_mode.png?raw=true"/>
 
 2. Add `sqlite` library.
 
@@ -110,7 +111,7 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
 - **Support HTTP request:** if you want to download file with HTTP request, you
   need to disable Apple Transport Security (ATS) feature. There're two options:
 
-1. Disable ATS for a specific domain only: (add following codes to your
+1. Disable ATS for a specific domain only: (add the following code to your
    `Info.plist` file)
 
 ```xml
@@ -134,7 +135,7 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
 </dict>
 ```
 
-2. Completely disable ATS: (add following codes to your `Info.plist` file)
+2. Completely disable ATS. Add the following to your `Info.plist` file)
 
 ```xml
 <key>NSAppTransportSecurity</key>
@@ -146,7 +147,7 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
 - **Configure maximum number of concurrent tasks:** the plugin allows 3 download
   tasks running at a moment by default (if you enqueue more than 3 tasks,
   there're only 3 tasks running, other tasks are put in pending state). You can
-  change this number by adding following codes to your `Info.plist` file.
+  change this number by adding the following code to your `Info.plist` file.
 
 ```xml
 <!-- changes this number to configure the maximum number of concurrent tasks -->
@@ -172,12 +173,14 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
 
 ## Android integration
 
-There's no additional configurations required on Android.
+You don't have to do anything extra to make the plugin work on Android.
 
-In order to handle click action on notification to open the downloaded file on
-Android, you need to add some additional configurations.
+There are although a few optional settings you might want to configure.
 
-Add the following to `AndroidManifest.xml`:
+### Open downloaded file from notification
+
+To make tapping on notification open the downloaded file on Android, add the
+following code to `AndroidManifest.xml`:
 
 ```xml
 <provider
@@ -191,20 +194,19 @@ Add the following to `AndroidManifest.xml`:
 </provider>
 ```
 
-**Note:**
+**Notes**
 
 - You have to save your downloaded files in external storage (where the other
   applications have permission to read your files)
-- The downloaded files are only able to be opened if your device has at least an
-  application that can read these file types (mp3, pdf, etc)
+- The downloaded files are only able to be opened if your device has at least
+  one application that can read these file types (mp3, pdf, etc.)
 
-### Optional configuration:
+### Configure maximum number of concurrent download tasks
 
-- **Configure maximum number of concurrent tasks:** the plugin depends on
-  `WorkManager` library and `WorkManager` depends on the number of available
-  processor to configure the maximum number of tasks running at a moment. You
-  can setup a fixed number for this configuration by adding following codes to
-  your `AndroidManifest.xml`:
+The plugin depends on `WorkManager` library and `WorkManager` depends on the
+number of available processor to configure the maximum number of tasks running
+at a moment. You can setup a fixed number for this configuration by adding the
+following code to your `AndroidManifest.xml`:
 
 ```xml
 <!-- Begin FlutterDownloader customization -->
@@ -233,9 +235,10 @@ Add the following to `AndroidManifest.xml`:
 <!-- End FlutterDownloader customization -->
 ```
 
-- **Localize notification messages:** you can localize notification messages of
-  download progress by localizing following messages. (you can find the detail
-  of string localization in Android in this [link][4])
+### Localize strings in notifications
+
+You can localize texts in download progress notifications by localizing
+following messages.
 
 ```xml
 <string name="flutter_downloader_notification_started">Download started</string>
@@ -246,9 +249,13 @@ Add the following to `AndroidManifest.xml`:
 <string name="flutter_downloader_notification_paused">Download paused</string>
 ```
 
-- **PackageInstaller:** in order to open APK files, your application needs
-  `REQUEST_INSTALL_PACKAGES` permission. Add the following code in your
-  `AndroidManifest.xml`:
+You can learn more about localization on Android [here][4]).
+
+### Install .apk files
+
+To open and install `.apk` files, your application needs
+`REQUEST_INSTALL_PACKAGES` permission. Add the following in your
+`AndroidManifest.xml`:
 
 ```xml
 <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
@@ -437,12 +444,16 @@ plugin is missing some feature.
 
 Pull request are also very welcome!
 
-[fluttercommunity_badge]: https://fluttercommunity.dev/_github/header/flutter_downloader
+[fluttercommunity_badge]:
+    https://fluttercommunity.dev/_github/header/flutter_downloader
 [fluttercommunity_link]: https://github.com/fluttercommunity/community
 [pub_badge]: https://img.shields.io/pub/v/flutter_downloader.svg
 [pub_link]: https://pub.dartlang.org/packages/flutter_downloader
-[work_manager]: https://developer.android.com/topic/libraries/architecture/workmanager
-[url_session_download_task]: https://developer.apple.com/documentation/foundation/nsurlsessiondownloadtask?language=objc
-[android_9_cleartext_traffic]: https://medium.com/@son.rommer/fix-cleartext-traffic-error-in-android-9-pie-2f4e9e2235e6
+[work_manager]:
+    https://developer.android.com/topic/libraries/architecture/workmanager
+[url_session_download_task]:
+    https://developer.apple.com/documentation/foundation/nsurlsessiondownloadtask?language=objc
+[android_9_cleartext_traffic]:
+    https://medium.com/@son.rommer/fix-cleartext-traffic-error-in-android-9-pie-2f4e9e2235e6
 [3]: https://medium.com/@guerrix/info-plist-localization-ad5daaea732a
 [4]: https://developer.android.com/training/basics/supporting-devices/languages
