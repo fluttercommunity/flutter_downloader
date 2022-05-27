@@ -24,13 +24,13 @@ class FlutterDownloader {
 
   /// Initializes the plugin. This must be called before any other method.
   ///
-  /// Pass true for [debug] if you want to see debug logs in the console.
+  /// If [debug] is true, then verbose logging is printed to the console.
   ///
   /// To ignore SSL-related errors on Android, set [ignoreSsl] to true. This may
   /// be useful when connecting to a test server which is not using SSL, but
   /// should be never used in production.
   static Future<void> initialize({
-    bool debug = true,
+    bool debug = false,
     bool ignoreSsl = false,
   }) async {
     assert(

@@ -4,7 +4,7 @@ import 'package:flutter_downloader_example/home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FlutterDownloader.initialize(ignoreSsl: true);
+  await FlutterDownloader.initialize(debug: true, ignoreSsl: true);
 
   runApp(const MyApp());
 }
