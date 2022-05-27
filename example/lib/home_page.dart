@@ -60,10 +60,14 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
     _port.listen((dynamic data) {
-      print('UI Isolate Callback: $data');
       final taskId = (data as List<dynamic>)[0] as String;
       final status = data[1] as DownloadTaskStatus;
       final progress = data[2] as int;
+
+      print(
+        'Callback on UI isolate: '
+        'task ($taskId) is in status ($status) and process ($progress)',
+      );
 
       if (_tasks != null && _tasks!.isNotEmpty) {
         final task = _tasks!.firstWhere((task) => task.taskId == taskId);
@@ -86,7 +90,8 @@ class _MyHomePageState extends State<MyHomePage> {
     int progress,
   ) {
     print(
-      'Background Isolate Callback: task ($id) is in status ($status) and process ($progress)',
+      'Callback on background isolate: '
+      'task ($id) is in status ($status) and process ($progress)',
     );
 
     IsolateNameServer.lookupPortByName('downloader_send_port')
@@ -95,80 +100,83 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildDownloadList() => ListView(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        children: _items
-            .map(
-              (item) => item.task == null
-                  ? _buildListSection(item.name!)
-                  : DownloadListItem(
-                      data: item,
-                      onItemTap: (task) {
-                        _openDownloadedFile(task).then((success) {
-                          if (!success) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Cannot open this file'),
-                              ),
-                            );
-                          }
-                        });
-                      },
-                      onActionTap: (task) {
-                        if (task.status == DownloadTaskStatus.undefined) {
-                          _requestDownload(task);
-                        } else if (task.status == DownloadTaskStatus.running) {
-                          _pauseDownload(task);
-                        } else if (task.status == DownloadTaskStatus.paused) {
-                          _resumeDownload(task);
-                        } else if (task.status == DownloadTaskStatus.complete) {
-                          _delete(task);
-                        } else if (task.status == DownloadTaskStatus.failed) {
-                          _retryDownload(task);
+        children: [
+          for (final item in _items)
+            item.task == null
+                ? _buildListSection(item.name!)
+                : DownloadListItem(
+                    data: item,
+                    onTap: (task) {
+                      _openDownloadedFile(task).then((success) {
+                        if (!success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Cannot open this file'),
+                            ),
+                          );
                         }
-                      },
-                    ),
-            )
-            .toList(),
+                      });
+                    },
+                    onActionTap: (task) {
+                      if (task.status == DownloadTaskStatus.undefined) {
+                        _requestDownload(task);
+                      } else if (task.status == DownloadTaskStatus.running) {
+                        _pauseDownload(task);
+                      } else if (task.status == DownloadTaskStatus.paused) {
+                        _resumeDownload(task);
+                      } else if (task.status == DownloadTaskStatus.complete) {
+                        _delete(task);
+                      } else if (task.status == DownloadTaskStatus.failed) {
+                        _retryDownload(task);
+                      }
+                    },
+                  ),
+        ],
       );
 
-  Widget _buildListSection(String title) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.blue,
-            fontSize: 18,
-          ),
+  Widget _buildListSection(String title) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.blue,
+          fontSize: 18,
         ),
-      );
+      ),
+    );
+  }
 
-  Widget _buildNoPermissionWarning() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                'Grant storage permission to continue',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.blueGrey, fontSize: 18),
+  Widget _buildNoPermissionWarning() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              'Grant storage permission to continue',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.blueGrey, fontSize: 18),
+            ),
+          ),
+          const SizedBox(height: 32),
+          TextButton(
+            onPressed: _retryRequestPermission,
+            child: const Text(
+              'Retry',
+              style: TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
               ),
             ),
-            const SizedBox(height: 32),
-            TextButton(
-              onPressed: _retryRequestPermission,
-              child: const Text(
-                'Retry',
-                style: TextStyle(
-                  color: Colors.blue,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-              ),
-            )
-          ],
-        ),
-      );
+          )
+        ],
+      ),
+    );
+  }
 
   Future<void> _retryRequestPermission() async {
     final hasGranted = await _checkPermission();
@@ -364,12 +372,12 @@ class DownloadListItem extends StatelessWidget {
   const DownloadListItem({
     super.key,
     this.data,
-    this.onItemTap,
+    this.onTap,
     this.onActionTap,
   });
 
   final _ItemHolder? data;
-  final Function(_TaskInfo?)? onItemTap;
+  final Function(_TaskInfo?)? onTap;
   final Function(_TaskInfo)? onActionTap;
 
   @override
@@ -379,16 +387,16 @@ class DownloadListItem extends StatelessWidget {
       child: InkWell(
         onTap: data!.task!.status == DownloadTaskStatus.complete
             ? () {
-                onItemTap!(data!.task);
+                onTap!(data!.task);
               }
             : null,
         child: Stack(
-          children: <Widget>[
+          children: [
             SizedBox(
               width: double.infinity,
               height: 64,
               child: Row(
-                children: <Widget>[
+                children: [
                   Expanded(
                     child: Text(
                       data!.name!,
@@ -414,9 +422,7 @@ class DownloadListItem extends StatelessWidget {
                   value: data!.task!.progress! / 100,
                 ),
               )
-            else
-              Container()
-          ].toList(),
+          ],
         ),
       ),
     );
