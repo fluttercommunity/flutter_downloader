@@ -14,7 +14,7 @@ class DownloadListItem extends StatelessWidget {
   final Function(TaskInfo?)? onTap;
   final Function(TaskInfo)? onActionTap;
 
-  Widget? _buildActionForTask(TaskInfo task) {
+  Widget? _buildTrailing(TaskInfo task) {
     if (task.status == DownloadTaskStatus.undefined) {
       return IconButton(
         onPressed: () => onActionTap!(task),
@@ -22,16 +22,26 @@ class DownloadListItem extends StatelessWidget {
         icon: const Icon(Icons.file_download),
       );
     } else if (task.status == DownloadTaskStatus.running) {
-      return IconButton(
-        onPressed: () => onActionTap!(task),
-        constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-        icon: const Icon(Icons.pause, color: Colors.red),
+      return Row(
+        children: [
+          Text('${task.progress}%'),
+          IconButton(
+            onPressed: () => onActionTap!(task),
+            constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+            icon: const Icon(Icons.pause, color: Colors.red),
+          ),
+        ],
       );
     } else if (task.status == DownloadTaskStatus.paused) {
-      return IconButton(
-        onPressed: () => onActionTap!(task),
-        constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-        icon: const Icon(Icons.play_arrow, color: Colors.green),
+      return Row(
+        children: [
+          Text('${task.progress}%'),
+          IconButton(
+            onPressed: () => onActionTap!(task),
+            constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+            icon: const Icon(Icons.play_arrow, color: Colors.green),
+          ),
+        ],
       );
     } else if (task.status == DownloadTaskStatus.complete) {
       return Row(
@@ -96,7 +106,7 @@ class DownloadListItem extends StatelessWidget {
                     ),
                     Padding(
                       padding: const EdgeInsets.only(left: 8),
-                      child: _buildActionForTask(data!.task!),
+                      child: _buildTrailing(data!.task!),
                     ),
                   ],
                 ),
