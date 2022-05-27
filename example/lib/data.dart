@@ -1,10 +1,6 @@
 class DownloadItems {
   static const documents = [
     DownloadItem(
-      name: 'Learning Android Studio',
-      url: 'http://barbra-coco.dyndns.org/student/learning_android_studio.pdf',
-    ),
-    DownloadItem(
       name: 'Android Programming Cookbook',
       url:
           'http://enos.itcollege.ee/~jpoial/allalaadimised/reading/Android-Programming-Cookbook.pdf',
