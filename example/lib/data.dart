@@ -11,12 +11,8 @@ class DownloadItems {
     ),
     DownloadItem(
       name: 'iOS Programming Guide',
-      url: 'http://darwinlogic.com/uploads/education/iOS_Programming_Guide.pdf',
-    ),
-    DownloadItem(
-      name: 'Objective-C Programming (Pre-Course Workbook',
       url:
-          'https://www.bignerdranch.com/documents/objective-c-prereading-assignment.pdf',
+          'http://englishonlineclub.com/pdf/iOS%20Programming%20-%20The%20Big%20Nerd%20Ranch%20Guide%20(6th%20Edition)%20[EnglishOnlineClub.com].pdf',
     ),
   ];
 

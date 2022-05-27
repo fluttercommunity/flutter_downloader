@@ -88,8 +88,8 @@ class _MyHomePageState extends State<MyHomePage> {
       'Background Isolate Callback: task ($id) is in status ($status) and process ($progress)',
     );
 
-    final send = IsolateNameServer.lookupPortByName('downloader_send_port')!;
-    send.send([id, status, progress]);
+    IsolateNameServer.lookupPortByName('downloader_send_port')
+        ?.send([id, status, progress]);
   }
 
   @override
@@ -110,45 +110,41 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _buildDownloadList() => Container(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          children: _items
-              .map(
-                (item) => item.task == null
-                    ? _buildListSection(item.name!)
-                    : DownloadListItem(
-                        data: item,
-                        onItemTap: (task) {
-                          _openDownloadedFile(task).then((success) {
-                            if (!success) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Cannot open this file'),
-                                ),
-                              );
-                            }
-                          });
-                        },
-                        onActionTap: (task) {
-                          if (task.status == DownloadTaskStatus.undefined) {
-                            _requestDownload(task);
-                          } else if (task.status ==
-                              DownloadTaskStatus.running) {
-                            _pauseDownload(task);
-                          } else if (task.status == DownloadTaskStatus.paused) {
-                            _resumeDownload(task);
-                          } else if (task.status ==
-                              DownloadTaskStatus.complete) {
-                            _delete(task);
-                          } else if (task.status == DownloadTaskStatus.failed) {
-                            _retryDownload(task);
+  Widget _buildDownloadList() => ListView(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        children: _items
+            .map(
+              (item) => item.task == null
+                  ? _buildListSection(item.name!)
+                  : DownloadListItem(
+                      data: item,
+                      onItemTap: (task) {
+                        _openDownloadedFile(task).then((success) {
+                          if (!success) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Cannot open this file'),
+                              ),
+                            );
                           }
-                        },
-                      ),
-              )
-              .toList(),
-        ),
+                        });
+                      },
+                      onActionTap: (task) {
+                        if (task.status == DownloadTaskStatus.undefined) {
+                          _requestDownload(task);
+                        } else if (task.status == DownloadTaskStatus.running) {
+                          _pauseDownload(task);
+                        } else if (task.status == DownloadTaskStatus.paused) {
+                          _resumeDownload(task);
+                        } else if (task.status == DownloadTaskStatus.complete) {
+                          _delete(task);
+                        } else if (task.status == DownloadTaskStatus.failed) {
+                          _retryDownload(task);
+                        }
+                      },
+                    ),
+            )
+            .toList(),
       );
 
   Widget _buildListSection(String title) => Container(
@@ -163,35 +159,33 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       );
 
-  Widget _buildNoPermissionWarning() => Container(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  'Please grant accessing storage permission to continue -_-',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.blueGrey, fontSize: 18),
+  Widget _buildNoPermissionWarning() => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                'Please grant accessing storage permission to continue -_-',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.blueGrey, fontSize: 18),
+              ),
+            ),
+            const SizedBox(
+              height: 32,
+            ),
+            TextButton(
+              onPressed: _retryRequestPermission,
+              child: const Text(
+                'Retry',
+                style: TextStyle(
+                  color: Colors.blue,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
                 ),
               ),
-              const SizedBox(
-                height: 32,
-              ),
-              TextButton(
-                onPressed: _retryRequestPermission,
-                child: const Text(
-                  'Retry',
-                  style: TextStyle(
-                    color: Colors.blue,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                ),
-              )
-            ],
-          ),
+            )
+          ],
         ),
       );
 
@@ -476,10 +470,7 @@ class DownloadListItem extends StatelessWidget {
             },
             shape: const CircleBorder(),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-            child: const Icon(
-              Icons.delete_forever,
-              color: Colors.red,
-            ),
+            child: const Icon(Icons.delete),
           )
         ],
       );
