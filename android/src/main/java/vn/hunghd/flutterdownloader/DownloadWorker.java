@@ -42,7 +42,6 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLDecoder;
-import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -60,7 +59,6 @@ import androidx.work.WorkerParameters;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
@@ -81,7 +79,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     public static final String ARG_OPEN_FILE_FROM_NOTIFICATION = "open_file_from_notification";
     public static final String ARG_CALLBACK_HANDLE = "callback_handle";
     public static final String ARG_DEBUG = "debug";
-    public static final String ARG_STEP_UPDATE = "step_update";
+    public static final String ARG_STEP = "step";
     public static final String ARG_SAVE_IN_PUBLIC_STORAGE = "save_in_public_storage";
     public static final String ARG_IGNORESSL = "ignoreSsl";
 
@@ -108,7 +106,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     private int primaryId;
     private String msgStarted, msgInProgress, msgCanceled, msgFailed, msgPaused, msgComplete;
     private long lastCallUpdateNotification = 0;
-    private int stepUpdate;
+    private int step;
     private boolean saveInPublicStorage;
 
     public DownloadWorker(@NonNull final Context context,
@@ -189,7 +187,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         String headers = getInputData().getString(ARG_HEADERS);
         boolean isResume = getInputData().getBoolean(ARG_IS_RESUME, false);
         debug = getInputData().getBoolean(ARG_DEBUG, false);
-        stepUpdate = getInputData().getInt(ARG_STEP_UPDATE, 10);
+        step = getInputData().getInt(ARG_STEP, 10);
         ignoreSsl = getInputData().getBoolean(ARG_IGNORESSL, false);
 
         Resources res = getApplicationContext().getResources();
@@ -418,7 +416,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     int progress = (int) ((count * 100) / (contentLength + downloadedBytes));
                     outputStream.write(buffer, 0, bytesRead);
 
-                    if ((lastProgress == 0 || progress > (lastProgress + stepUpdate) || progress == 100)
+                    if ((lastProgress == 0 || progress > (lastProgress + step) || progress == 100)
                             && progress != lastProgress) {
                         lastProgress = progress;
 

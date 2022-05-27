@@ -1,6 +1,6 @@
 ## 1.8.1
 
-- Add optional `int step` argument to `FlutterDownloader.initialize()`
+- Add optional `int step` argument to `FlutterDownloader.registerCallback()`
 - Improve README
 - Slightly refactor example app
 

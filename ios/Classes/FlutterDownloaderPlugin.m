@@ -41,7 +41,7 @@
     NSString *_allFilesDownloadedMsg;
     NSMutableArray *_eventQueue;
     int64_t _callbackHandle;
-    int _stepUpdate;
+    int _step;
 }
 
 @property(nonatomic, strong) dispatch_queue_t databaseQueue;
@@ -561,7 +561,7 @@ static BOOL debug = YES;
 - (void)registerCallbackMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSArray *arguments = call.arguments;
     _callbackHandle = [arguments[0] longLongValue];
-    _stepUpdate = [arguments[1] intValue];
+    _step = [arguments[1] intValue];
     result([NSNull null]);
 }
 
@@ -868,7 +868,7 @@ static BOOL debug = YES;
         NSString *taskId = [self identifierForTask:downloadTask];
         int progress = round(totalBytesWritten * 100 / (double)totalBytesExpectedToWrite);
         NSNumber *lastProgress = _runningTaskById[taskId][KEY_PROGRESS];
-        if (([lastProgress intValue] == 0 || (progress > ([lastProgress intValue] + _stepUpdate)) || progress == 100) && progress != [lastProgress intValue]) {
+        if (([lastProgress intValue] == 0 || (progress > ([lastProgress intValue] + _step)) || progress == 100) && progress != [lastProgress intValue]) {
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_RUNNING) andProgress:@(progress)];
             __typeof__(self) __weak weakSelf = self;
             dispatch_sync(databaseQueue, ^{

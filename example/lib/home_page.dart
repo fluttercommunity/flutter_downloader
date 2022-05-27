@@ -25,7 +25,7 @@ class MyHomePage extends StatefulWidget with WidgetsBindingObserver {
 class _MyHomePageState extends State<MyHomePage> {
   List<TaskInfo>? _tasks;
   late List<ItemHolder> _items;
-  late bool _isLoading;
+  late bool _loading;
   late bool _permissionReady;
   late String _localPath;
   final ReceivePort _port = ReceivePort();
@@ -36,9 +36,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
     _bindBackgroundIsolate();
 
-    FlutterDownloader.registerCallback(downloadCallback);
+    FlutterDownloader.registerCallback(downloadCallback, step: 1);
 
-    _isLoading = true;
+    _loading = true;
     _permissionReady = false;
 
     _prepare();
@@ -324,7 +324,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     setState(() {
-      _isLoading = false;
+      _loading = false;
     });
   }
 
@@ -361,7 +361,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Builder(
         builder: (context) {
-          if (_isLoading) {
+          if (_loading) {
             return const Center(child: CircularProgressIndicator());
           }
 
