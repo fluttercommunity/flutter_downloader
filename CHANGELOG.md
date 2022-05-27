@@ -1,3 +1,9 @@
+## 1.8.1
+
+- Add optional `int step` argument to `FlutterDownloader.initialize()`
+- Improve README
+- Slightly refactor example app
+
 ## 1.8.0+1
 
 - Fix broken images in README on pub.dev
@@ -15,11 +21,14 @@
 ## 1.7.4
 
 - fix bug SSL on Android
-- merged PRs: [#635](https://github.com/fluttercommunity/flutter_downloader/pull/635), [#637](https://github.com/fluttercommunity/flutter_downloader/pull/637)
+- merged PRs:
+  [#635](https://github.com/fluttercommunity/flutter_downloader/pull/635),
+  [#637](https://github.com/fluttercommunity/flutter_downloader/pull/637)
 
 ## 1.7.3
 
-- fix bug [#614](https://github.com/fluttercommunity/flutter_downloader/issues/614)
+- fix bug
+  [#614](https://github.com/fluttercommunity/flutter_downloader/issues/614)
 
 ## 1.7.2
 
@@ -64,7 +73,8 @@
 
 ## 1.4.4
 
-- add `debug` (optional) parameter in `initialize()` method that supports disable logging to console
+- add `debug` (optional) parameter in `initialize()` method that supports
+  disable logging to console
 
 ## 1.4.3
 
@@ -104,9 +114,14 @@
 
 ## 1.3.0
 
-- **BREAKING CHANGES**: the plugin has been refactored to support update download events with background isolate. In order to support background execution in Dart, the `callback`, that receives events from platform codes, now must be a static or top-level function. There's also an additional native configuration required on both of iOS and Android. See README for detail.
+- **BREAKING CHANGES**: the plugin has been refactored to support update
+  download events with background isolate. In order to support background
+  execution in Dart, the `callback`, that receives events from platform codes,
+  now must be a static or top-level function. There's also an additional native
+  configuration required on both of iOS and Android. See README for detail.
 - Android: upgrade `WorkManager` to v2.2.0.
-- Fix bug `SecurityException` when saving image/videos to internal storage in Android
+- Fix bug `SecurityException` when saving image/videos to internal storage in
+  Android
 - Fix bug cannot save videos in Android.
 
 ## 1.2.2
@@ -115,11 +130,14 @@
 
 ## 1.2.1
 
-- Android: hot-fix unregister `BroadcastReceiver` in case using `FlutterFragmentActivity`
+- Android: hot-fix unregister `BroadcastReceiver` in case using
+  `FlutterFragmentActivity`
 
 ## 1.2.0
 
-- Android: support `FlutterFragmentActivity`, fix bug downloaded image/video files not shown in Gallery application, improved HTTP redirection implementation, fix bug cannot open apk file in some cases
+- Android: support `FlutterFragmentActivity`, fix bug downloaded image/video
+  files not shown in Gallery application, improved HTTP redirection
+  implementation, fix bug cannot open apk file in some cases
 
 ## 1.1.9
 
@@ -128,8 +146,13 @@
 
 ## 1.1.8
 
-- Fix bug in iOS: from iOS 8, absolute path to app's sandbox changes every time you relaunch the app, hence `savedDir` path is needed to truncate the changing part before saving it to DB and recreate the absolute path every time it loaded from DB. Currently, the plugin only supports save files in `NSDocumentDirectory`.
-- Fix bug is iOS: setting wrong status of task in case that the application is terminated
+- Fix bug in iOS: from iOS 8, absolute path to app's sandbox changes every time
+  you relaunch the app, hence `savedDir` path is needed to truncate the changing
+  part before saving it to DB and recreate the absolute path every time it
+  loaded from DB. Currently, the plugin only supports save files in
+  `NSDocumentDirectory`.
+- Fix bug is iOS: setting wrong status of task in case that the application is
+  terminated
 - Android: upgrade dependencies
 
 ## 1.1.7
@@ -148,8 +171,10 @@
 
 ## 1.1.4
 
-- add `remove()` feature to delete task (in DB) and downloaded file as well (optional).
-- support clean up callback by setting callback as `null` in `registerCallback()`
+- add `remove()` feature to delete task (in DB) and downloaded file as well
+  (optional).
+- support clean up callback by setting callback as `null` in
+  `registerCallback()`
 - Android: upgrade `WorkManager` to version 1.0.0-beta01
 
 ## 1.1.3
@@ -168,7 +193,10 @@
 ## 1.1.0
 
 - Android: upgrade `WorkManager` library to version v1.0.0-alpha11
-- **BREAKING CHANGE**: `initialize()` is removed (to deal with the change of the initialization of `WorkManager` in v1.0.0-alpha11). The plugin initializes itself with default configurations. If you would like to change the default configuration, you can follows the instruction in `README.md`
+- **BREAKING CHANGE**: `initialize()` is removed (to deal with the change of the
+  initialization of `WorkManager` in v1.0.0-alpha11). The plugin initializes
+  itself with default configurations. If you would like to change the default
+  configuration, you can follows the instruction in `README.md`
 
 ## 1.0.6
 
@@ -196,13 +224,22 @@
 
 ## 1.0.0
 
-- **NEW** features: initialize, loadTasksWithRawQuery, pause, resume, retry, open
+- **NEW** features: initialize, loadTasksWithRawQuery, pause, resume, retry,
+  open
 - **IMPORTANT**: the plugin must be initialized by `initialize()` at first
-- **BREAKING CHANGE**: `clickToOpenDownloadedFile` now renames to `openFileFromNotification` (to prevent confusing from `open` feature). Static property `maximumConcurrentTask` has been removed, this configuration now moves into `initialize()` method.
-- full support SQLite on both Android and iOS side, the plugin now itself manages its states persistently and exposes `loadTasksWithRawQuery` api that helps developers to load tasks from SQLite database with customized conditions
-- support localizing Android notification messages with `messages` parameter of `initialize()` method
+- **BREAKING CHANGE**: `clickToOpenDownloadedFile` now renames to
+  `openFileFromNotification` (to prevent confusing from `open` feature). Static
+  property `maximumConcurrentTask` has been removed, this configuration now
+  moves into `initialize()` method.
+- full support SQLite on both Android and iOS side, the plugin now itself
+  manages its states persistently and exposes `loadTasksWithRawQuery` api that
+  helps developers to load tasks from SQLite database with customized conditions
+- support localizing Android notification messages with `messages` parameter of
+  `initialize()` method
 - full support opening and previewing downloaded file with `open()` method
-- (iOS integration) no need to override `application:handleEventsForBackgroundURLSession:completionHandler:` manually anymore, the plugin now itself takes responsibility for handling it
+- (iOS integration) no need to override
+  `application:handleEventsForBackgroundURLSession:completionHandler:` manually
+  anymore, the plugin now itself takes responsibility for handling it
 
 ## 0.1.1
 
@@ -230,7 +267,9 @@
 ## 0.0.6
 
 - upgrade WorkManager to v1.0.0-alpha03
-- change default value of `showNotification` to `true` (it makes sense on Android 8.0 and above, it helps our tasks not to be killed by system when the app goes to background)
+- change default value of `showNotification` to `true` (it makes sense on
+  Android 8.0 and above, it helps our tasks not to be killed by system when the
+  app goes to background)
 
 ## 0.0.5
 
