@@ -2,40 +2,46 @@ group 'vn.hunghd.flutterdownloader'
 version '1.0-SNAPSHOT'
 
 buildscript {
+    ext.kotlin_version = '1.6.10'
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.5.0'
+        classpath 'com.android.tools.build:gradle:7.1.3'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
 rootProject.allprojects {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
 }
 
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 28
+    compileSdkVersion 31
 
     defaultConfig {
-        minSdkVersion 16
+        minSdkVersion 19
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     lintOptions {
         disable 'InvalidPackage'
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
 }
 
 dependencies {
-    implementation 'androidx.work:work-runtime:2.2.0'
-    implementation 'androidx.annotation:annotation:1.1.0'
-    implementation 'androidx.core:core:1.1.0'
-    implementation 'androidx.fragment:fragment:1.1.0'
+    implementation 'androidx.work:work-runtime:2.7.1'
+    implementation 'androidx.annotation:annotation:1.3.0'
+    implementation 'androidx.core:core:1.7.0'
+    implementation 'androidx.fragment:fragment:1.4.1'
 }
