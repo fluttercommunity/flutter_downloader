@@ -307,27 +307,21 @@ class FlutterDownloader {
     }
   }
 
-  /// Registers a callback to track the status and progress of a download task.
+  /// Registers a [callback] to track the status and progress of a download
+  /// task.
   ///
-  /// **parameters:**
+  /// [callback] must be a top-level or static function of [DownloadCallback]
+  /// type which is called whenever the status or progress value of a download
+  /// task has been changed.
   ///
-  /// * `callback`: a top-level or static function of [DownloadCallback] type
-  ///   which is called whenever the status or progress value of a download task
-  ///   has been changed.
-  ///
-  /// **Note:**
-  ///
-  /// Your UI is rendered in the main isolate, while download events come from a
-  /// background isolate (in other words, codes in `callback` are run in the
+  /// Your UI is rendered on the main isolate, while download events come from a
+  /// background isolate (in other words, code in [callback] is run in the
   /// background isolate), so you have to handle the communication between two
   /// isolates.
   ///
-  /// **Example:**
-  ///
-  /// {@tool sample}
+  /// Example:
   ///
   /// ```dart
-  ///
   ///ReceivePort _port = ReceivePort();
   ///
   ///@override
@@ -343,33 +337,36 @@ class FlutterDownloader {
   ///  });
   ///
   ///  FlutterDownloader.registerCallback(downloadCallback);
-  ///
   ///}
   ///
   ///static void downloadCallback(
-  /// String id,
-  /// DownloadTaskStatus status,
-  /// int progress,
-  /// ) {
-  ///  final SendPort send = IsolateNameServer.lookupPortByName(
-  ///   'downloader_send_port',
+  ///  String id,
+  ///  DownloadTaskStatus status,
+  ///  int progress,
+  ///  ) {
+  ///    final SendPort send = IsolateNameServer.lookupPortByName(
+  ///    'downloader_send_port',
   ///  );
   ///  send.send([id, status, progress]);
   ///}
-  ///
   ///```
-  ///
-  /// {@end-tool}
-  static registerCallback(DownloadCallback callback, {int stepSize = 10}) {
+  static registerCallback(DownloadCallback callback, {int step = 10}) {
     assert(_initialized, 'plugin flutter_downloader is not initialized');
 
-    final callbackHandle = PluginUtilities.getCallbackHandle(callback)!;
-    assert(callbackHandle != null, 'callback must be a top-level or static function');
-    assert(stepSize >= 0 && stepSize <= 100, 'Step size should be between 0-100');
-  
+    final callbackHandle = PluginUtilities.getCallbackHandle(callback);
+    assert(
+      callbackHandle != null,
+      'callback must be a top-level or static function',
+    );
+
+    assert(
+      0 <= step && step <= 100,
+      'step size is not in the inclusive <0;100> range',
+    );
+
     _channel.invokeMethod(
       'registerCallback',
-      <dynamic>[callbackHandle.toRawHandle(), stepSize],
+      <dynamic>[callbackHandle!.toRawHandle(), step],
     );
   }
 
