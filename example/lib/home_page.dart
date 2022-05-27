@@ -11,10 +11,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class MyHomePage extends StatefulWidget with WidgetsBindingObserver {
-  MyHomePage({super.key, this.title, this.platform});
+  const MyHomePage({super.key, required this.title, required this.platform});
+
   final TargetPlatform? platform;
 
-  final String? title;
+  final String title;
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
@@ -92,24 +93,6 @@ class _MyHomePageState extends State<MyHomePage> {
         ?.send([id, status, progress]);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title!),
-      ),
-      body: Builder(
-        builder: (context) => _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(),
-              )
-            : _permissionReady
-                ? _buildDownloadList()
-                : _buildNoPermissionWarning(),
-      ),
-    );
-  }
-
   Widget _buildDownloadList() => ListView(
         padding: const EdgeInsets.symmetric(vertical: 16),
         children: _items
@@ -166,14 +149,12 @@ class _MyHomePageState extends State<MyHomePage> {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                'Please grant accessing storage permission to continue -_-',
+                'Grant storage permission to continue',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.blueGrey, fontSize: 18),
               ),
             ),
-            const SizedBox(
-              height: 32,
-            ),
+            const SizedBox(height: 32),
             TextButton(
               onPressed: _retryRequestPermission,
               child: const Text(
@@ -356,6 +337,26 @@ class _MyHomePageState extends State<MyHomePage> {
           (await getApplicationDocumentsDirectory()).absolute.path;
     }
     return externalStorageDirPath;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+      ),
+      body: Builder(
+        builder: (context) {
+          if (_isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          return _permissionReady
+              ? _buildDownloadList()
+              : _buildNoPermissionWarning();
+        },
+      ),
+    );
   }
 }
 
