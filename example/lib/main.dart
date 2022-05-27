@@ -6,24 +6,24 @@ const debug = true;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FlutterDownloader.initialize(debug: debug, ignoreSsl: true);
+  await FlutterDownloader.initialize(ignoreSsl: true);
 
-  runApp(new MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   static const _title = 'flutter_downloader demo';
 
   @override
   Widget build(BuildContext context) {
     final platform = Theme.of(context).platform;
 
-    return new MaterialApp(
+    return MaterialApp(
       title: _title,
-      theme: new ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: new MyHomePage(
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: MyHomePage(
         title: _title,
         platform: platform,
       ),
