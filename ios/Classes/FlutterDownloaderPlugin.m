@@ -344,14 +344,17 @@ static BOOL debug = YES;
     if (debug) {
         NSLog(@"Absolute savedDir path: %@", absolutePath);
     }
+    
     if (absolutePath) {
         NSString* documentDirPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
         NSRange foundRank = [absolutePath rangeOfString:documentDirPath];
         if (foundRank.length > 0) {
             // we increase the location of range by one because we want to remove the file separator as well.
-            return [absolutePath substringWithRange:NSMakeRange(foundRank.length + 1, absolutePath.length - documentDirPath.length - 1)];
+            NSString *shortenSavedDirPath = [absolutePath substringWithRange:NSMakeRange(foundRank.length + 1, absolutePath.length - documentDirPath.length - 1)];
+            return shortenSavedDirPath != nil ? shortenSavedDirPath : @"";
         }
     }
+   
     return absolutePath;
 }
 
@@ -369,7 +372,7 @@ static BOOL debug = YES;
         return @"";
     }
     return revert
-    ? [origin stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding]
+    ? [origin stringByRemovingPercentEncoding]
     : [origin stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLQueryAllowedCharacterSet];
 }
 
@@ -738,13 +741,14 @@ static BOOL debug = YES;
 }
 
 - (void)removeMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    __typeof__(self) __weak weakSelf = self;
+
     NSString *taskId = call.arguments[KEY_TASK_ID];
     Boolean shouldDeleteContent = [call.arguments[@"should_delete_content"] boolValue];
     NSDictionary* taskDict = [self loadTaskWithId:taskId];
     if (taskDict != nil) {
         NSNumber* status = taskDict[KEY_STATUS];
         if ([status intValue] == STATUS_ENQUEUED || [status intValue] == STATUS_RUNNING) {
-            __typeof__(self) __weak weakSelf = self;
             [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
                 for (NSURLSessionDownloadTask *download in downloads) {
                     NSURLSessionTaskState state = download.state;
@@ -760,7 +764,11 @@ static BOOL debug = YES;
                 };
             }];
         }
-        [self deleteTask:taskId];
+        
+        dispatch_sync([self databaseQueue], ^{
+            [weakSelf deleteTask:taskId];
+        });
+        
         if (shouldDeleteContent) {
             NSURL *destinationURL = [self fileUrlFromDict:taskDict];
 
@@ -873,54 +881,63 @@ static BOOL debug = YES;
 
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL:(NSURL *)location
 {
+    
+    NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *) downloadTask.response;
+    long httpStatusCode = (long)[httpResponse statusCode];
+    
     if (debug) {
-        NSLog(@"URLSession:downloadTask:didFinishDownloadingToURL:");
+        NSLog(@"%s HTTP status code: %ld", __FUNCTION__, httpStatusCode);
     }
-
-    NSString *taskId = [self identifierForTask:downloadTask ofSession:session];
-    NSDictionary *task = [self loadTaskWithId:taskId];
-    NSURL *destinationURL = [self fileUrlOf:taskId taskInfo:task downloadTask:downloadTask];
-
-    [_runningTaskById removeObjectForKey:taskId];
-
-    NSError *error;
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-
-    if ([fileManager fileExistsAtPath:[destinationURL path]]) {
-        [fileManager removeItemAtURL:destinationURL error:nil];
-    }
-
-    BOOL success = [fileManager copyItemAtURL:location
-                                        toURL:destinationURL
-                                        error:&error];
-
-    __typeof__(self) __weak weakSelf = self;
-    if (success) {
-        [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_COMPLETE) andProgress:@100];
-        dispatch_sync(databaseQueue, ^{
-            [weakSelf updateTask:taskId status:STATUS_COMPLETE progress:100];
-        });
-    } else {
-        if (debug) {
-            NSLog(@"Unable to copy temp file. Error: %@", [error localizedDescription]);
+    
+    bool isSuccess = (httpStatusCode >= 200 && httpStatusCode < 300);
+    
+    if (isSuccess) {
+        NSString *taskId = [self identifierForTask:downloadTask ofSession:session];
+        NSDictionary *task = [self loadTaskWithId:taskId];
+        NSURL *destinationURL = [self fileUrlOf:taskId taskInfo:task downloadTask:downloadTask];
+        
+        [_runningTaskById removeObjectForKey:taskId];
+        
+        NSError *error;
+        NSFileManager *fileManager = [NSFileManager defaultManager];
+        
+        if ([fileManager fileExistsAtPath:[destinationURL path]]) {
+            [fileManager removeItemAtURL:destinationURL error:nil];
         }
-        [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_FAILED) andProgress:@(-1)];
-        dispatch_sync(databaseQueue, ^{
-            [weakSelf updateTask:taskId status:STATUS_FAILED progress:-1];
-        });
+        
+        BOOL success = [fileManager copyItemAtURL:location
+                                            toURL:destinationURL
+                                            error:&error];
+        
+        __typeof__(self) __weak weakSelf = self;
+        if (success) {
+            [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_COMPLETE) andProgress:@100];
+            dispatch_sync(databaseQueue, ^{
+                [weakSelf updateTask:taskId status:STATUS_COMPLETE progress:100];
+            });
+        } else {
+            if (debug) {
+                NSLog(@"Unable to copy temp file. Error: %@", [error localizedDescription]);
+            }
+            [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_FAILED) andProgress:@(-1)];
+            dispatch_sync(databaseQueue, ^{
+                [weakSelf updateTask:taskId status:STATUS_FAILED progress:-1];
+            });
+        }
     }
+    
 }
 
 -(void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error
 {
-    if (debug) {
-        NSLog(@"URLSession:task:didCompleteWithError:");
-    }
+    
     NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *) task.response;
     long httpStatusCode = (long)[httpResponse statusCode];
+    
     if (debug) {
-        NSLog(@"HTTP status code: %ld", httpStatusCode);
+        NSLog(@"%s HTTP status code: %ld", __FUNCTION__, httpStatusCode);
     }
+    
     bool isSuccess = (httpStatusCode >= 200 && httpStatusCode < 300);
     if (error != nil || !isSuccess) {
         if (debug) {
