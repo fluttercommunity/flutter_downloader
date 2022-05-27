@@ -360,13 +360,16 @@ class FlutterDownloader {
   ///```
   ///
   /// {@end-tool}
-  static registerCallback(DownloadCallback callback) {
+  static registerCallback(DownloadCallback callback, {int stepSize = 10}) {
     assert(_initialized, 'plugin flutter_downloader is not initialized');
 
     final callbackHandle = PluginUtilities.getCallbackHandle(callback)!;
+    assert(callbackHandle != null, 'callback must be a top-level or static function');
+    assert(stepSize >= 0 && stepSize <= 100, 'Step size should be between 0-100');
+  
     _channel.invokeMethod(
       'registerCallback',
-      <dynamic>[callbackHandle.toRawHandle()],
+      <dynamic>[callbackHandle.toRawHandle(), stepSize],
     );
   }
 
