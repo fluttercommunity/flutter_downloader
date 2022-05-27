@@ -27,7 +27,8 @@ The following steps require to open your `ios` project in Xcode.
 
 1. Enable background mode.
 
-<img width="512" src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/enable_background_mode.png?raw=true"/>
+<img width="512"
+src="https://github.com/hnvn/flutter_downloader/blob/master/screenshot/enable_background_mode.png?raw=true"/>
 
 2. Add `sqlite` library.
 
@@ -110,7 +111,7 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
 - **Support HTTP request:** if you want to download file with HTTP request, you
   need to disable Apple Transport Security (ATS) feature. There're two options:
 
-1. Disable ATS for a specific domain only: (add following codes to your
+1. Disable ATS for a specific domain only: (add the following code to your
    `Info.plist` file)
 
 ```xml
@@ -134,7 +135,7 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
 </dict>
 ```
 
-2. Completely disable ATS: (add following codes to your `Info.plist` file)
+2. Completely disable ATS. Aadd the following code to your `Info.plist` file)
 
 ```xml
 <key>NSAppTransportSecurity</key>
@@ -146,7 +147,7 @@ private func registerPlugins(registry: FlutterPluginRegistry) {
 - **Configure maximum number of concurrent tasks:** the plugin allows 3 download
   tasks running at a moment by default (if you enqueue more than 3 tasks,
   there're only 3 tasks running, other tasks are put in pending state). You can
-  change this number by adding following codes to your `Info.plist` file.
+  change this number by adding the following code to your `Info.plist` file.
 
 ```xml
 <!-- changes this number to configure the maximum number of concurrent tasks -->
@@ -203,8 +204,8 @@ Add the following to `AndroidManifest.xml`:
 - **Configure maximum number of concurrent tasks:** the plugin depends on
   `WorkManager` library and `WorkManager` depends on the number of available
   processor to configure the maximum number of tasks running at a moment. You
-  can setup a fixed number for this configuration by adding following codes to
-  your `AndroidManifest.xml`:
+  can setup a fixed number for this configuration by adding the following code
+  to your `AndroidManifest.xml`:
 
 ```xml
 <!-- Begin FlutterDownloader customization -->
