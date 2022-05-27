@@ -7,6 +7,7 @@ import 'package:device_info/device_info.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_downloader_example/data.dart';
+import 'package:flutter_downloader_example/download_list_item.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -22,8 +23,8 @@ class MyHomePage extends StatefulWidget with WidgetsBindingObserver {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List<_TaskInfo>? _tasks;
-  late List<_ItemHolder> _items;
+  List<TaskInfo>? _tasks;
+  late List<ItemHolder> _items;
   late bool _isLoading;
   late bool _permissionReady;
   late String _localPath;
@@ -103,7 +104,7 @@ class _MyHomePageState extends State<MyHomePage> {
         children: [
           for (final item in _items)
             item.task == null
-                ? _buildListSection(item.name!)
+                ? _buildListSectionHeading(item.name!)
                 : DownloadListItem(
                     data: item,
                     onTap: (task) {
@@ -134,7 +135,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       );
 
-  Widget _buildListSection(String title) {
+  Widget _buildListSectionHeading(String title) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Text(
@@ -190,7 +191,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<void> _requestDownload(_TaskInfo task) async {
+  Future<void> _requestDownload(TaskInfo task) async {
     task.taskId = await FlutterDownloader.enqueue(
       url: task.link!,
       headers: {'auth': 'test_for_sql_encoding'},
@@ -204,21 +205,21 @@ class _MyHomePageState extends State<MyHomePage> {
   //   await FlutterDownloader.cancel(taskId: task.taskId!);
   // }
 
-  Future<void> _pauseDownload(_TaskInfo task) async {
+  Future<void> _pauseDownload(TaskInfo task) async {
     await FlutterDownloader.pause(taskId: task.taskId!);
   }
 
-  Future<void> _resumeDownload(_TaskInfo task) async {
+  Future<void> _resumeDownload(TaskInfo task) async {
     final newTaskId = await FlutterDownloader.resume(taskId: task.taskId!);
     task.taskId = newTaskId;
   }
 
-  Future<void> _retryDownload(_TaskInfo task) async {
+  Future<void> _retryDownload(TaskInfo task) async {
     final newTaskId = await FlutterDownloader.retry(taskId: task.taskId!);
     task.taskId = newTaskId;
   }
 
-  Future<bool> _openDownloadedFile(_TaskInfo? task) {
+  Future<bool> _openDownloadedFile(TaskInfo? task) {
     if (task != null) {
       return FlutterDownloader.open(taskId: task.taskId!);
     } else {
@@ -226,7 +227,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<void> _delete(_TaskInfo task) async {
+  Future<void> _delete(TaskInfo task) async {
     await FlutterDownloader.remove(
       taskId: task.taskId!,
       shouldDeleteContent: true,
@@ -273,35 +274,35 @@ class _MyHomePageState extends State<MyHomePage> {
 
     _tasks!.addAll(
       DownloadItems.documents.map(
-        (document) => _TaskInfo(name: document.name, link: document.url),
+        (document) => TaskInfo(name: document.name, link: document.url),
       ),
     );
 
-    _items.add(_ItemHolder(name: 'Documents'));
+    _items.add(ItemHolder(name: 'Documents'));
     for (var i = count; i < _tasks!.length; i++) {
-      _items.add(_ItemHolder(name: _tasks![i].name, task: _tasks![i]));
+      _items.add(ItemHolder(name: _tasks![i].name, task: _tasks![i]));
       count++;
     }
 
     _tasks!.addAll(
       DownloadItems.images
-          .map((image) => _TaskInfo(name: image.name, link: image.url)),
+          .map((image) => TaskInfo(name: image.name, link: image.url)),
     );
 
-    _items.add(_ItemHolder(name: 'Images'));
+    _items.add(ItemHolder(name: 'Images'));
     for (var i = count; i < _tasks!.length; i++) {
-      _items.add(_ItemHolder(name: _tasks![i].name, task: _tasks![i]));
+      _items.add(ItemHolder(name: _tasks![i].name, task: _tasks![i]));
       count++;
     }
 
     _tasks!.addAll(
       DownloadItems.videos
-          .map((video) => _TaskInfo(name: video.name, link: video.url)),
+          .map((video) => TaskInfo(name: video.name, link: video.url)),
     );
 
-    _items.add(_ItemHolder(name: 'Videos'));
+    _items.add(ItemHolder(name: 'Videos'));
     for (var i = count; i < _tasks!.length; i++) {
-      _items.add(_ItemHolder(name: _tasks![i].name, task: _tasks![i]));
+      _items.add(ItemHolder(name: _tasks![i].name, task: _tasks![i]));
       count++;
     }
 
@@ -373,126 +374,15 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class DownloadListItem extends StatelessWidget {
-  const DownloadListItem({
-    super.key,
-    this.data,
-    this.onTap,
-    this.onActionTap,
-  });
+class ItemHolder {
+  ItemHolder({this.name, this.task});
 
-  final _ItemHolder? data;
-  final Function(_TaskInfo?)? onTap;
-  final Function(_TaskInfo)? onActionTap;
-
-  Widget? _buildActionForTask(_TaskInfo task) {
-    if (task.status == DownloadTaskStatus.undefined) {
-      return IconButton(
-        onPressed: () => onActionTap!(task),
-        constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-        icon: const Icon(Icons.file_download),
-      );
-    } else if (task.status == DownloadTaskStatus.running) {
-      return IconButton(
-        onPressed: () => onActionTap!(task),
-        constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-        icon: const Icon(Icons.pause, color: Colors.red),
-      );
-    } else if (task.status == DownloadTaskStatus.paused) {
-      return RawMaterialButton(
-        onPressed: () => onActionTap!(task),
-        shape: const CircleBorder(),
-        constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-        child: const Icon(Icons.play_arrow, color: Colors.green),
-      );
-    } else if (task.status == DownloadTaskStatus.complete) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          const Text('Ready', style: TextStyle(color: Colors.green)),
-          IconButton(
-            onPressed: () => onActionTap!(task),
-            constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-            icon: const Icon(Icons.delete),
-          )
-        ],
-      );
-    } else if (task.status == DownloadTaskStatus.canceled) {
-      return const Text('Canceled', style: TextStyle(color: Colors.red));
-    } else if (task.status == DownloadTaskStatus.failed) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          const Text('Failed', style: TextStyle(color: Colors.red)),
-          IconButton(
-            onPressed: () => onActionTap!(task),
-            constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-            icon: const Icon(Icons.refresh, color: Colors.green),
-          )
-        ],
-      );
-    } else if (task.status == DownloadTaskStatus.enqueued) {
-      return const Text('Pending', style: TextStyle(color: Colors.orange));
-    } else {
-      return null;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: data!.task!.status == DownloadTaskStatus.complete
-          ? () {
-              onTap!(data!.task);
-            }
-          : null,
-      child: Container(
-        padding: const EdgeInsets.only(left: 16, right: 8),
-        child: InkWell(
-          child: Stack(
-            children: [
-              SizedBox(
-                width: double.infinity,
-                height: 64,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        data!.name!,
-                        maxLines: 1,
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: _buildActionForTask(data!.task!),
-                    ),
-                  ],
-                ),
-              ),
-              if (data!.task!.status == DownloadTaskStatus.running ||
-                  data!.task!.status == DownloadTaskStatus.paused)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: LinearProgressIndicator(
-                    value: data!.task!.progress! / 100,
-                  ),
-                )
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  final String? name;
+  final TaskInfo? task;
 }
 
-class _TaskInfo {
-  _TaskInfo({this.name, this.link});
+class TaskInfo {
+  TaskInfo({this.name, this.link});
 
   final String? name;
   final String? link;
@@ -500,11 +390,4 @@ class _TaskInfo {
   String? taskId;
   int? progress = 0;
   DownloadTaskStatus? status = DownloadTaskStatus.undefined;
-}
-
-class _ItemHolder {
-  _ItemHolder({this.name, this.task});
-
-  final String? name;
-  final _TaskInfo? task;
 }
