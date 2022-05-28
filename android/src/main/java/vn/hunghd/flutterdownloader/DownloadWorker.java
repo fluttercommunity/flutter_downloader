@@ -109,8 +109,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     private int step;
     private boolean saveInPublicStorage;
 
-    public DownloadWorker(@NonNull final Context context,
-                          @NonNull WorkerParameters params) {
+    public DownloadWorker(@NonNull final Context context, @NonNull WorkerParameters params) {
         super(context, params);
 
         new Handler(context.getMainLooper()).post(() -> startBackgroundIsolate(context));
@@ -594,10 +593,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         if (!showNotification) return;
         // Make a channel if necessary
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Create the NotificationChannel, but only on API 26+ because
-            // the NotificationChannel class is new and not in the support library
-
-
+            // Create the NotificationChannel
             Resources res = getApplicationContext().getResources();
             String channelName = res.getString(R.string.flutter_downloader_notification_channel_name);
             String channelDescription = res.getString(R.string.flutter_downloader_notification_channel_description);

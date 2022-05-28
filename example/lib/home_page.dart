@@ -107,16 +107,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 ? _buildListSectionHeading(item.name!)
                 : DownloadListItem(
                     data: item,
-                    onTap: (task) {
-                      _openDownloadedFile(task).then((success) {
-                        if (!success) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Cannot open this file'),
-                            ),
-                          );
-                        }
-                      });
+                    onTap: (task) async {
+                      final success = await _openDownloadedFile(task);
+                      if (!success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Cannot open this file'),
+                          ),
+                        );
+                      }
                     },
                     onActionTap: (task) {
                       if (task.status == DownloadTaskStatus.undefined) {
@@ -301,6 +300,17 @@ class _MyHomePageState extends State<MyHomePage> {
     );
 
     _items.add(ItemHolder(name: 'Videos'));
+    for (var i = count; i < _tasks!.length; i++) {
+      _items.add(ItemHolder(name: _tasks![i].name, task: _tasks![i]));
+      count++;
+    }
+
+    _tasks!.addAll(
+      DownloadItems.apks
+          .map((video) => TaskInfo(name: video.name, link: video.url)),
+    );
+
+    _items.add(ItemHolder(name: 'APKs'));
     for (var i = count; i < _tasks!.length; i++) {
       _items.add(ItemHolder(name: _tasks![i].name, task: _tasks![i]));
       count++;

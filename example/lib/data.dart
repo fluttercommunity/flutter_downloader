@@ -47,6 +47,14 @@ class DownloadItems {
           'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
     ),
   ];
+
+  static const apks = [
+    DownloadItem(
+      name: 'Spitfire',
+      url:
+          'https://github.com/bartekpacia/spitfire/releases/download/v1.2/spitfire-android_1.2.apk',
+    )
+  ];
 }
 
 class DownloadItem {
