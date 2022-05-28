@@ -9,6 +9,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.provider.MediaStore;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.NotificationManagerCompat;
 
 import java.io.File;
@@ -64,7 +65,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
     }
 
     @Override
-    public void onMethodCall(MethodCall call, MethodChannel.Result result) {
+    public void onMethodCall(MethodCall call, @NonNull MethodChannel.Result result) {
         if (call.method.equals("initialize")) {
             initialize(call, result);
         } else if (call.method.equals("registerCallback")) {
@@ -100,7 +101,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
     }
 
     @Override
-    public void onDetachedFromEngine(FlutterPluginBinding binding) {
+    public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
         context = null;
         if (flutterChannel != null) {
             flutterChannel.setMethodCallHandler(null);
