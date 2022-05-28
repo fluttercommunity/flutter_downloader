@@ -818,7 +818,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     private static void trustAllHosts() {
         final String TAG = "trustAllHosts";
         // Create a trust manager that does not validate certificate chains
-        TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
+        TrustManager[] trustManagers = new TrustManager[] { new X509TrustManager() {
 
             public java.security.cert.X509Certificate[] getAcceptedIssuers() {
                 return new java.security.cert.X509Certificate[] {};
@@ -835,9 +835,9 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
         // Install the all-trusting trust manager
         try {
-            SSLContext sc = SSLContext.getInstance("TLS");
-            sc.init(null, trustAllCerts, new java.security.SecureRandom());
-            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            SSLContext sslContent = SSLContext.getInstance("TLS");
+            sslContent.init(null, trustManagers, new java.security.SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sslContent.getSocketFactory());
         } catch (Exception e) {
             e.printStackTrace();
         }
