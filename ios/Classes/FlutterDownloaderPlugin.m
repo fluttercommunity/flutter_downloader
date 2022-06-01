@@ -847,7 +847,10 @@ static BOOL debug = YES;
     }
     for (NSString* key in _runningTaskById) {
         if ([_runningTaskById[key][KEY_STATUS] intValue] < STATUS_COMPLETE) {
-            [self updateTask:key status:STATUS_CANCELED progress:-1];
+            __typeof__(self) __weak weakSelf = self;
+            dispatch_sync(databaseQueue, ^{
+                [weakSelf updateTask:key status:STATUS_CANCELED progress:-1];
+            });
         }
     }
     _session = nil;
