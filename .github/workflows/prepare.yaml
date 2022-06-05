@@ -1,4 +1,4 @@
-name: test
+name: prepare
 
 on:
   push:
@@ -9,15 +9,8 @@ on:
     branches: [master]
 
 jobs:
-  test:
-    name: Flutter ${{ matrix.channel }}${{ matrix.version }}
-
+  main:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - channel: stable
 
     steps:
       - name: Checkout
@@ -25,9 +18,6 @@ jobs:
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v1
-        with:
-          channel: ${{ matrix.channel }}
-          flutter-version: ${{ matrix.version }}
 
       - name: Flutter version
         run: flutter --version

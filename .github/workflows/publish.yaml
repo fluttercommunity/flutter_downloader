@@ -5,9 +5,7 @@ on:
     tags: ["v*"]
 
 jobs:
-  publish:
-    name: Publish to pub.dev
-
+  main:
     runs-on: ubuntu-latest
 
     steps:
