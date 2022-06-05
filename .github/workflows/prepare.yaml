@@ -1,4 +1,4 @@
-name: test
+name: prepare
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
     branches: [master]
 
 jobs:
-  test:
+  main:
     name: Flutter ${{ matrix.channel }}${{ matrix.version }}
 
     runs-on: ubuntu-latest
