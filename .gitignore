@@ -16,9 +16,6 @@
 *.iws
 .idea/
 
-# Visual Studio Code related
-.vscode/
-
 # Flutter repo-specific
 /bin/cache/
 /bin/mingit/

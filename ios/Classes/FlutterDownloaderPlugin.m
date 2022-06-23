@@ -29,8 +29,6 @@
 #define ERROR_NOT_INITIALIZED [FlutterError errorWithCode:@"not_initialized" message:@"initialize() must called first" details:nil]
 #define ERROR_INVALID_TASK_ID [FlutterError errorWithCode:@"invalid_task_id" message:@"not found task corresponding to given task id" details:nil]
 
-#define STEP_UPDATE 5
-
 @interface FlutterDownloaderPlugin()<NSURLSessionTaskDelegate, NSURLSessionDownloadDelegate, UIDocumentInteractionControllerDelegate>
 {
     FlutterEngine *_headlessRunner;
@@ -43,6 +41,7 @@
     NSString *_allFilesDownloadedMsg;
     NSMutableArray *_eventQueue;
     int64_t _callbackHandle;
+    int _step;
 }
 
 @property(nonatomic, strong) dispatch_queue_t databaseQueue;
@@ -373,7 +372,7 @@ static BOOL debug = YES;
         return @"";
     }
     return revert
-    ? [origin stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding]
+    ? [origin stringByRemovingPercentEncoding]
     : [origin stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLQueryAllowedCharacterSet];
 }
 
@@ -510,6 +509,7 @@ static BOOL debug = YES;
         if (records != nil && [records count] > 0) {
             NSArray *record = [records firstObject];
             NSDictionary *task = [self taskDictFromRecordArray:record];
+            if (task.count == 0) return nil; // checking if task is valid
             if ([task[KEY_STATUS] intValue] < STATUS_COMPLETE) {
                 [_runningTaskById setObject:[NSMutableDictionary dictionaryWithDictionary:task] forKey:taskId];
             }
@@ -521,19 +521,31 @@ static BOOL debug = YES;
 
 - (NSDictionary*) taskDictFromRecordArray:(NSArray*)record
 {
-    NSString *taskId = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"task_id"]];
-    int status = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"status"]] intValue];
-    int progress = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"progress"]] intValue];
-    NSString *url = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"url"]];
-    NSString *filename = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"file_name"]];
-    NSString *savedDir = [self absoluteSavedDirPath:[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"saved_dir"]]];
-    NSString *headers = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"headers"]];
-    headers = [self escape:headers revert:true];
-    int resumable = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"resumable"]] intValue];
-    int showNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"show_notification"]] intValue];
-    int openFileFromNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"open_file_from_notification"]] intValue];
-    long long timeCreated = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"time_created"]] longLongValue];
-    return [NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, headers, KEY_HEADERS, savedDir, KEY_SAVED_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, [NSNumber numberWithBool:(showNotification == 1)], KEY_SHOW_NOTIFICATION, [NSNumber numberWithBool:(openFileFromNotification == 1)], KEY_OPEN_FILE_FROM_NOTIFICATION, @(timeCreated), KEY_TIME_CREATED, nil];
+    // added try-catch to fix issue: https://github.com/fluttercommunity/flutter_downloader/issues/218
+    @try {
+        NSString *taskId = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"task_id"]];
+        int status = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"status"]] intValue];
+        int progress = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"progress"]] intValue];
+        NSString *url = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"url"]];
+        NSString *filename = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"file_name"]];
+        NSString *savedDir = [self absoluteSavedDirPath:[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"saved_dir"]]];
+        NSString *headers = @"";
+        // in certain cases, headers column might not be available and will cause NSRangeException
+        @try {
+            NSString *rawHeaders = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"headers"]];
+            headers = [self escape:rawHeaders revert:true];
+        } @catch(NSException *ex) {
+            NSLog(@"task headers not found: %@", ex);
+        }
+        int resumable = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"resumable"]] intValue];
+        int showNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"show_notification"]] intValue];
+        int openFileFromNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"open_file_from_notification"]] intValue];
+        long long timeCreated = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"time_created"]] longLongValue];
+        return [NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, headers, KEY_HEADERS, savedDir, KEY_SAVED_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, [NSNumber numberWithBool:(showNotification == 1)], KEY_SHOW_NOTIFICATION, [NSNumber numberWithBool:(openFileFromNotification == 1)], KEY_OPEN_FILE_FROM_NOTIFICATION, @(timeCreated), KEY_TIME_CREATED, nil];
+    } @catch(NSException *exception) {
+        NSLog(@"invalid task data: %@", exception);
+        return [NSDictionary dictionary];
+    }
 }
 
 # pragma mark - FlutterDownloader
@@ -562,6 +574,7 @@ static BOOL debug = YES;
 - (void)registerCallbackMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSArray *arguments = call.arguments;
     _callbackHandle = [arguments[0] longLongValue];
+    _step = [arguments[1] intValue];
     result([NSNull null]);
 }
 
@@ -741,13 +754,14 @@ static BOOL debug = YES;
 }
 
 - (void)removeMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    __typeof__(self) __weak weakSelf = self;
+
     NSString *taskId = call.arguments[KEY_TASK_ID];
     Boolean shouldDeleteContent = [call.arguments[@"should_delete_content"] boolValue];
     NSDictionary* taskDict = [self loadTaskWithId:taskId];
     if (taskDict != nil) {
         NSNumber* status = taskDict[KEY_STATUS];
         if ([status intValue] == STATUS_ENQUEUED || [status intValue] == STATUS_RUNNING) {
-            __typeof__(self) __weak weakSelf = self;
             [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
                 for (NSURLSessionDownloadTask *download in downloads) {
                     NSURLSessionTaskState state = download.state;
@@ -763,7 +777,11 @@ static BOOL debug = YES;
                 };
             }];
         }
-        [self deleteTask:taskId];
+        
+        dispatch_sync([self databaseQueue], ^{
+            [weakSelf deleteTask:taskId];
+        });
+        
         if (shouldDeleteContent) {
             NSURL *destinationURL = [self fileUrlFromDict:taskDict];
 
@@ -863,7 +881,7 @@ static BOOL debug = YES;
         NSString *taskId = [self identifierForTask:downloadTask];
         int progress = round(totalBytesWritten * 100 / (double)totalBytesExpectedToWrite);
         NSNumber *lastProgress = _runningTaskById[taskId][KEY_PROGRESS];
-        if (([lastProgress intValue] == 0 || (progress > [lastProgress intValue] + STEP_UPDATE) || progress == 100) && progress != [lastProgress intValue]) {
+        if (([lastProgress intValue] == 0 || (progress > ([lastProgress intValue] + _step)) || progress == 100) && progress != [lastProgress intValue]) {
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_RUNNING) andProgress:@(progress)];
             __typeof__(self) __weak weakSelf = self;
             dispatch_sync(databaseQueue, ^{
@@ -876,54 +894,63 @@ static BOOL debug = YES;
 
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL:(NSURL *)location
 {
+    
+    NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *) downloadTask.response;
+    long httpStatusCode = (long)[httpResponse statusCode];
+    
     if (debug) {
-        NSLog(@"URLSession:downloadTask:didFinishDownloadingToURL:");
+        NSLog(@"%s HTTP status code: %ld", __FUNCTION__, httpStatusCode);
     }
-
-    NSString *taskId = [self identifierForTask:downloadTask ofSession:session];
-    NSDictionary *task = [self loadTaskWithId:taskId];
-    NSURL *destinationURL = [self fileUrlOf:taskId taskInfo:task downloadTask:downloadTask];
-
-    [_runningTaskById removeObjectForKey:taskId];
-
-    NSError *error;
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-
-    if ([fileManager fileExistsAtPath:[destinationURL path]]) {
-        [fileManager removeItemAtURL:destinationURL error:nil];
-    }
-
-    BOOL success = [fileManager copyItemAtURL:location
-                                        toURL:destinationURL
-                                        error:&error];
-
-    __typeof__(self) __weak weakSelf = self;
-    if (success) {
-        [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_COMPLETE) andProgress:@100];
-        dispatch_sync(databaseQueue, ^{
-            [weakSelf updateTask:taskId status:STATUS_COMPLETE progress:100];
-        });
-    } else {
-        if (debug) {
-            NSLog(@"Unable to copy temp file. Error: %@", [error localizedDescription]);
+    
+    bool isSuccess = (httpStatusCode >= 200 && httpStatusCode < 300);
+    
+    if (isSuccess) {
+        NSString *taskId = [self identifierForTask:downloadTask ofSession:session];
+        NSDictionary *task = [self loadTaskWithId:taskId];
+        NSURL *destinationURL = [self fileUrlOf:taskId taskInfo:task downloadTask:downloadTask];
+        
+        [_runningTaskById removeObjectForKey:taskId];
+        
+        NSError *error;
+        NSFileManager *fileManager = [NSFileManager defaultManager];
+        
+        if ([fileManager fileExistsAtPath:[destinationURL path]]) {
+            [fileManager removeItemAtURL:destinationURL error:nil];
         }
-        [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_FAILED) andProgress:@(-1)];
-        dispatch_sync(databaseQueue, ^{
-            [weakSelf updateTask:taskId status:STATUS_FAILED progress:-1];
-        });
+        
+        BOOL success = [fileManager copyItemAtURL:location
+                                            toURL:destinationURL
+                                            error:&error];
+        
+        __typeof__(self) __weak weakSelf = self;
+        if (success) {
+            [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_COMPLETE) andProgress:@100];
+            dispatch_sync(databaseQueue, ^{
+                [weakSelf updateTask:taskId status:STATUS_COMPLETE progress:100];
+            });
+        } else {
+            if (debug) {
+                NSLog(@"Unable to copy temp file. Error: %@", [error localizedDescription]);
+            }
+            [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_FAILED) andProgress:@(-1)];
+            dispatch_sync(databaseQueue, ^{
+                [weakSelf updateTask:taskId status:STATUS_FAILED progress:-1];
+            });
+        }
     }
+    
 }
 
 -(void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error
 {
-    if (debug) {
-        NSLog(@"URLSession:task:didCompleteWithError:");
-    }
+    
     NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *) task.response;
     long httpStatusCode = (long)[httpResponse statusCode];
+    
     if (debug) {
-        NSLog(@"HTTP status code: %ld", httpStatusCode);
+        NSLog(@"%s HTTP status code: %ld", __FUNCTION__, httpStatusCode);
     }
+    
     bool isSuccess = (httpStatusCode >= 200 && httpStatusCode < 300);
     if (error != nil || !isSuccess) {
         if (debug) {
