@@ -202,9 +202,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // Not used in the example.
-  Future<void> _cancelDownload(TaskInfo task) async {
-    await FlutterDownloader.cancel(taskId: task.taskId!);
-  }
+  // Future<void> _cancelDownload(TaskInfo task) async {
+  //   await FlutterDownloader.cancel(taskId: task.taskId!);
+  // }
 
   Future<void> _pauseDownload(TaskInfo task) async {
     await FlutterDownloader.pause(taskId: task.taskId!);
