@@ -33,11 +33,6 @@ class DownloadListItem extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.pause, color: Colors.red),
           ),
-          IconButton(
-            onPressed: () => onCancel!(task),
-            constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-            icon: const Icon(Icons.cancel),
-          ),
         ],
       );
     } else if (task.status == DownloadTaskStatus.paused) {
@@ -48,6 +43,11 @@ class DownloadListItem extends StatelessWidget {
             onPressed: () => onActionTap!(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.play_arrow, color: Colors.green),
+          ),
+          IconButton(
+            onPressed: () => onCancel!(task),
+            constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+            icon: const Icon(Icons.cancel),
           ),
         ],
       );
