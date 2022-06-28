@@ -599,7 +599,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 
 - (void) unqueueStatusEvents {
     @synchronized (self) {
-        //unqueue all pending download status events.
+        // unqueue all pending download status events.
         while ([_eventQueue count] > 0) {
             NSArray* args = _eventQueue[0];
             [_eventQueue removeObjectAtIndex:0];

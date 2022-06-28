@@ -19,7 +19,7 @@ class DownloadListItem extends StatelessWidget {
   Widget? _buildTrailing(TaskInfo task) {
     if (task.status == DownloadTaskStatus.undefined) {
       return IconButton(
-        onPressed: () => onActionTap!(task),
+        onPressed: () => onActionTap?.call(task),
         constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
         icon: const Icon(Icons.file_download),
       );
@@ -28,7 +28,7 @@ class DownloadListItem extends StatelessWidget {
         children: [
           Text('${task.progress}%'),
           IconButton(
-            onPressed: () => onActionTap!(task),
+            onPressed: () => onActionTap?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.pause, color: Colors.red),
           ),
@@ -39,12 +39,12 @@ class DownloadListItem extends StatelessWidget {
         children: [
           Text('${task.progress}%'),
           IconButton(
-            onPressed: () => onActionTap!(task),
+            onPressed: () => onActionTap?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.play_arrow, color: Colors.green),
           ),
-          IconButton(
-            onPressed: () => onCancel!(task),
+          if (onCancel != null) IconButton(
+            onPressed: () => onCancel?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.cancel),
           ),
@@ -57,7 +57,7 @@ class DownloadListItem extends StatelessWidget {
         children: [
           const Text('Ready', style: TextStyle(color: Colors.green)),
           IconButton(
-            onPressed: () => onActionTap!(task),
+            onPressed: () => onActionTap?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.delete),
           )
@@ -69,8 +69,8 @@ class DownloadListItem extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           const Text('Canceled', style: TextStyle(color: Colors.red)),
-          IconButton(
-            onPressed: () => onActionTap!(task),
+          if (onActionTap != null) IconButton(
+            onPressed: () => onActionTap?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.cancel),
           )
@@ -83,7 +83,7 @@ class DownloadListItem extends StatelessWidget {
         children: [
           const Text('Failed', style: TextStyle(color: Colors.red)),
           IconButton(
-            onPressed: () => onActionTap!(task),
+            onPressed: () => onActionTap?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.refresh, color: Colors.green),
           )
