@@ -896,29 +896,31 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     return YES;
 }
 
-- (void)applicationWillTerminate:(nonnull UIApplication *)application
-{
-    if (debug) {
-        NSLog(@"applicationWillTerminate:");
-    }
-    
-    NSMutableArray<NSString *> *keysNeedMarkCanceled = @[].mutableCopy;
-    for (NSString* key in _runningTaskById) {
-        if ([_runningTaskById[key][KEY_STATUS] intValue] < STATUS_COMPLETE) [keysNeedMarkCanceled addObject:key];
-    }
-    
-    __typeof__(self) __weak weakSelf = self;
-    [self executeInDatabaseQueueForTask:^{
-        for (NSString* key in keysNeedMarkCanceled) [weakSelf updateTask:key status:STATUS_CANCELED progress:-1];
-        weakSelf.databaseQueueTerminated = true;
-    }];
-
-    _session = nil;
-    _mainChannel = nil;
-    _dbManager = nil;
-    databaseQueue = nil;
-    _runningTaskById = nil;
-}
+// disable task cancellation on termination to allow background download tasks to continue when the app is not running
+// any task canceled by the system will be handled by URLSession:task:didCompleteWithError
+//- (void)applicationWillTerminate:(nonnull UIApplication *)application
+//{
+//    if (debug) {
+//        NSLog(@"applicationWillTerminate:");
+//    }
+//
+//    NSMutableArray<NSString *> *keysNeedMarkCanceled = @[].mutableCopy;
+//    for (NSString* key in _runningTaskById) {
+//        if ([_runningTaskById[key][KEY_STATUS] intValue] < STATUS_COMPLETE) [keysNeedMarkCanceled addObject:key];
+//    }
+//
+//    __typeof__(self) __weak weakSelf = self;
+//    [self executeInDatabaseQueueForTask:^{
+//        for (NSString* key in keysNeedMarkCanceled) [weakSelf updateTask:key status:STATUS_CANCELED progress:-1];
+//        weakSelf.databaseQueueTerminated = true;
+//    }];
+//
+//    _session = nil;
+//    _mainChannel = nil;
+//    _dbManager = nil;
+//    databaseQueue = nil;
+//    _runningTaskById = nil;
+//}
 
 # pragma mark - NSURLSessionTaskDelegate
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didWriteData:(int64_t)bytesWritten totalBytesWritten:(int64_t)totalBytesWritten totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite
