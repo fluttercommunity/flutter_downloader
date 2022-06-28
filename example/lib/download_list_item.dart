@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_downloader_example/home_page.dart';
+import 'package:flutter/foundation.dart';
 
 class DownloadListItem extends StatelessWidget {
   const DownloadListItem({
@@ -8,11 +9,13 @@ class DownloadListItem extends StatelessWidget {
     this.data,
     this.onTap,
     this.onActionTap,
+    this.onCancel
   });
 
   final ItemHolder? data;
   final Function(TaskInfo?)? onTap;
   final Function(TaskInfo)? onActionTap;
+  final Function(TaskInfo)? onCancel;
 
   Widget? _buildTrailing(TaskInfo task) {
     if (task.status == DownloadTaskStatus.undefined) {
@@ -29,6 +32,11 @@ class DownloadListItem extends StatelessWidget {
             onPressed: () => onActionTap!(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.pause, color: Colors.red),
+          ),
+          IconButton(
+            onPressed: () => onCancel!(task),
+            constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+            icon: const Icon(Icons.cancel),
           ),
         ],
       );
@@ -57,7 +65,18 @@ class DownloadListItem extends StatelessWidget {
         ],
       );
     } else if (task.status == DownloadTaskStatus.canceled) {
-      return const Text('Canceled', style: TextStyle(color: Colors.red));
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          const Text('Canceled', style: TextStyle(color: Colors.red)),
+          IconButton(
+            onPressed: () => onActionTap!(task),
+            constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+            icon: const Icon(Icons.cancel),
+          )
+        ],
+      );
     } else if (task.status == DownloadTaskStatus.failed) {
       return Row(
         mainAxisSize: MainAxisSize.min,

@@ -31,17 +31,12 @@
 
 @interface FlutterDownloaderPlugin()<NSURLSessionTaskDelegate, NSURLSessionDownloadDelegate, UIDocumentInteractionControllerDelegate>
 {
-    FlutterEngine *_headlessRunner;
     FlutterMethodChannel *_mainChannel;
     FlutterMethodChannel *_callbackChannel;
     NSObject<FlutterPluginRegistrar> *_registrar;
-    NSURLSession *_session;
     DBManager *_dbManager;
-    NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById;
     NSString *_allFilesDownloadedMsg;
     NSMutableArray *_eventQueue;
-    int64_t _callbackHandle;
-    int _step;
 }
 
 @property(nonatomic, strong) dispatch_queue_t databaseQueue;
@@ -53,13 +48,25 @@
 static FlutterPluginRegistrantCallback registerPlugins = nil;
 static BOOL initialized = NO;
 static BOOL debug = YES;
+static NSURLSession *_session = nil;
+static FlutterEngine *_headlessRunner = nil;
+static int64_t _callbackHandle = 0;
+static int _step = 10;
+static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = nil;
+
 
 @synthesize databaseQueue;
 
 - (instancetype)init:(NSObject<FlutterPluginRegistrar> *)registrar;
 {
     if (self = [super init]) {
-        _headlessRunner = [[FlutterEngine alloc] initWithName:@"FlutterDownloaderIsolate" project:nil allowHeadlessExecution:YES];
+        BOOL _isolate = NO;
+        if (_headlessRunner == nil) {
+            _headlessRunner = [[FlutterEngine alloc] initWithName:@"FlutterDownloaderIsolate" project:nil allowHeadlessExecution:YES];
+        } else {
+            _isolate = YES;
+        }
+
         _registrar = registrar;
 
         _mainChannel = [FlutterMethodChannel
@@ -84,22 +91,30 @@ static BOOL debug = YES;
         }
         databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
         _dbManager = [[DBManager alloc] initWithDatabaseFilePath:dbPath];
-        _runningTaskById = [[NSMutableDictionary alloc] init];
+        
+        if (_runningTaskById == nil) {
+            _runningTaskById = [[NSMutableDictionary alloc] init];
+        }
 
-        // init NSURLSession
         NSBundle *mainBundle = [NSBundle mainBundle];
-        NSNumber *maxConcurrentTasks = [mainBundle objectForInfoDictionaryKey:@"FDMaximumConcurrentTasks"];
-        if (maxConcurrentTasks == nil) {
-            maxConcurrentTasks = @3;
-        }
-        if (debug) {
-            NSLog(@"MAXIMUM_CONCURRENT_TASKS = %@", maxConcurrentTasks);
-        }
-        NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:[NSString stringWithFormat:@"%@.download.background.%f", NSBundle.mainBundle.bundleIdentifier, [[NSDate date] timeIntervalSince1970]]];
-        sessionConfiguration.HTTPMaximumConnectionsPerHost = [maxConcurrentTasks intValue];
-        _session = [NSURLSession sessionWithConfiguration:sessionConfiguration delegate:self delegateQueue:nil];
-        if (debug) {
-            NSLog(@"init NSURLSession with id: %@", [[_session configuration] identifier]);
+
+        // init NSURLSession in background isolate
+        if (_isolate) {
+            NSNumber *maxConcurrentTasks = [mainBundle objectForInfoDictionaryKey:@"FDMaximumConcurrentTasks"];
+            if (maxConcurrentTasks == nil) {
+                maxConcurrentTasks = @3;
+            }
+            if (debug) {
+                NSLog(@"MAXIMUM_CONCURRENT_TASKS = %@", maxConcurrentTasks);
+            }
+            // session identifier needs to be the same for background download and resume to work
+            NSString *identifier = [NSString stringWithFormat:@"%@.download.background.session", NSBundle.mainBundle.bundleIdentifier];
+            NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:identifier];
+            sessionConfiguration.HTTPMaximumConnectionsPerHost = [maxConcurrentTasks intValue];
+            _session = [NSURLSession sessionWithConfiguration:sessionConfiguration delegate:self delegateQueue:nil];
+            if (debug) {
+                NSLog(@"init NSURLSession with id: %@", [[_session configuration] identifier]);
+            }
         }
 
         _allFilesDownloadedMsg = [mainBundle objectForInfoDictionaryKey:@"FDAllFilesDownloadedMessage"];
@@ -158,19 +173,26 @@ static BOOL debug = YES;
         }
     }
     NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithRequest:request];
+    // store task id in taskDescription
+    task.taskDescription = [self createTaskId];
     [task resume];
 
     return task;
 }
 
+- (NSString*) createTaskId {
+    return [NSString stringWithFormat:@"%@.download.task.%d.%f",
+                            NSBundle.mainBundle.bundleIdentifier, arc4random_uniform(100000), [[NSDate date] timeIntervalSince1970]];
+}
+
 - (NSString*)identifierForTask:(NSURLSessionTask*) task
 {
-    return [NSString stringWithFormat: @"%@.%lu", [[[self currentSession] configuration] identifier], [task taskIdentifier]];
+    return task.taskDescription;
 }
 
 - (NSString*)identifierForTask:(NSURLSessionTask*) task ofSession:(NSURLSession *)session
 {
-    return [NSString stringWithFormat: @"%@.%lu", [[session configuration] identifier], [task taskIdentifier]];
+    return task.taskDescription;
 }
 
 - (void)updateRunningTaskById:(NSString*)taskId progress:(int)progress status:(int)status resumable:(BOOL)resumable {
@@ -264,7 +286,7 @@ static BOOL debug = YES;
 - (void)sendUpdateProgressForTaskId: (NSString*)taskId inStatus: (NSNumber*) status andProgress: (NSNumber*) progress
 {
     NSArray *args = @[@(_callbackHandle), taskId, status, progress];
-    if (initialized) {
+    if (initialized && _callbackHandle != 0) {
         [_callbackChannel invokeMethod:@"" arguments:args];
     } else {
         [_eventQueue addObject:args];
@@ -347,6 +369,7 @@ static BOOL debug = YES;
     
     if (absolutePath) {
         NSString* documentDirPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+        if ([absolutePath isEqualToString:documentDirPath]) return @"";
         NSRange foundRank = [absolutePath rangeOfString:documentDirPath];
         if (foundRank.length > 0) {
             // we increase the location of range by one because we want to remove the file separator as well.
@@ -559,14 +582,9 @@ static BOOL debug = YES;
 }
 
 - (void)didInitializeDispatcherMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
-    @synchronized (self) {
-        initialized = YES;
-        //unqueue all pending download status events.
-        while ([_eventQueue count] > 0) {
-            NSArray* args = _eventQueue[0];
-            [_eventQueue removeObjectAtIndex:0];
-            [_callbackChannel invokeMethod:@"" arguments:args];
-        }
+    initialized = YES;
+    if (_callbackHandle != 0) { // unqueue if callback handler has been set
+        [self unqueueStatusEvents];
     }
     result([NSNull null]);
 }
@@ -575,7 +593,19 @@ static BOOL debug = YES;
     NSArray *arguments = call.arguments;
     _callbackHandle = [arguments[0] longLongValue];
     _step = [arguments[1] intValue];
+    if (initialized) [self unqueueStatusEvents];
     result([NSNull null]);
+}
+
+- (void) unqueueStatusEvents {
+    @synchronized (self) {
+        //unqueue all pending download status events.
+        while ([_eventQueue count] > 0) {
+            NSArray* args = _eventQueue[0];
+            [_eventQueue removeObjectAtIndex:0];
+            [_callbackChannel invokeMethod:@"" arguments:@[@(_callbackHandle), args[1], args[2], args[3]]];
+        }
+    }
 }
 
 - (void)enqueueMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
@@ -661,7 +691,8 @@ static BOOL debug = YES;
 
             if (resumeData != nil) {
                 NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithResumeData:resumeData];
-                NSString *newTaskId = [self identifierForTask:task];
+                NSString *newTaskId = [self createTaskId];
+                task.taskDescription = newTaskId;
                 [task resume];
 
                 // update memory-cache, assign a new taskId for paused task
@@ -851,23 +882,6 @@ static BOOL debug = YES;
     self.backgroundTransferCompletionHandler = completionHandler;
     //TODO: setup background isolate in case the application is re-launched from background to handle download event
     return YES;
-}
-
-- (void)applicationWillTerminate:(nonnull UIApplication *)application
-{
-    if (debug) {
-        NSLog(@"applicationWillTerminate:");
-    }
-    for (NSString* key in _runningTaskById) {
-        if ([_runningTaskById[key][KEY_STATUS] intValue] < STATUS_COMPLETE) {
-            [self updateTask:key status:STATUS_CANCELED progress:-1];
-        }
-    }
-    _session = nil;
-    _mainChannel = nil;
-    _dbManager = nil;
-    databaseQueue = nil;
-    _runningTaskById = nil;
 }
 
 # pragma mark - NSURLSessionTaskDelegate
