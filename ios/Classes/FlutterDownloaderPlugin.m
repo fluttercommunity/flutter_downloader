@@ -46,6 +46,9 @@
 
 @property(nonatomic, strong) dispatch_queue_t databaseQueue;
 
+/// The flag ensures that the database task avoids be marked as other status after be marked as canceled in the termination.
+@property(nonatomic, assign, getter=isDatabaseQueueTerminated) BOOL databaseQueueTerminated;
+
 @end
 
 @implementation FlutterDownloaderPlugin
@@ -213,9 +216,9 @@ static BOOL debug = YES;
 
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_PAUSED) andProgress:@(progress)];
 
-                dispatch_sync([weakSelf databaseQueue], ^{
+                [weakSelf executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_PAUSED progress:progress resumable:YES];
-                });
+                }];
                 return;
             }
         };
@@ -235,9 +238,9 @@ static BOOL debug = YES;
             if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
                 [download cancel];
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                dispatch_sync([weakSelf databaseQueue], ^{
+                [weakSelf executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_CANCELED progress:-1];
-                });
+                }];
                 return;
             }
         };
@@ -253,9 +256,9 @@ static BOOL debug = YES;
                 [download cancel];
                 NSString *taskId = [self identifierForTask:download];
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                dispatch_sync([weakSelf databaseQueue], ^{
+                [weakSelf executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_CANCELED progress:-1];
-                });
+                }];
             }
         };
     }];
@@ -269,6 +272,14 @@ static BOOL debug = YES;
     } else {
         [_eventQueue addObject:args];
     }
+}
+
+- (void)executeInDatabaseQueueForTask:(void (^)(void))task {
+    __typeof__(self) __weak weakSelf = self;
+    dispatch_sync(databaseQueue, ^{
+        if (weakSelf.isDatabaseQueueTerminated) return;
+        if (task) task();
+    });
 }
 
 - (BOOL)openDocumentWithURL:(NSURL*)url {
@@ -326,9 +337,9 @@ static BOOL debug = YES;
 
         // update DB
         __typeof__(self) __weak weakSelf = self;
-        dispatch_sync(databaseQueue, ^{
+        [self executeInDatabaseQueueForTask:^{
             [weakSelf updateTask:taskId filename:filename];
-        });
+        }];
 
         return [self fileUrlFromDict:mutableTask];
     }
@@ -604,28 +615,29 @@ static BOOL debug = YES;
                          forKey:taskId];
 
     __typeof__(self) __weak weakSelf = self;
-    dispatch_sync(databaseQueue, ^{
+    
+    [self executeInDatabaseQueueForTask:^{
         [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:shortSavedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
-    });
+    }];
     result(taskId);
     [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
 }
 
 - (void)loadTasksMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     __typeof__(self) __weak weakSelf = self;
-    dispatch_sync(databaseQueue, ^{
+    [self executeInDatabaseQueueForTask:^{
         NSArray* tasks = [weakSelf loadAllTasks];
         result(tasks);
-    });
+    }];
 }
 
 - (void)loadTasksWithRawQueryMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString *query = call.arguments[KEY_QUERY];
     __typeof__(self) __weak weakSelf = self;
-    dispatch_sync(databaseQueue, ^{
+    [self executeInDatabaseQueueForTask:^{
         NSArray* tasks = [weakSelf loadTasksWithRawQuery:query];
         result(tasks);
-    });
+    }];
 }
 
 - (void)cancelMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
@@ -674,12 +686,12 @@ static BOOL debug = YES;
                 result(newTaskId);
 
                 __typeof__(self) __weak weakSelf = self;
-                dispatch_sync([self databaseQueue], ^{
+                [self executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_RUNNING resumable:NO];
                     NSDictionary *task = [weakSelf loadTaskWithId:newTaskId];
                     NSNumber *progress = task[KEY_PROGRESS];
                     [weakSelf sendUpdateProgressForTaskId:newTaskId inStatus:@(STATUS_RUNNING) andProgress:progress];
-                });
+                }];
             } else {
                 result([FlutterError errorWithCode:@"invalid_data"
                                            message:@"not found resume data, this task cannot be resumed"
@@ -718,9 +730,9 @@ static BOOL debug = YES;
             [_runningTaskById removeObjectForKey:taskId];
 
             __typeof__(self) __weak weakSelf = self;
-            dispatch_sync([self databaseQueue], ^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_ENQUEUED resumable:NO];
-            });
+            }];
             result(newTaskId);
             [self sendUpdateProgressForTaskId:newTaskId inStatus:@(STATUS_ENQUEUED) andProgress:@(0)];
         } else {
@@ -769,18 +781,18 @@ static BOOL debug = YES;
                     if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
                         [download cancel];
                         [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                        dispatch_sync([weakSelf databaseQueue], ^{
+                        [weakSelf executeInDatabaseQueueForTask:^{
                             [weakSelf deleteTask:taskId];
-                        });
+                        }];
                         return;
                     }
                 };
             }];
         }
         
-        dispatch_sync([self databaseQueue], ^{
+        [self executeInDatabaseQueueForTask:^{
             [weakSelf deleteTask:taskId];
-        });
+        }];
         
         if (shouldDeleteContent) {
             NSURL *destinationURL = [self fileUrlFromDict:taskDict];
@@ -858,11 +870,18 @@ static BOOL debug = YES;
     if (debug) {
         NSLog(@"applicationWillTerminate:");
     }
+    
+    NSMutableArray<NSString *> *keysNeedMarkCanceled = @[].mutableCopy;
     for (NSString* key in _runningTaskById) {
-        if ([_runningTaskById[key][KEY_STATUS] intValue] < STATUS_COMPLETE) {
-            [self updateTask:key status:STATUS_CANCELED progress:-1];
-        }
+        if ([_runningTaskById[key][KEY_STATUS] intValue] < STATUS_COMPLETE) [keysNeedMarkCanceled addObject:key];
     }
+    
+    __typeof__(self) __weak weakSelf = self;
+    [self executeInDatabaseQueueForTask:^{
+        for (NSString* key in keysNeedMarkCanceled) [weakSelf updateTask:key status:STATUS_CANCELED progress:-1];
+        weakSelf.databaseQueueTerminated = true;
+    }];
+
     _session = nil;
     _mainChannel = nil;
     _dbManager = nil;
@@ -884,9 +903,9 @@ static BOOL debug = YES;
         if (([lastProgress intValue] == 0 || (progress > ([lastProgress intValue] + _step)) || progress == 100) && progress != [lastProgress intValue]) {
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_RUNNING) andProgress:@(progress)];
             __typeof__(self) __weak weakSelf = self;
-            dispatch_sync(databaseQueue, ^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId status:STATUS_RUNNING progress:progress];
-            });
+            }];
             _runningTaskById[taskId][KEY_PROGRESS] = @(progress);
         }
     }
@@ -925,17 +944,17 @@ static BOOL debug = YES;
         __typeof__(self) __weak weakSelf = self;
         if (success) {
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_COMPLETE) andProgress:@100];
-            dispatch_sync(databaseQueue, ^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId status:STATUS_COMPLETE progress:100];
-            });
+            }];
         } else {
             if (debug) {
                 NSLog(@"Unable to copy temp file. Error: %@", [error localizedDescription]);
             }
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_FAILED) andProgress:@(-1)];
-            dispatch_sync(databaseQueue, ^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId status:STATUS_FAILED progress:-1];
-            });
+            }];
         }
     }
     
@@ -969,9 +988,9 @@ static BOOL debug = YES;
             [_runningTaskById removeObjectForKey:taskId];
             [self sendUpdateProgressForTaskId:taskId inStatus:@(status) andProgress:@(-1)];
             __typeof__(self) __weak weakSelf = self;
-            dispatch_sync(databaseQueue, ^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId status:status progress:-1];
-            });
+            }];
         }
     }
 }
