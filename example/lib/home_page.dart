@@ -383,7 +383,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ],
           )
-        ]
+        ],
       ),
       body: Builder(
         builder: (context) {
