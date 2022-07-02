@@ -380,7 +380,9 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     
     if (absolutePath) {
         NSString* documentDirPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-        if ([absolutePath isEqualToString:documentDirPath]) return @"";
+        if ([absolutePath isEqualToString:documentDirPath]) {
+            return @"";
+        }
         NSRange foundRank = [absolutePath rangeOfString:documentDirPath];
         if (foundRank.length > 0) {
             // we increase the location of range by one because we want to remove the file separator as well.
@@ -543,7 +545,10 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         if (records != nil && [records count] > 0) {
             NSArray *record = [records firstObject];
             NSDictionary *task = [self taskDictFromRecordArray:record];
-            if (task.count == 0) return nil; // checking if task is valid
+            // checking if task is valid
+            if (task.count == 0) {
+                return nil;
+            }
             if ([task[KEY_STATUS] intValue] < STATUS_COMPLETE) {
                 [_runningTaskById setObject:[NSMutableDictionary dictionaryWithDictionary:task] forKey:taskId];
             }
@@ -895,32 +900,6 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     //TODO: setup background isolate in case the application is re-launched from background to handle download event
     return YES;
 }
-
-// disable task cancellation on termination to allow background download tasks to continue when the app is not running
-// any task canceled by the system will be handled by URLSession:task:didCompleteWithError
-//- (void)applicationWillTerminate:(nonnull UIApplication *)application
-//{
-//    if (debug) {
-//        NSLog(@"applicationWillTerminate:");
-//    }
-//
-//    NSMutableArray<NSString *> *keysNeedMarkCanceled = @[].mutableCopy;
-//    for (NSString* key in _runningTaskById) {
-//        if ([_runningTaskById[key][KEY_STATUS] intValue] < STATUS_COMPLETE) [keysNeedMarkCanceled addObject:key];
-//    }
-//
-//    __typeof__(self) __weak weakSelf = self;
-//    [self executeInDatabaseQueueForTask:^{
-//        for (NSString* key in keysNeedMarkCanceled) [weakSelf updateTask:key status:STATUS_CANCELED progress:-1];
-//        weakSelf.databaseQueueTerminated = true;
-//    }];
-//
-//    _session = nil;
-//    _mainChannel = nil;
-//    _dbManager = nil;
-//    databaseQueue = nil;
-//    _runningTaskById = nil;
-//}
 
 # pragma mark - NSURLSessionTaskDelegate
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didWriteData:(int64_t)bytesWritten totalBytesWritten:(int64_t)totalBytesWritten totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite

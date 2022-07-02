@@ -370,10 +370,20 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
-        leading: TextButton(
-          onPressed: () => exit(0),
-          child: const Text('Exit', style: TextStyle(color: Colors.white, fontSize: 17)),
-        ),
+        actions: [
+          if (Platform.isIOS) PopupMenuButton<Function>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                onTap: () => exit(0),
+                child: const ListTile(
+                  title: Text('Simulate App Backgrounded', style: TextStyle(fontSize: 15)),
+                ),
+              ),
+            ],
+          )
+        ],
       ),
       body: Builder(
         builder: (context) {
