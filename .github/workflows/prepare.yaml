@@ -10,14 +10,26 @@ on:
 
 jobs:
   main:
+    name: Flutter ${{ matrix.channel }}${{ matrix.version }}
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - channel: stable
+          - channel: beta
+    
 
-      - name: Setup Flutter
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+
+      - name: Install Flutter
         uses: subosito/flutter-action@v1
+        with:
+          channel: ${{ matrix.channel }}
+          flutter-version: ${{ matrix.version }}
 
       - name: Flutter version
         run: flutter --version
@@ -42,19 +54,19 @@ jobs:
         run: flutter test
 
       - name: flutter pub get (example app)
-        working-directory: ./packages/maestro_test/example
+        working-directory: ./example
         run: flutter pub get
 
       - name: flutter format (example app)
-        working-directory: ./packages/maestro_test/example
+        working-directory: ./example
         run: flutter format --set-exit-if-changed .
 
       - name: flutter analyze (example app)
-        working-directory: ./packages/maestro_test/example
+        working-directory: ./example
         run: flutter analyze --no-fatal-infos
 
       - name: flutter test (example app)
-        working-directory: ./packages/maestro_test/example
+        working-directory: ./example
         run: flutter test
 
       - name: Dry run pub publish

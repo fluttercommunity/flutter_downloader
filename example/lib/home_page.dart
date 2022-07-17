@@ -125,7 +125,8 @@ class _MyHomePageState extends State<MyHomePage> {
                         _pauseDownload(task);
                       } else if (task.status == DownloadTaskStatus.paused) {
                         _resumeDownload(task);
-                      } else if (task.status == DownloadTaskStatus.complete || task.status == DownloadTaskStatus.canceled) {
+                      } else if (task.status == DownloadTaskStatus.complete ||
+                          task.status == DownloadTaskStatus.canceled) {
                         _delete(task);
                       } else if (task.status == DownloadTaskStatus.failed) {
                         _retryDownload(task);
@@ -371,18 +372,21 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text(widget.title),
         actions: [
-          if (Platform.isIOS) PopupMenuButton<Function>(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                onTap: () => exit(0),
-                child: const ListTile(
-                  title: Text('Simulate App Backgrounded', style: TextStyle(fontSize: 15)),
+          if (Platform.isIOS)
+            PopupMenuButton<Function>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  onTap: () => exit(0),
+                  child: const ListTile(
+                    title: Text('Simulate App Backgrounded',
+                        style: TextStyle(fontSize: 15)),
+                  ),
                 ),
-              ),
-            ],
-          )
+              ],
+            )
         ],
       ),
       body: Builder(

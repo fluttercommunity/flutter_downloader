@@ -43,11 +43,12 @@ class DownloadListItem extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.play_arrow, color: Colors.green),
           ),
-          if (onCancel != null) IconButton(
-            onPressed: () => onCancel?.call(task),
-            constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-            icon: const Icon(Icons.cancel),
-          ),
+          if (onCancel != null)
+            IconButton(
+              onPressed: () => onCancel?.call(task),
+              constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+              icon: const Icon(Icons.cancel),
+            ),
         ],
       );
     } else if (task.status == DownloadTaskStatus.complete) {
@@ -69,11 +70,12 @@ class DownloadListItem extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           const Text('Canceled', style: TextStyle(color: Colors.red)),
-          if (onActionTap != null) IconButton(
-            onPressed: () => onActionTap?.call(task),
-            constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-            icon: const Icon(Icons.cancel),
-          )
+          if (onActionTap != null)
+            IconButton(
+              onPressed: () => onActionTap?.call(task),
+              constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+              icon: const Icon(Icons.cancel),
+            )
         ],
       );
     } else if (task.status == DownloadTaskStatus.failed) {
