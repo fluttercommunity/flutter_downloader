@@ -52,7 +52,7 @@ class DownloadItems {
     DownloadItem(
       name: 'Spitfire',
       url:
-          'https://github.com/bartekpacia/spitfire/releases/download/v1.2/spitfire-android_1.2.apk',
+          'https://github.com/bartekpacia/spitfire/releases/download/v1.2.0/spitfire.apk',
     )
   ];
 }
