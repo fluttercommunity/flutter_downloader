@@ -29,11 +29,33 @@ jobs:
           key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: ${{ runner.os }}-pub-
 
-      - name: Download pub dependencies
+      - name: flutter pub get
         run: flutter pub get
 
-      - name: Run analyzer
-        run: flutter analyze
+      - name: flutter format
+        run: flutter format --set-exit-if-changed .
+
+      - name: flutter analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: flutter test
+        run: flutter test
+
+      - name: flutter pub get (example app)
+        working-directory: ./packages/maestro_test/example
+        run: flutter pub get
+
+      - name: flutter format (example app)
+        working-directory: ./packages/maestro_test/example
+        run: flutter format --set-exit-if-changed .
+
+      - name: flutter analyze (example app)
+        working-directory: ./packages/maestro_test/example
+        run: flutter analyze --no-fatal-infos
+
+      - name: flutter test (example app)
+        working-directory: ./packages/maestro_test/example
+        run: flutter test
 
       - name: Dry run pub publish
         # We don't want it to fail the CI, it's just to see how would `pub publish` behave.
