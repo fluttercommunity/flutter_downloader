@@ -8,16 +8,18 @@ class DownloadListItem extends StatelessWidget {
     this.data,
     this.onTap,
     this.onActionTap,
+    this.onCancel,
   });
 
   final ItemHolder? data;
   final Function(TaskInfo?)? onTap;
   final Function(TaskInfo)? onActionTap;
+  final Function(TaskInfo)? onCancel;
 
   Widget? _buildTrailing(TaskInfo task) {
     if (task.status == DownloadTaskStatus.undefined) {
       return IconButton(
-        onPressed: () => onActionTap!(task),
+        onPressed: () => onActionTap?.call(task),
         constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
         icon: const Icon(Icons.file_download),
       );
@@ -26,7 +28,7 @@ class DownloadListItem extends StatelessWidget {
         children: [
           Text('${task.progress}%'),
           IconButton(
-            onPressed: () => onActionTap!(task),
+            onPressed: () => onActionTap?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.pause, color: Colors.red),
           ),
@@ -37,10 +39,16 @@ class DownloadListItem extends StatelessWidget {
         children: [
           Text('${task.progress}%'),
           IconButton(
-            onPressed: () => onActionTap!(task),
+            onPressed: () => onActionTap?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.play_arrow, color: Colors.green),
           ),
+          if (onCancel != null)
+            IconButton(
+              onPressed: () => onCancel?.call(task),
+              constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+              icon: const Icon(Icons.cancel),
+            ),
         ],
       );
     } else if (task.status == DownloadTaskStatus.complete) {
@@ -50,14 +58,26 @@ class DownloadListItem extends StatelessWidget {
         children: [
           const Text('Ready', style: TextStyle(color: Colors.green)),
           IconButton(
-            onPressed: () => onActionTap!(task),
+            onPressed: () => onActionTap?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.delete),
           )
         ],
       );
     } else if (task.status == DownloadTaskStatus.canceled) {
-      return const Text('Canceled', style: TextStyle(color: Colors.red));
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          const Text('Canceled', style: TextStyle(color: Colors.red)),
+          if (onActionTap != null)
+            IconButton(
+              onPressed: () => onActionTap?.call(task),
+              constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+              icon: const Icon(Icons.cancel),
+            )
+        ],
+      );
     } else if (task.status == DownloadTaskStatus.failed) {
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -65,7 +85,7 @@ class DownloadListItem extends StatelessWidget {
         children: [
           const Text('Failed', style: TextStyle(color: Colors.red)),
           IconButton(
-            onPressed: () => onActionTap!(task),
+            onPressed: () => onActionTap?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.refresh, color: Colors.green),
           )

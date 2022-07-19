@@ -3,6 +3,7 @@
 - Add optional `int step` argument to `FlutterDownloader.registerCallback()`
 - Improve README
 - Slightly refactor example app
+- Android only: add SQLite migration from version 2 to 3
 
 ## 1.8.0+1
 

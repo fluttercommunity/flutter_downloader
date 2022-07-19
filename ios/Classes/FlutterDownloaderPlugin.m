@@ -31,20 +31,18 @@
 
 @interface FlutterDownloaderPlugin()<NSURLSessionTaskDelegate, NSURLSessionDownloadDelegate, UIDocumentInteractionControllerDelegate>
 {
-    FlutterEngine *_headlessRunner;
     FlutterMethodChannel *_mainChannel;
     FlutterMethodChannel *_callbackChannel;
     NSObject<FlutterPluginRegistrar> *_registrar;
-    NSURLSession *_session;
     DBManager *_dbManager;
-    NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById;
     NSString *_allFilesDownloadedMsg;
     NSMutableArray *_eventQueue;
-    int64_t _callbackHandle;
-    int _step;
 }
 
 @property(nonatomic, strong) dispatch_queue_t databaseQueue;
+
+/// The flag ensures that the database task avoids be marked as other status after be marked as canceled in the termination.
+@property(nonatomic, assign, getter=isDatabaseQueueTerminated) BOOL databaseQueueTerminated;
 
 @end
 
@@ -53,13 +51,25 @@
 static FlutterPluginRegistrantCallback registerPlugins = nil;
 static BOOL initialized = NO;
 static BOOL debug = YES;
+static NSURLSession *_session = nil;
+static FlutterEngine *_headlessRunner = nil;
+static int64_t _callbackHandle = 0;
+static int _step = 10;
+static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = nil;
+
 
 @synthesize databaseQueue;
 
 - (instancetype)init:(NSObject<FlutterPluginRegistrar> *)registrar;
 {
     if (self = [super init]) {
-        _headlessRunner = [[FlutterEngine alloc] initWithName:@"FlutterDownloaderIsolate" project:nil allowHeadlessExecution:YES];
+        BOOL _isolate = NO;
+        if (_headlessRunner == nil) {
+            _headlessRunner = [[FlutterEngine alloc] initWithName:@"FlutterDownloaderIsolate" project:nil allowHeadlessExecution:YES];
+        } else {
+            _isolate = YES;
+        }
+
         _registrar = registrar;
 
         _mainChannel = [FlutterMethodChannel
@@ -84,22 +94,30 @@ static BOOL debug = YES;
         }
         databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
         _dbManager = [[DBManager alloc] initWithDatabaseFilePath:dbPath];
-        _runningTaskById = [[NSMutableDictionary alloc] init];
+        
+        if (_runningTaskById == nil) {
+            _runningTaskById = [[NSMutableDictionary alloc] init];
+        }
 
-        // init NSURLSession
         NSBundle *mainBundle = [NSBundle mainBundle];
-        NSNumber *maxConcurrentTasks = [mainBundle objectForInfoDictionaryKey:@"FDMaximumConcurrentTasks"];
-        if (maxConcurrentTasks == nil) {
-            maxConcurrentTasks = @3;
-        }
-        if (debug) {
-            NSLog(@"MAXIMUM_CONCURRENT_TASKS = %@", maxConcurrentTasks);
-        }
-        NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:[NSString stringWithFormat:@"%@.download.background.%f", NSBundle.mainBundle.bundleIdentifier, [[NSDate date] timeIntervalSince1970]]];
-        sessionConfiguration.HTTPMaximumConnectionsPerHost = [maxConcurrentTasks intValue];
-        _session = [NSURLSession sessionWithConfiguration:sessionConfiguration delegate:self delegateQueue:nil];
-        if (debug) {
-            NSLog(@"init NSURLSession with id: %@", [[_session configuration] identifier]);
+
+        // init NSURLSession in background isolate
+        if (_isolate) {
+            NSNumber *maxConcurrentTasks = [mainBundle objectForInfoDictionaryKey:@"FDMaximumConcurrentTasks"];
+            if (maxConcurrentTasks == nil) {
+                maxConcurrentTasks = @3;
+            }
+            if (debug) {
+                NSLog(@"MAXIMUM_CONCURRENT_TASKS = %@", maxConcurrentTasks);
+            }
+            // session identifier needs to be the same for background download and resume to work
+            NSString *identifier = [NSString stringWithFormat:@"%@.download.background.session", NSBundle.mainBundle.bundleIdentifier];
+            NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:identifier];
+            sessionConfiguration.HTTPMaximumConnectionsPerHost = [maxConcurrentTasks intValue];
+            _session = [NSURLSession sessionWithConfiguration:sessionConfiguration delegate:self delegateQueue:nil];
+            if (debug) {
+                NSLog(@"init NSURLSession with id: %@", [[_session configuration] identifier]);
+            }
         }
 
         _allFilesDownloadedMsg = [mainBundle objectForInfoDictionaryKey:@"FDAllFilesDownloadedMessage"];
@@ -158,19 +176,26 @@ static BOOL debug = YES;
         }
     }
     NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithRequest:request];
+    // store task id in taskDescription
+    task.taskDescription = [self createTaskId];
     [task resume];
 
     return task;
 }
 
+- (NSString*) createTaskId {
+    return [NSString stringWithFormat:@"%@.download.task.%d.%f",
+                            NSBundle.mainBundle.bundleIdentifier, arc4random_uniform(100000), [[NSDate date] timeIntervalSince1970]];
+}
+
 - (NSString*)identifierForTask:(NSURLSessionTask*) task
 {
-    return [NSString stringWithFormat: @"%@.%lu", [[[self currentSession] configuration] identifier], [task taskIdentifier]];
+    return task.taskDescription;
 }
 
 - (NSString*)identifierForTask:(NSURLSessionTask*) task ofSession:(NSURLSession *)session
 {
-    return [NSString stringWithFormat: @"%@.%lu", [[session configuration] identifier], [task taskIdentifier]];
+    return task.taskDescription;
 }
 
 - (void)updateRunningTaskById:(NSString*)taskId progress:(int)progress status:(int)status resumable:(BOOL)resumable {
@@ -213,9 +238,9 @@ static BOOL debug = YES;
 
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_PAUSED) andProgress:@(progress)];
 
-                dispatch_sync([weakSelf databaseQueue], ^{
+                [weakSelf executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_PAUSED progress:progress resumable:YES];
-                });
+                }];
                 return;
             }
         };
@@ -235,9 +260,9 @@ static BOOL debug = YES;
             if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
                 [download cancel];
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                dispatch_sync([weakSelf databaseQueue], ^{
+                [weakSelf executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_CANCELED progress:-1];
-                });
+                }];
                 return;
             }
         };
@@ -253,9 +278,9 @@ static BOOL debug = YES;
                 [download cancel];
                 NSString *taskId = [self identifierForTask:download];
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                dispatch_sync([weakSelf databaseQueue], ^{
+                [weakSelf executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_CANCELED progress:-1];
-                });
+                }];
             }
         };
     }];
@@ -264,11 +289,19 @@ static BOOL debug = YES;
 - (void)sendUpdateProgressForTaskId: (NSString*)taskId inStatus: (NSNumber*) status andProgress: (NSNumber*) progress
 {
     NSArray *args = @[@(_callbackHandle), taskId, status, progress];
-    if (initialized) {
+    if (initialized && _callbackHandle != 0) {
         [_callbackChannel invokeMethod:@"" arguments:args];
     } else {
         [_eventQueue addObject:args];
     }
+}
+
+- (void)executeInDatabaseQueueForTask:(void (^)(void))task {
+    __typeof__(self) __weak weakSelf = self;
+    dispatch_sync(databaseQueue, ^{
+        if (weakSelf.isDatabaseQueueTerminated) return;
+        if (task) task();
+    });
 }
 
 - (BOOL)openDocumentWithURL:(NSURL*)url {
@@ -326,9 +359,9 @@ static BOOL debug = YES;
 
         // update DB
         __typeof__(self) __weak weakSelf = self;
-        dispatch_sync(databaseQueue, ^{
+        [self executeInDatabaseQueueForTask:^{
             [weakSelf updateTask:taskId filename:filename];
-        });
+        }];
 
         return [self fileUrlFromDict:mutableTask];
     }
@@ -347,6 +380,9 @@ static BOOL debug = YES;
     
     if (absolutePath) {
         NSString* documentDirPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+        if ([absolutePath isEqualToString:documentDirPath]) {
+            return @"";
+        }
         NSRange foundRank = [absolutePath rangeOfString:documentDirPath];
         if (foundRank.length > 0) {
             // we increase the location of range by one because we want to remove the file separator as well.
@@ -509,7 +545,10 @@ static BOOL debug = YES;
         if (records != nil && [records count] > 0) {
             NSArray *record = [records firstObject];
             NSDictionary *task = [self taskDictFromRecordArray:record];
-            if (task.count == 0) return nil; // checking if task is valid
+            // checking if task is valid
+            if (task.count == 0) {
+                return nil;
+            }
             if ([task[KEY_STATUS] intValue] < STATUS_COMPLETE) {
                 [_runningTaskById setObject:[NSMutableDictionary dictionaryWithDictionary:task] forKey:taskId];
             }
@@ -559,14 +598,9 @@ static BOOL debug = YES;
 }
 
 - (void)didInitializeDispatcherMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
-    @synchronized (self) {
-        initialized = YES;
-        //unqueue all pending download status events.
-        while ([_eventQueue count] > 0) {
-            NSArray* args = _eventQueue[0];
-            [_eventQueue removeObjectAtIndex:0];
-            [_callbackChannel invokeMethod:@"" arguments:args];
-        }
+    initialized = YES;
+    if (_callbackHandle != 0) { // unqueue if callback handler has been set
+        [self unqueueStatusEvents];
     }
     result([NSNull null]);
 }
@@ -575,7 +609,19 @@ static BOOL debug = YES;
     NSArray *arguments = call.arguments;
     _callbackHandle = [arguments[0] longLongValue];
     _step = [arguments[1] intValue];
+    if (initialized) [self unqueueStatusEvents];
     result([NSNull null]);
+}
+
+- (void) unqueueStatusEvents {
+    @synchronized (self) {
+        // unqueue all pending download status events.
+        while ([_eventQueue count] > 0) {
+            NSArray* args = _eventQueue[0];
+            [_eventQueue removeObjectAtIndex:0];
+            [_callbackChannel invokeMethod:@"" arguments:@[@(_callbackHandle), args[1], args[2], args[3]]];
+        }
+    }
 }
 
 - (void)enqueueMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
@@ -604,28 +650,29 @@ static BOOL debug = YES;
                          forKey:taskId];
 
     __typeof__(self) __weak weakSelf = self;
-    dispatch_sync(databaseQueue, ^{
+    
+    [self executeInDatabaseQueueForTask:^{
         [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:shortSavedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
-    });
+    }];
     result(taskId);
     [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
 }
 
 - (void)loadTasksMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     __typeof__(self) __weak weakSelf = self;
-    dispatch_sync(databaseQueue, ^{
+    [self executeInDatabaseQueueForTask:^{
         NSArray* tasks = [weakSelf loadAllTasks];
         result(tasks);
-    });
+    }];
 }
 
 - (void)loadTasksWithRawQueryMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString *query = call.arguments[KEY_QUERY];
     __typeof__(self) __weak weakSelf = self;
-    dispatch_sync(databaseQueue, ^{
+    [self executeInDatabaseQueueForTask:^{
         NSArray* tasks = [weakSelf loadTasksWithRawQuery:query];
         result(tasks);
-    });
+    }];
 }
 
 - (void)cancelMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
@@ -661,7 +708,8 @@ static BOOL debug = YES;
 
             if (resumeData != nil) {
                 NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithResumeData:resumeData];
-                NSString *newTaskId = [self identifierForTask:task];
+                NSString *newTaskId = [self createTaskId];
+                task.taskDescription = newTaskId;
                 [task resume];
 
                 // update memory-cache, assign a new taskId for paused task
@@ -674,12 +722,12 @@ static BOOL debug = YES;
                 result(newTaskId);
 
                 __typeof__(self) __weak weakSelf = self;
-                dispatch_sync([self databaseQueue], ^{
+                [self executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_RUNNING resumable:NO];
                     NSDictionary *task = [weakSelf loadTaskWithId:newTaskId];
                     NSNumber *progress = task[KEY_PROGRESS];
                     [weakSelf sendUpdateProgressForTaskId:newTaskId inStatus:@(STATUS_RUNNING) andProgress:progress];
-                });
+                }];
             } else {
                 result([FlutterError errorWithCode:@"invalid_data"
                                            message:@"not found resume data, this task cannot be resumed"
@@ -718,9 +766,9 @@ static BOOL debug = YES;
             [_runningTaskById removeObjectForKey:taskId];
 
             __typeof__(self) __weak weakSelf = self;
-            dispatch_sync([self databaseQueue], ^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_ENQUEUED resumable:NO];
-            });
+            }];
             result(newTaskId);
             [self sendUpdateProgressForTaskId:newTaskId inStatus:@(STATUS_ENQUEUED) andProgress:@(0)];
         } else {
@@ -769,18 +817,18 @@ static BOOL debug = YES;
                     if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
                         [download cancel];
                         [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                        dispatch_sync([weakSelf databaseQueue], ^{
+                        [weakSelf executeInDatabaseQueueForTask:^{
                             [weakSelf deleteTask:taskId];
-                        });
+                        }];
                         return;
                     }
                 };
             }];
         }
         
-        dispatch_sync([self databaseQueue], ^{
+        [self executeInDatabaseQueueForTask:^{
             [weakSelf deleteTask:taskId];
-        });
+        }];
         
         if (shouldDeleteContent) {
             NSURL *destinationURL = [self fileUrlFromDict:taskDict];
@@ -853,23 +901,6 @@ static BOOL debug = YES;
     return YES;
 }
 
-- (void)applicationWillTerminate:(nonnull UIApplication *)application
-{
-    if (debug) {
-        NSLog(@"applicationWillTerminate:");
-    }
-    for (NSString* key in _runningTaskById) {
-        if ([_runningTaskById[key][KEY_STATUS] intValue] < STATUS_COMPLETE) {
-            [self updateTask:key status:STATUS_CANCELED progress:-1];
-        }
-    }
-    _session = nil;
-    _mainChannel = nil;
-    _dbManager = nil;
-    databaseQueue = nil;
-    _runningTaskById = nil;
-}
-
 # pragma mark - NSURLSessionTaskDelegate
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didWriteData:(int64_t)bytesWritten totalBytesWritten:(int64_t)totalBytesWritten totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite
 {
@@ -884,9 +915,9 @@ static BOOL debug = YES;
         if (([lastProgress intValue] == 0 || (progress > ([lastProgress intValue] + _step)) || progress == 100) && progress != [lastProgress intValue]) {
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_RUNNING) andProgress:@(progress)];
             __typeof__(self) __weak weakSelf = self;
-            dispatch_sync(databaseQueue, ^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId status:STATUS_RUNNING progress:progress];
-            });
+            }];
             _runningTaskById[taskId][KEY_PROGRESS] = @(progress);
         }
     }
@@ -925,17 +956,17 @@ static BOOL debug = YES;
         __typeof__(self) __weak weakSelf = self;
         if (success) {
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_COMPLETE) andProgress:@100];
-            dispatch_sync(databaseQueue, ^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId status:STATUS_COMPLETE progress:100];
-            });
+            }];
         } else {
             if (debug) {
                 NSLog(@"Unable to copy temp file. Error: %@", [error localizedDescription]);
             }
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_FAILED) andProgress:@(-1)];
-            dispatch_sync(databaseQueue, ^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId status:STATUS_FAILED progress:-1];
-            });
+            }];
         }
     }
     
@@ -969,9 +1000,9 @@ static BOOL debug = YES;
             [_runningTaskById removeObjectForKey:taskId];
             [self sendUpdateProgressForTaskId:taskId inStatus:@(status) andProgress:@(-1)];
             __typeof__(self) __weak weakSelf = self;
-            dispatch_sync(databaseQueue, ^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId status:status progress:-1];
-            });
+            }];
         }
     }
 }

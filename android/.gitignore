@@ -2,7 +2,11 @@
 .gradle
 /local.properties
 /.idea/workspace.xml
+/.idea/misc.xml
+/.idea/markdown-navigator
+/.idea/encodings.xml
 /.idea/libraries
+/.idea/gradle.xml
 .DS_Store
 /build
 /captures
