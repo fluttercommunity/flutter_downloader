@@ -68,6 +68,9 @@ class FlutterDownloader {
   ///
   /// ### Android-only
   ///
+  /// If [notificationTitle] is set and if [showNotification] is true, sets title of notification.
+  /// If this parameter is not set, the plugin will apply value of [fileName] parameter
+  ///
   /// If [showNotification] is true, a notification with the current download
   /// progress will be shown.
   ///
@@ -88,6 +91,7 @@ class FlutterDownloader {
     required String savedDir,
     String? fileName,
     Map<String, String>? headers,
+    String? notificationTitle,
     bool showNotification = true,
     bool openFileFromNotification = true,
     bool requiresStorageNotLow = true,
@@ -113,6 +117,7 @@ class FlutterDownloader {
         'headers': headerBuilder.toString(),
         'show_notification': showNotification,
         'open_file_from_notification': openFileFromNotification,
+        'notification_title': notificationTitle,
         'requires_storage_not_low': requiresStorageNotLow,
         'save_in_public_storage': saveInPublicStorage,
       });
