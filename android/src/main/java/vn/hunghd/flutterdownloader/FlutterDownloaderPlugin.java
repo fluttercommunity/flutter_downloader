@@ -1,6 +1,5 @@
 package vn.hunghd.flutterdownloader;
 
-import android.annotation.SuppressLint;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
@@ -10,6 +9,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.provider.MediaStore;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.NotificationManagerCompat;
 
 import java.io.File;
@@ -33,7 +33,6 @@ import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
-import io.flutter.plugin.common.PluginRegistry;
 
 public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin {
     private static final String CHANNEL = "vn.hunghd/downloader";
@@ -42,22 +41,15 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
     public static final String SHARED_PREFERENCES_KEY = "vn.hunghd.downloader.pref";
     public static final String CALLBACK_DISPATCHER_HANDLE_KEY = "callback_dispatcher_handle_key";
 
-    private static FlutterDownloaderPlugin instance;
     private MethodChannel flutterChannel;
-    private TaskDbHelper dbHelper;
     private TaskDao taskDao;
     private Context context;
     private long callbackHandle;
+    private int step;
     private int debugMode;
-    private final Object initializationLock = new Object();
+    private int ignoreSsl;
 
-    @SuppressLint("NewApi")
-    public static void registerWith(PluginRegistry.Registrar registrar) {
-        if (instance == null) {
-            instance = new FlutterDownloaderPlugin();
-        }
-        instance.onAttachedToEngine(registrar.context(), registrar.messenger());
-    }
+    private final Object initializationLock = new Object();
 
     public void onAttachedToEngine(Context applicationContext, BinaryMessenger messenger) {
         synchronized (initializationLock) {
@@ -67,13 +59,13 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
             this.context = applicationContext;
             flutterChannel = new MethodChannel(messenger, CHANNEL);
             flutterChannel.setMethodCallHandler(this);
-            dbHelper = TaskDbHelper.getInstance(context);
+            TaskDbHelper dbHelper = TaskDbHelper.getInstance(context);
             taskDao = new TaskDao(dbHelper);
         }
     }
 
     @Override
-    public void onMethodCall(MethodCall call, MethodChannel.Result result) {
+    public void onMethodCall(MethodCall call, @NonNull MethodChannel.Result result) {
         if (call.method.equals("initialize")) {
             initialize(call, result);
         } else if (call.method.equals("registerCallback")) {
@@ -109,7 +101,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
     }
 
     @Override
-    public void onDetachedFromEngine(FlutterPluginBinding binding) {
+    public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
         context = null;
         if (flutterChannel != null) {
             flutterChannel.setMethodCallHandler(null);
@@ -117,14 +109,16 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         }
     }
 
-    private WorkRequest buildRequest(String url, String savedDir, String filename, String headers, boolean showNotification, boolean openFileFromNotification, String notificationTitle, boolean isResume, boolean requiresStorageNotLow) {
+    private WorkRequest buildRequest(String url, String savedDir, String filename, String headers,
+                                     boolean showNotification, boolean openFileFromNotification, String notificationTitle,
+                                     boolean isResume, boolean requiresStorageNotLow, boolean saveInPublicStorage) {
         WorkRequest request = new OneTimeWorkRequest.Builder(DownloadWorker.class)
                 .setConstraints(new Constraints.Builder()
                         .setRequiresStorageNotLow(requiresStorageNotLow)
                         .setRequiredNetworkType(NetworkType.CONNECTED)
                         .build())
                 .addTag(TAG)
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.SECONDS)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
                 .setInputData(new Data.Builder()
                         .putString(DownloadWorker.ARG_URL, url)
                         .putString(DownloadWorker.ARG_SAVED_DIR, savedDir)
@@ -135,7 +129,10 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                         .putString(DownloadWorker.ARG_NOTIFICATION_TITLE, notificationTitle)
                         .putBoolean(DownloadWorker.ARG_IS_RESUME, isResume)
                         .putLong(DownloadWorker.ARG_CALLBACK_HANDLE, callbackHandle)
+                        .putInt(DownloadWorker.ARG_STEP, step)
                         .putBoolean(DownloadWorker.ARG_DEBUG, debugMode == 1)
+                        .putBoolean(DownloadWorker.ARG_IGNORESSL, ignoreSsl == 1)
+                        .putBoolean(DownloadWorker.ARG_SAVE_IN_PUBLIC_STORAGE, saveInPublicStorage)
                         .build()
                 )
                 .build();
@@ -154,6 +151,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         List args = (List) call.arguments;
         long callbackHandle = Long.parseLong(args.get(0).toString());
         debugMode = Integer.parseInt(args.get(1).toString());
+        ignoreSsl = Integer.parseInt(args.get(2).toString());
 
         SharedPreferences pref = context.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
         pref.edit().putLong(CALLBACK_DISPATCHER_HANDLE_KEY, callbackHandle).apply();
@@ -164,6 +162,7 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
     private void registerCallback(MethodCall call, MethodChannel.Result result) {
         List args = (List) call.arguments;
         callbackHandle = Long.parseLong(args.get(0).toString());
+        step = Integer.parseInt(args.get(1).toString());
         result.success(null);
     }
 
@@ -176,12 +175,15 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         boolean openFileFromNotification = call.argument("open_file_from_notification");
         String notificationTitle = call.argument("notification_title");
         boolean requiresStorageNotLow = call.argument("requires_storage_not_low");
-        WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification, openFileFromNotification, notificationTitle, false, requiresStorageNotLow);
+        boolean saveInPublicStorage = call.argument("save_in_public_storage");
+        WorkRequest request = buildRequest(url, savedDir, filename, headers, showNotification,
+                openFileFromNotification, notificationTitle, false, requiresStorageNotLow, saveInPublicStorage);
         WorkManager.getInstance(context).enqueue(request);
         String taskId = request.getId().toString();
         result.success(taskId);
         sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0);
-        taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename, savedDir, headers, showNotification, openFileFromNotification, notificationTitle);
+        taskDao.insertOrUpdateNewTask(taskId, url, DownloadStatus.ENQUEUED, 0, filename,
+                savedDir, headers, showNotification, openFileFromNotification, notificationTitle, saveInPublicStorage);
     }
 
     private void loadTasks(MethodCall call, MethodChannel.Result result) {
@@ -232,7 +234,10 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
 
     private void pause(MethodCall call, MethodChannel.Result result) {
         String taskId = call.argument("task_id");
+        // mark the current task is cancelled to process pause request
+        // the worker will depends on this flag to prepare data for resume request
         taskDao.updateTask(taskId, true);
+        // cancel running task, this method causes WorkManager.isStopped() turning true and the download loop will be stopped
         WorkManager.getInstance(context).cancelWorkById(UUID.fromString(taskId));
         result.success(null);
     }
@@ -250,7 +255,9 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                 String partialFilePath = task.savedDir + File.separator + filename;
                 File partialFile = new File(partialFilePath);
                 if (partialFile.exists()) {
-                    WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, task.notificationTitle, true, requiresStorageNotLow);
+                    WorkRequest request = buildRequest(task.url, task.savedDir, task.filename,
+                            task.headers, task.showNotification, task.openFileFromNotification,
+                            task.notificationTitle, true, requiresStorageNotLow, task.saveInPublicStorage);
                     String newTaskId = request.getId().toString();
                     result.success(newTaskId);
                     sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress);
@@ -274,7 +281,9 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         boolean requiresStorageNotLow = call.argument("requires_storage_not_low");
         if (task != null) {
             if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
-                WorkRequest request = buildRequest(task.url, task.savedDir, task.filename, task.headers, task.showNotification, task.openFileFromNotification, task.notificationTitle, false, requiresStorageNotLow);
+                WorkRequest request = buildRequest(task.url, task.savedDir, task.filename,
+                        task.headers, task.showNotification, task.openFileFromNotification,
+                        task.notificationTitle, false, requiresStorageNotLow, task.saveInPublicStorage);
                 String newTaskId = request.getId().toString();
                 result.success(newTaskId);
                 sendUpdateProgress(newTaskId, DownloadStatus.ENQUEUED, task.progress);

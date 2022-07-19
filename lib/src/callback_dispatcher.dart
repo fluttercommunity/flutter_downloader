@@ -6,6 +6,9 @@ import 'package:flutter/widgets.dart';
 
 import 'models.dart';
 
+// pragma annotation is needed to avoid tree shaking in release mode
+// https://github.com/dart-lang/sdk/blob/master/runtime/docs/compiler/aot/entry_point_pragma.md
+@pragma('vm:entry-point')
 void callbackDispatcher() {
   const MethodChannel backgroundChannel =
       MethodChannel('vn.hunghd/downloader_background');
@@ -13,14 +16,14 @@ void callbackDispatcher() {
   WidgetsFlutterBinding.ensureInitialized();
 
   backgroundChannel.setMethodCallHandler((MethodCall call) async {
-    final List<dynamic> args = call.arguments;
+    final args = call.arguments;
     final handle = CallbackHandle.fromRawHandle(args[0]);
-    final Function? callback =
-        PluginUtilities.getCallbackFromHandle(handle);
+    final callback = PluginUtilities.getCallbackFromHandle(handle);
 
     if (callback == null) {
-      print('Fatal: could not find callback');
-      exit(-1);
+      // ignore: avoid_print
+      print('fatal error: could not find callback');
+      exit(1);
     }
 
     final String id = args[1];
