@@ -85,6 +85,7 @@ class _MyHomePageState extends State<MyHomePage> {
     IsolateNameServer.removePortNameMapping('downloader_send_port');
   }
 
+  @pragma('vm:entry-point')
   static void downloadCallback(
     String id,
     DownloadTaskStatus status,
@@ -124,12 +125,14 @@ class _MyHomePageState extends State<MyHomePage> {
                         _pauseDownload(task);
                       } else if (task.status == DownloadTaskStatus.paused) {
                         _resumeDownload(task);
-                      } else if (task.status == DownloadTaskStatus.complete) {
+                      } else if (task.status == DownloadTaskStatus.complete ||
+                          task.status == DownloadTaskStatus.canceled) {
                         _delete(task);
                       } else if (task.status == DownloadTaskStatus.failed) {
                         _retryDownload(task);
                       }
                     },
+                    onCancel: _delete,
                   ),
         ],
       );
@@ -200,7 +203,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // Not used in the example.
-  // void _cancelDownload(_TaskInfo task) async {
+  // Future<void> _cancelDownload(TaskInfo task) async {
   //   await FlutterDownloader.cancel(taskId: task.taskId!);
   // }
 
@@ -368,6 +371,23 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
+        actions: [
+          if (Platform.isIOS)
+            PopupMenuButton<Function>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  onTap: () => exit(0),
+                  child: const ListTile(
+                    title: Text('Simulate App Backgrounded',
+                        style: TextStyle(fontSize: 15)),
+                  ),
+                ),
+              ],
+            )
+        ],
       ),
       body: Builder(
         builder: (context) {

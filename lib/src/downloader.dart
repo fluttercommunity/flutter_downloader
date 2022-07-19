@@ -19,10 +19,10 @@ typedef DownloadCallback = void Function(
 /// Provides access to all functions of the plugin in a single place.
 class FlutterDownloader {
   static const _channel = MethodChannel('vn.hunghd/downloader');
-  
+
   static bool _initialized = false;
   static bool get initialized => _initialized;
-  
+
   static bool _debug = false;
   static bool get debug => _debug;
 
