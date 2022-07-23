@@ -290,6 +290,7 @@ void main() {
 ```dart
 final taskId = await FlutterDownloader.enqueue(
   url: 'your download link',
+  headers: {}, // optional: header send with url (auth token etc)
   savedDir: 'the path of directory where you want to save downloaded files',
   showNotification: true, // show download progress in status bar (for Android)
   openFileFromNotification: true, // click on notification to open downloaded file (for Android)
