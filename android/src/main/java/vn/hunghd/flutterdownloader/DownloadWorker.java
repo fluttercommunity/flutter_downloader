@@ -614,7 +614,29 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
         // Show the notification
         if (showNotification) {
-            // Create the notification
+         
+            if(lastCallUpdateNotification == 0 || progress == 100){
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            // Note: Android applies a rate limit when updating a notification.
+            // If you post updates to a notification too frequently (many in less than one second),
+            // the system might drop some updates. (https://developer.android.com/training/notify-user/build-notification#Updating)
+               
+            long timeBetweenLastUpdateAndNow = System.currentTimeMillis() - lastCallUpdateNotification;
+            if ( timeBetweenLastUpdateAndNow < 1000) {
+                log("Update too frequently!!!!, we should sleep a second to ensure the update call can be processed");
+                try {
+                    Thread.sleep(timeBetweenLastUpdateAndNow + 1);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            }
+
             NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID).
                     setContentTitle(notificationTitle == null ? title : notificationTitle)
                     .setContentIntent(intent)
@@ -659,26 +681,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 builder.setOngoing(false).setSmallIcon(getNotificationIconRes());
             }
 
-            // Note: Android applies a rate limit when updating a notification.
-            // If you post updates to a notification too frequently (many in less than one second),
-            // the system might drop some updates. (https://developer.android.com/training/notify-user/build-notification#Updating)
-            //
-            // If this is progress update, it's not much important if it is dropped because there're still incoming updates later
-            // If this is the final update, it must be success otherwise the notification will be stuck at the processing state
-            // In order to ensure the final one is success, we check and sleep a second if need.
-            if (System.currentTimeMillis() - lastCallUpdateNotification < 1000) {
-                if (finalize) {
-                    log("Update too frequently!!!!, but it is the final update, we should sleep a second to ensure the update call can be processed");
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                } else {
-                    log("Update too frequently!!!!, this should be dropped");
-                    return;
-                }
-            }
+          
             log("Update notification: {notificationId: " + primaryId + ", title: " + title + ", status: " + status + ", progress: " + progress + "}");
             NotificationManagerCompat.from(context).notify(primaryId, builder.build());
             lastCallUpdateNotification = System.currentTimeMillis();
