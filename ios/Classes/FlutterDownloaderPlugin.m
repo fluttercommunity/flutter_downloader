@@ -35,8 +35,6 @@
     FlutterMethodChannel *_mainChannel;
     FlutterMethodChannel *_callbackChannel;
     NSObject <FlutterPluginRegistrar> *_registrar;
-    NSURLSession *_session;
-    NSURLSession *_wifiSession;
     DBManager *_dbManager;
     NSString *_allFilesDownloadedMsg;
     NSMutableArray *_eventQueue;
@@ -55,6 +53,7 @@ static FlutterPluginRegistrantCallback registerPlugins = nil;
 static BOOL initialized = NO;
 static BOOL debug = YES;
 static NSURLSession *_session = nil;
+static NSURLSession *_wifiSession = nil;
 static FlutterEngine *_headlessRunner = nil;
 static int64_t _callbackHandle = 0;
 static int _step = 10;
@@ -198,14 +197,10 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     return task;
 }
 
-//- (NSString*) createTaskId {
+- (NSString*) createTaskId {
     return [NSString stringWithFormat:@"%@.download.task.%d.%f",
                             NSBundle.mainBundle.bundleIdentifier, arc4random_uniform(100000), [[NSDate date] timeIntervalSince1970]];
 }
-
-- (NSString *)identifierForTask:(NSURLSessionTask *)task {
-//    return task.taskDescription;
-//}
 
 - (NSString *)identifierForTask:(NSURLSessionTask *)task ofSession:(NSURLSession *)session {
     return task.taskDescription;
@@ -300,7 +295,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             NSURLSessionTaskState state = download.state;
             if (state == NSURLSessionTaskStateRunning) {
                 [download cancel];
-                NSString *taskId = [self identifierForTask:download];
+                NSString *taskId = download.taskDescription;
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
                 [weakSelf executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_CANCELED progress:-1];
@@ -313,7 +308,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             NSURLSessionTaskState state = download.state;
             if (state == NSURLSessionTaskStateRunning) {
                 [download cancel];
-                NSString *taskId = [self identifierForTask:download];
+                NSString *taskId = download.taskDescription;
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
                 [weakSelf executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_CANCELED progress:-1];
