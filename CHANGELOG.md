@@ -1,4 +1,4 @@
-## Unreleased
+## 1.8.2
 
 - Fix crashing on Flutter 3.3 (#700)
 - Improve README (#692)
