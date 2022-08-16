@@ -1,9 +1,22 @@
+## Unreleased
+
+- Fix crashing on Flutter 3.3 (#700)
+- Improve README (#692)
+- Android: make it possible to set custom notification title (#437)
+
 ## 1.8.1
 
-- Add optional `int step` argument to `FlutterDownloader.registerCallback()`
+- Add optional `step` argument to `FlutterDownloader.registerCallback()` (#435)
+- Add `initialized` getter to `FlutterDownloader` (#436)
+- Slightly refactor example app (#678 #680)
+- iOS: fix unable to cancel task after terminating the app while downloading
+  (#658)
+- iOS: fix NSRangeException being thrown when columns in the database don't
+  match (#661)
+- iOS: migrate off deprecated method
+  `stringByReplacingPercentEscapesUsingEncoding` (#652)
+- Android: add SQLite migration from version 2 to 3 (#667)
 - Improve README
-- Slightly refactor example app
-- Android only: add SQLite migration from version 2 to 3
 
 ## 1.8.0+1
 
