@@ -9,7 +9,6 @@ environment:
 
 dependencies:
   android_path_provider: ^0.3.0
-  cupertino_icons: ^1.0.5
   device_info: ^2.0.3
   flutter:
     sdk: flutter

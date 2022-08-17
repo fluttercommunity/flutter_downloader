@@ -202,11 +202,6 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  // Not used in the example.
-  // Future<void> _cancelDownload(TaskInfo task) async {
-  //   await FlutterDownloader.cancel(taskId: task.taskId!);
-  // }
-
   Future<void> _pauseDownload(TaskInfo task) async {
     await FlutterDownloader.pause(taskId: task.taskId!);
   }
@@ -376,13 +371,16 @@ class _MyHomePageState extends State<MyHomePage> {
             PopupMenuButton<Function>(
               icon: const Icon(Icons.more_vert, color: Colors.white),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
               itemBuilder: (context) => [
                 PopupMenuItem(
                   onTap: () => exit(0),
                   child: const ListTile(
-                    title: Text('Simulate App Backgrounded',
-                        style: TextStyle(fontSize: 15)),
+                    title: Text(
+                      'Simulate App Backgrounded',
+                      style: TextStyle(fontSize: 15),
+                    ),
                   ),
                 ),
               ],

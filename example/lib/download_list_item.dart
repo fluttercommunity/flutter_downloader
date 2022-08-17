@@ -22,6 +22,7 @@ class DownloadListItem extends StatelessWidget {
         onPressed: () => onActionTap?.call(task),
         constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
         icon: const Icon(Icons.file_download),
+        tooltip: 'Start',
       );
     } else if (task.status == DownloadTaskStatus.running) {
       return Row(
@@ -30,7 +31,8 @@ class DownloadListItem extends StatelessWidget {
           IconButton(
             onPressed: () => onActionTap?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-            icon: const Icon(Icons.pause, color: Colors.red),
+            icon: const Icon(Icons.pause, color: Colors.yellow),
+            tooltip: 'Pause',
           ),
         ],
       );
@@ -42,12 +44,14 @@ class DownloadListItem extends StatelessWidget {
             onPressed: () => onActionTap?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.play_arrow, color: Colors.green),
+            tooltip: 'Resume',
           ),
           if (onCancel != null)
             IconButton(
               onPressed: () => onCancel?.call(task),
               constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-              icon: const Icon(Icons.cancel),
+              icon: const Icon(Icons.cancel, color: Colors.red),
+              tooltip: 'Cancel',
             ),
         ],
       );
@@ -61,6 +65,7 @@ class DownloadListItem extends StatelessWidget {
             onPressed: () => onActionTap?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.delete),
+            tooltip: 'Delete',
           )
         ],
       );
@@ -75,6 +80,7 @@ class DownloadListItem extends StatelessWidget {
               onPressed: () => onActionTap?.call(task),
               constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
               icon: const Icon(Icons.cancel),
+              tooltip: 'Cancel',
             )
         ],
       );
@@ -88,6 +94,7 @@ class DownloadListItem extends StatelessWidget {
             onPressed: () => onActionTap?.call(task),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.refresh, color: Colors.green),
+            tooltip: 'Refresh',
           )
         ],
       );
