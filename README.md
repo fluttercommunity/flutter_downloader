@@ -249,7 +249,7 @@ following messages.
 <string name="flutter_downloader_notification_paused">Download paused</string>
 ```
 
-You can learn more about localization on Android [here][4]).
+You can learn more about localization on Android [here][4].
 
 ### Install .apk files
 
@@ -301,7 +301,7 @@ final taskId = await FlutterDownloader.enqueue(
 ### Update download progress
 
 ```dart
-FlutterDownloader.registerCallback(callback); // callback is a top-level or static function
+await FlutterDownloader.registerCallback(callback); // callback is a top-level or static function
 ```
 
 **Important**
@@ -447,16 +447,12 @@ plugin is missing some feature.
 
 Pull request are also very welcome!
 
-[fluttercommunity_badge]:
-    https://fluttercommunity.dev/_github/header/flutter_downloader
+[fluttercommunity_badge]: https://fluttercommunity.dev/_github/header/flutter_downloader
 [fluttercommunity_link]: https://github.com/fluttercommunity/community
 [pub_badge]: https://img.shields.io/pub/v/flutter_downloader.svg
 [pub_link]: https://pub.dartlang.org/packages/flutter_downloader
-[work_manager]:
-    https://developer.android.com/topic/libraries/architecture/workmanager
-[url_session_download_task]:
-    https://developer.apple.com/documentation/foundation/nsurlsessiondownloadtask?language=objc
-[android_9_cleartext_traffic]:
-    https://medium.com/@son.rommer/fix-cleartext-traffic-error-in-android-9-pie-2f4e9e2235e6
+[work_manager]: https://developer.android.com/topic/libraries/architecture/workmanager
+[url_session_download_task]: https://developer.apple.com/documentation/foundation/nsurlsessiondownloadtask?language=objc
+[android_9_cleartext_traffic]: https://medium.com/@son.rommer/fix-cleartext-traffic-error-in-android-9-pie-2f4e9e2235e6
 [3]: https://medium.com/@guerrix/info-plist-localization-ad5daaea732a
 [4]: https://developer.android.com/training/basics/supporting-devices/languages

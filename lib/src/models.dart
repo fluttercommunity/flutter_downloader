@@ -1,25 +1,40 @@
-/// Defines a set of possible statuses of a download task.
+/// Defines a set of possible states which a [DownloadTask] can be in.
 @pragma('vm:entry-point')
 class DownloadTaskStatus {
-  final int _value;
-
+  /// Creates a new [DownloadTaskStatus].
   const DownloadTaskStatus(int value) : _value = value;
 
+  final int _value;
+
+  /// The underlying index of this status.
   int get value => _value;
 
-  static DownloadTaskStatus from(int value) => DownloadTaskStatus(value);
-
+  /// Status of the task is either unknown or corrupted.
   static const undefined = DownloadTaskStatus(0);
+
+  /// The task is scheduled, but is not running yet.
   static const enqueued = DownloadTaskStatus(1);
+
+  /// The task is in progress.
   static const running = DownloadTaskStatus(2);
+
+  /// The task has completed successfully.
   static const complete = DownloadTaskStatus(3);
+
+  /// The task has failed.
   static const failed = DownloadTaskStatus(4);
+
+  /// The task was canceled and cannot be resumed.
   static const canceled = DownloadTaskStatus(5);
+
+  /// The task was paused and can be resumed.
   static const paused = DownloadTaskStatus(6);
 
   @override
   bool operator ==(Object other) {
-    if (identical(this, other)) return true;
+    if (identical(this, other)) {
+      return true;
+    }
 
     return other is DownloadTaskStatus && other._value == _value;
   }
@@ -35,6 +50,17 @@ class DownloadTaskStatus {
 ///
 /// This is also the structure of the record saved in the SQLite database.
 class DownloadTask {
+  /// Creates a new [DownloadTask].
+  DownloadTask({
+    required this.taskId,
+    required this.status,
+    required this.progress,
+    required this.url,
+    required this.filename,
+    required this.savedDir,
+    required this.timeCreated,
+  });
+
   /// Unique identifier of this task.
   final String taskId;
 
@@ -56,17 +82,7 @@ class DownloadTask {
   /// Timestamp when the task was created.
   final int timeCreated;
 
-  DownloadTask({
-    required this.taskId,
-    required this.status,
-    required this.progress,
-    required this.url,
-    required this.filename,
-    required this.savedDir,
-    required this.timeCreated,
-  });
-
   @override
   String toString() =>
-      "DownloadTask(taskId: $taskId, status: $status, progress: $progress, url: $url, filename: $filename, savedDir: $savedDir, timeCreated: $timeCreated)";
+      'DownloadTask(taskId: $taskId, status: $status, progress: $progress, url: $url, filename: $filename, savedDir: $savedDir, timeCreated: $timeCreated)';
 }
