@@ -856,8 +856,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 # pragma mark - FlutterPlugin
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
-    FlutterDownloaderPlugin* plugin = [[FlutterDownloaderPlugin alloc] init:registrar];
-    [registrar addApplicationDelegate: plugin];
+    [registrar addApplicationDelegate: [[FlutterDownloaderPlugin alloc] init:registrar]];
 }
 
 + (void)setPluginRegistrantCallback:(FlutterPluginRegistrantCallback)callback {
@@ -902,40 +901,6 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     return YES;
 }
 
-# pragma mark - NSURLSessionDelegate
--(void)URLSessionDidFinishEventsForBackgroundURLSession:(NSURLSession *)session
-{
-    if (debug) {
-        NSLog(@"URLSessionDidFinishEventsForBackgroundURLSession:");
-    }
-    // Check if all download tasks have been finished.
-    [[self currentSession] getTasksWithCompletionHandler:^(NSArray *dataTasks, NSArray *uploadTasks, NSArray *downloadTasks) {
-        if ([downloadTasks count] == 0) {
-            if (debug) {
-                NSLog(@"all download tasks have been finished");
-            }
-
-            if (self.backgroundTransferCompletionHandler != nil) {
-                // Copy locally the completion handler.
-                void(^completionHandler)(void) = self.backgroundTransferCompletionHandler;
-
-                // Make nil the backgroundTransferCompletionHandler.
-                self.backgroundTransferCompletionHandler = nil;
-
-                [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-                    // Call the completion handler to tell the system that there are no other background transfers.
-                    completionHandler();
-
-                    // Show a local notification when all downloads are over.
-                    UILocalNotification *localNotification = [[UILocalNotification alloc] init];
-                    localNotification.alertBody = self->_allFilesDownloadedMsg;
-                    [[UIApplication sharedApplication] presentLocalNotificationNow:localNotification];
-                }];
-            }
-        }
-    }];
-}
-
 # pragma mark - NSURLSessionTaskDelegate
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didWriteData:(int64_t)bytesWritten totalBytesWritten:(int64_t)totalBytesWritten totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite
 {
@@ -958,42 +923,6 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     }
 }
 
--(void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error
-{
-
-    NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *) task.response;
-    long httpStatusCode = (long)[httpResponse statusCode];
-
-    if (debug) {
-        NSLog(@"%s HTTP status code: %ld", __FUNCTION__, httpStatusCode);
-    }
-
-    bool isSuccess = (httpStatusCode >= 200 && httpStatusCode < 300);
-    if (error != nil || !isSuccess) {
-        if (debug) {
-            NSLog(@"Download completed with error: %@", error != nil ? [error localizedDescription] : @(httpStatusCode));
-        }
-        NSString *taskId = [self identifierForTask:task ofSession:session];
-        NSDictionary *taskInfo = [self loadTaskWithId:taskId];
-        NSNumber *resumable = taskInfo[KEY_RESUMABLE];
-        if (![resumable boolValue]) {
-            int status;
-            if (error != nil) {
-                status = [error code] == -999 ? STATUS_CANCELED : STATUS_FAILED;
-            } else {
-                status = STATUS_FAILED;
-            }
-            [_runningTaskById removeObjectForKey:taskId];
-            [self sendUpdateProgressForTaskId:taskId inStatus:@(status) andProgress:@(-1)];
-            __typeof__(self) __weak weakSelf = self;
-            [self executeInDatabaseQueueForTask:^{
-                [weakSelf updateTask:taskId status:status progress:-1];
-            }];
-        }
-    }
-}
-
-# pragma mark - NSUrlSessionDownloadDelegate
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL:(NSURL *)location
 {
     
@@ -1041,6 +970,74 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         }
     }
     
+}
+
+-(void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error
+{
+    
+    NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *) task.response;
+    long httpStatusCode = (long)[httpResponse statusCode];
+    
+    if (debug) {
+        NSLog(@"%s HTTP status code: %ld", __FUNCTION__, httpStatusCode);
+    }
+    
+    bool isSuccess = (httpStatusCode >= 200 && httpStatusCode < 300);
+    if (error != nil || !isSuccess) {
+        if (debug) {
+            NSLog(@"Download completed with error: %@", error != nil ? [error localizedDescription] : @(httpStatusCode));
+        }
+        NSString *taskId = [self identifierForTask:task ofSession:session];
+        NSDictionary *taskInfo = [self loadTaskWithId:taskId];
+        NSNumber *resumable = taskInfo[KEY_RESUMABLE];
+        if (![resumable boolValue]) {
+            int status;
+            if (error != nil) {
+                status = [error code] == -999 ? STATUS_CANCELED : STATUS_FAILED;
+            } else {
+                status = STATUS_FAILED;
+            }
+            [_runningTaskById removeObjectForKey:taskId];
+            [self sendUpdateProgressForTaskId:taskId inStatus:@(status) andProgress:@(-1)];
+            __typeof__(self) __weak weakSelf = self;
+            [self executeInDatabaseQueueForTask:^{
+                [weakSelf updateTask:taskId status:status progress:-1];
+            }];
+        }
+    }
+}
+
+-(void)URLSessionDidFinishEventsForBackgroundURLSession:(NSURLSession *)session
+{
+    if (debug) {
+        NSLog(@"URLSessionDidFinishEventsForBackgroundURLSession:");
+    }
+    // Check if all download tasks have been finished.
+    [[self currentSession] getTasksWithCompletionHandler:^(NSArray *dataTasks, NSArray *uploadTasks, NSArray *downloadTasks) {
+        if ([downloadTasks count] == 0) {
+            if (debug) {
+                NSLog(@"all download tasks have been finished");
+            }
+
+            if (self.backgroundTransferCompletionHandler != nil) {
+                // Copy locally the completion handler.
+                void(^completionHandler)(void) = self.backgroundTransferCompletionHandler;
+
+                // Make nil the backgroundTransferCompletionHandler.
+                self.backgroundTransferCompletionHandler = nil;
+
+                [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+                    // Call the completion handler to tell the system that there are no other background transfers.
+                    completionHandler();
+
+                    // Show a local notification when all downloads are over.
+                    UILocalNotification *localNotification = [[UILocalNotification alloc] init];
+                    localNotification.alertBody = self->_allFilesDownloadedMsg;
+                    [[UIApplication sharedApplication] presentLocalNotificationNow:localNotification];
+                }];
+            }
+        }
+    }];
 }
 
 
