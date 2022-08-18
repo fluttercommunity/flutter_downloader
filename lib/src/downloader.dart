@@ -152,7 +152,7 @@ class FlutterDownloader {
 
       return result.map(
         (dynamic item) {
-          item as Map<String, dynamic>;
+          // item as Map<String, dynamic>; // throws
 
           return DownloadTask(
             taskId: item['task_id'] as String,
@@ -209,7 +209,7 @@ class FlutterDownloader {
 
       return result.map(
         (dynamic item) {
-          item as Map<String, dynamic>;
+          // item as Map<String, dynamic>; // throws
 
           return DownloadTask(
             taskId: item['task_id'] as String,
