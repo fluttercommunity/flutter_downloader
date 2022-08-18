@@ -1,3 +1,8 @@
+## 1.8.3
+
+- Android: revert possibility to set custom notification title introduced in
+  #437. This fixes #705
+
 ## 1.8.2
 
 - Fix crashing on Flutter 3.3 (#700)
