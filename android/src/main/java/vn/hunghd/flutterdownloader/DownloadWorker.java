@@ -403,6 +403,10 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                         outputStream = context.getContentResolver().openOutputStream(uri, "w");
                     } else {
                         File file = createFileInAppSpecificDir(filename, savedDir);
+                        if (file.getName() != filename) {
+                            filename = file.getName();
+                            taskDao.updateTask(getId().toString(), filename, contentType);
+                        }
                         savedFilePath = file.getPath();
                         outputStream = new FileOutputStream(file, false);
                     }
