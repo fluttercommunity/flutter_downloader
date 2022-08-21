@@ -4,9 +4,10 @@ import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'callback_dispatcher.dart';
-import 'models.dart';
 
 /// Singature for a function which is called when the download state of a task
 /// with [id] changes.
@@ -15,6 +16,8 @@ typedef DownloadCallback = void Function(
   DownloadTaskStatus status,
   int progress,
 );
+
+Box<DownloadTaskHiveObject>? taskBox;
 
 /// Provides access to all functions of the plugin in a single place.
 class FlutterDownloader {
@@ -46,9 +49,15 @@ class FlutterDownloader {
 
     WidgetsFlutterBinding.ensureInitialized();
 
-    final callback = PluginUtilities.getCallbackHandle(callbackDispatcher)!;
+    await Hive.initFlutter();
+    Hive.registerAdapter(DownloadTaskHiveObjectAdapter());
+    Hive.registerAdapter(DownloadTaskStatusAdapter());
+    taskBox = await Hive.openBox<DownloadTaskHiveObject>("tasks");
+
+    final callback = PluginUtilities.getCallbackHandle(callbackDispatcher);
+    final handle = callback?.toRawHandle();
     await _channel.invokeMethod('initialize', <dynamic>[
-      callback.toRawHandle(),
+      callback?.toRawHandle(),
       debug ? 1 : 0,
       ignoreSsl ? 1 : 0,
     ]);
@@ -128,66 +137,9 @@ class FlutterDownloader {
     }
   }
 
-  /// Loads all tasks from SQLite database.
+  /// Loads all tasks from Hive Database.
   static Future<List<DownloadTask>?> loadTasks() async {
-    assert(_initialized, 'plugin flutter_downloader is not initialized');
-
-    try {
-      List<dynamic> result = await _channel.invokeMethod('loadTasks');
-      return result
-          .map((item) => DownloadTask(
-              taskId: item['task_id'],
-              status: DownloadTaskStatus(item['status']),
-              progress: item['progress'],
-              url: item['url'],
-              filename: item['file_name'],
-              savedDir: item['saved_dir'],
-              timeCreated: item['time_created']))
-          .toList();
-    } on PlatformException catch (e) {
-      _log(e.message);
-      return null;
-    }
-  }
-
-  /// Loads tasks from SQLite database using raw [query].
-  ///
-  /// **parameters:**
-  ///
-  /// * `query`: SQL statement. Note that the plugin will parse loaded data from
-  ///   database into [DownloadTask] object, in order to make it work, you
-  ///   should load tasks with all fields from database. In other words, using
-  ///   `SELECT *` statement.
-  ///
-  /// Example:
-  ///
-  /// ```dart
-  /// FlutterDownloader.loadTasksWithRawQuery(
-  ///   query: 'SELECT * FROM task WHERE status=3',
-  /// );
-  /// ```
-  static Future<List<DownloadTask>?> loadTasksWithRawQuery({
-    required String query,
-  }) async {
-    assert(_initialized, 'plugin flutter_downloader is not initialized');
-
-    try {
-      List<dynamic> result = await _channel
-          .invokeMethod('loadTasksWithRawQuery', {'query': query});
-      return result
-          .map((item) => DownloadTask(
-              taskId: item['task_id'],
-              status: DownloadTaskStatus(item['status']),
-              progress: item['progress'],
-              url: item['url'],
-              filename: item['file_name'],
-              savedDir: item['saved_dir'],
-              timeCreated: item['time_created']))
-          .toList();
-    } on PlatformException catch (e) {
-      _log(e.message);
-      return null;
-    }
+    return taskBox?.values.toList();
   }
 
   /// Cancels download task with id [taskId].
