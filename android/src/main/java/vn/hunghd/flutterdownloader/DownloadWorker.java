@@ -615,13 +615,6 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         // Show the notification
         if (showNotification) {
          
-            if(lastCallUpdateNotification == 0 || progress == 100){
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
             // Note: Android applies a rate limit when updating a notification.
             // If you post updates to a notification too frequently (many in less than one second),
             // the system might drop some updates. (https://developer.android.com/training/notify-user/build-notification#Updating)
