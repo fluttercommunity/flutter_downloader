@@ -71,7 +71,6 @@ class FlutterDownloader {
       bool openFileFromNotification = true,
       bool requiresStorageNotLow = true}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
-    assert(Directory(savedDir).existsSync());
 
     StringBuffer headerBuilder = StringBuffer();
     if (headers != null) {
