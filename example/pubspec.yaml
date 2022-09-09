@@ -14,8 +14,8 @@ dependencies:
     sdk: flutter
   flutter_downloader:
     path: ../
-  path_provider: ^2.0.10
-  permission_handler: ^9.2.0
+  path_provider: ^2.0.11
+  permission_handler: ^10.0.0
 
 dev_dependencies:
   flutter_test:
