@@ -1,3 +1,7 @@
+## 1.8.3+1
+
+- Minor updates to README (#715)
+
 ## 1.8.3
 
 - Android: revert possibility to set custom notification title introduced in
