@@ -1,3 +1,7 @@
+## 1.8.3+2
+
+- Populate `issue_tracker` field in pubspec (#717)
+
 ## 1.8.3+1
 
 - Minor updates to README (#715)
