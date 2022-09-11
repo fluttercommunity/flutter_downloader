@@ -7,5 +7,6 @@
             <action android:name="android.intent.action.VIEW" />
         </intent>
     </queries>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
 </manifest>

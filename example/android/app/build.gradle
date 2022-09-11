@@ -25,7 +25,7 @@ apply plugin: 'com.android.application'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 android {
-    compileSdkVersion 32
+    compileSdkVersion 33
 
     namespace 'vn.hunghd.example'
 
@@ -33,7 +33,7 @@ android {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "vn.hunghd.example"
         minSdkVersion 19
-        targetSdkVersion 32
+        targetSdkVersion 33
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
@@ -45,10 +45,10 @@ android {
             signingConfig signingConfigs.debug
         }
     }
+
     lint {
         disable 'InvalidPackage'
     }
-
 }
 
 flutter {
