@@ -322,9 +322,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
                 if (!isResume) {
                     // try to extract filename from HTTP headers if it is not given by user
                     if (filename == null) {
-                        val disposition: String = httpConn.getHeaderField("Content-Disposition")
+                        val disposition: String? = httpConn.getHeaderField("Content-Disposition")
                         log("Content-Disposition = $disposition")
-                        if (disposition.isNotEmpty()) {
+                        if (!disposition.isNullOrEmpty()) {
                             filename = getFileNameFromContentDisposition(disposition, charset)
                         }
                         if (filename == null || filename.isEmpty()) {
