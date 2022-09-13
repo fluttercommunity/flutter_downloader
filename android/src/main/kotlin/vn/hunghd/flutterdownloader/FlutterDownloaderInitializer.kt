@@ -51,11 +51,11 @@ class FlutterDownloaderInitializer : ContentProvider() {
 
     private fun getMaxConcurrentTaskMetadata(context: Context): Int {
         try {
-            val pi = context.packageManager.getProviderInfo(
+            val providerInfo = context.packageManager.getProviderInfo(
                 ComponentName(context, "vn.hunghd.flutterdownloader.FlutterDownloaderInitializer"),
                 PackageManager.GET_META_DATA
             )
-            val bundle = pi.metaData
+            val bundle = providerInfo.metaData
             val max = bundle.getInt(
                 "vn.hunghd.flutterdownloader.MAX_CONCURRENT_TASKS",
                 DEFAULT_MAX_CONCURRENT_TASKS
