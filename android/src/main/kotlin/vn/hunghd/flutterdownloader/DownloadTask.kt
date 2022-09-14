@@ -3,7 +3,7 @@ package vn.hunghd.flutterdownloader
 data class DownloadTask(
     var primaryId: Int,
     var taskId: String,
-    var status: Int,
+    var status: DownloadStatus,
     var progress: Int,
     var url: String,
     var filename: String?,

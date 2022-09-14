@@ -228,7 +228,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
         log("Resume download: Range: bytes=$downloadedBytes-")
         conn.setRequestProperty("Accept-Encoding", "identity")
         conn.setRequestProperty("Range", "bytes=$downloadedBytes-")
-        conn.setDoInput(true)
+        conn.doInput = true
         return downloadedBytes
     }
 
@@ -511,7 +511,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
     private fun getMediaStoreEntryPathApi29(uri: Uri): String? {
         try {
             applicationContext.contentResolver.query(
-                uri, arrayOf<String>(MediaStore.Files.FileColumns.DATA),
+                uri, arrayOf(MediaStore.Files.FileColumns.DATA),
                 null,
                 null,
                 null
@@ -594,7 +594,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
     private fun updateNotification(
         context: Context,
         title: String?,
-        status: Int,
+        status: DownloadStatus,
         progress: Int,
         intent: PendingIntent?,
         finalize: Boolean
@@ -609,41 +609,48 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
                     .setOnlyAlertOnce(true)
                     .setAutoCancel(true)
                     .setPriority(NotificationCompat.PRIORITY_LOW)
-            if (status == DownloadStatus.RUNNING) {
-                if (progress <= 0) {
-                    builder.setContentText(msgStarted)
-                        .setProgress(0, 0, false)
+            when (status) {
+                DownloadStatus.RUNNING -> {
+                    if (progress <= 0) {
+                        builder.setContentText(msgStarted)
+                            .setProgress(0, 0, false)
+                        builder.setOngoing(false)
+                            .setSmallIcon(notificationIconRes)
+                    } else if (progress < 100) {
+                        builder.setContentText(msgInProgress)
+                            .setProgress(100, progress, false)
+                        builder.setOngoing(true)
+                            .setSmallIcon(android.R.drawable.stat_sys_download)
+                    } else {
+                        builder.setContentText(msgComplete).setProgress(0, 0, false)
+                        builder.setOngoing(false)
+                            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                    }
+                }
+                DownloadStatus.CANCELED -> {
+                    builder.setContentText(msgCanceled).setProgress(0, 0, false)
                     builder.setOngoing(false)
-                        .setSmallIcon(notificationIconRes)
-                } else if (progress < 100) {
-                    builder.setContentText(msgInProgress)
-                        .setProgress(100, progress, false)
-                    builder.setOngoing(true)
-                        .setSmallIcon(android.R.drawable.stat_sys_download)
-                } else {
+                        .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                }
+                DownloadStatus.FAILED -> {
+                    builder.setContentText(msgFailed).setProgress(0, 0, false)
+                    builder.setOngoing(false)
+                        .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                }
+                DownloadStatus.PAUSED -> {
+                    builder.setContentText(msgPaused).setProgress(0, 0, false)
+                    builder.setOngoing(false)
+                        .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                }
+                DownloadStatus.COMPLETE -> {
                     builder.setContentText(msgComplete).setProgress(0, 0, false)
                     builder.setOngoing(false)
                         .setSmallIcon(android.R.drawable.stat_sys_download_done)
                 }
-            } else if (status == DownloadStatus.CANCELED) {
-                builder.setContentText(msgCanceled).setProgress(0, 0, false)
-                builder.setOngoing(false)
-                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
-            } else if (status == DownloadStatus.FAILED) {
-                builder.setContentText(msgFailed).setProgress(0, 0, false)
-                builder.setOngoing(false)
-                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
-            } else if (status == DownloadStatus.PAUSED) {
-                builder.setContentText(msgPaused).setProgress(0, 0, false)
-                builder.setOngoing(false)
-                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
-            } else if (status == DownloadStatus.COMPLETE) {
-                builder.setContentText(msgComplete).setProgress(0, 0, false)
-                builder.setOngoing(false)
-                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
-            } else {
-                builder.setProgress(0, 0, false)
-                builder.setOngoing(false).setSmallIcon(notificationIconRes)
+                else -> {
+                    builder.setProgress(0, 0, false)
+                    builder.setOngoing(false).setSmallIcon(notificationIconRes)
+                }
             }
 
             // Note: Android applies a rate limit when updating a notification.
@@ -672,12 +679,12 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
         }
     }
 
-    private fun sendUpdateProcessEvent(status: Int, progress: Int) {
+    private fun sendUpdateProcessEvent(status: DownloadStatus, progress: Int) {
         val args: MutableList<Any> = ArrayList()
-        val callbackHandle: Long = getInputData().getLong(ARG_CALLBACK_HANDLE, 0)
+        val callbackHandle: Long = inputData.getLong(ARG_CALLBACK_HANDLE, 0)
         args.add(callbackHandle)
         args.add(id.toString())
-        args.add(status)
+        args.add(status.ordinal)
         args.add(progress)
         synchronized(isolateStarted) {
             if (!isolateStarted.get()) {

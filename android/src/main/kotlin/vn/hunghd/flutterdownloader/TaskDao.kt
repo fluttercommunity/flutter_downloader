@@ -26,7 +26,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
     fun insertOrUpdateNewTask(
         taskId: String?,
         url: String?,
-        status: Int,
+        status: DownloadStatus,
         progress: Int,
         fileName: String?,
         savedDir: String?,
@@ -39,7 +39,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         val values = ContentValues()
         values.put(TaskEntry.COLUMN_NAME_TASK_ID, taskId)
         values.put(TaskEntry.COLUMN_NAME_URL, url)
-        values.put(TaskEntry.COLUMN_NAME_STATUS, status)
+        values.put(TaskEntry.COLUMN_NAME_STATUS, status.ordinal)
         values.put(TaskEntry.COLUMN_NAME_PROGRESS, progress)
         values.put(TaskEntry.COLUMN_NAME_FILE_NAME, fileName)
         values.put(TaskEntry.COLUMN_NAME_SAVED_DIR, savedDir)
@@ -121,10 +121,10 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         return result
     }
 
-    fun updateTask(taskId: String, status: Int, progress: Int) {
+    fun updateTask(taskId: String, status: DownloadStatus, progress: Int) {
         val db = dbHelper.writableDatabase
         val values = ContentValues()
-        values.put(TaskEntry.COLUMN_NAME_STATUS, status)
+        values.put(TaskEntry.COLUMN_NAME_STATUS, status.ordinal)
         values.put(TaskEntry.COLUMN_NAME_PROGRESS, progress)
         db.beginTransaction()
         try {
@@ -145,14 +145,14 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
     fun updateTask(
         currentTaskId: String,
         newTaskId: String?,
-        status: Int,
+        status: DownloadStatus,
         progress: Int,
         resumable: Boolean
     ) {
         val db = dbHelper.writableDatabase
         val values = ContentValues()
         values.put(TaskEntry.COLUMN_NAME_TASK_ID, newTaskId)
-        values.put(TaskEntry.COLUMN_NAME_STATUS, status)
+        values.put(TaskEntry.COLUMN_NAME_STATUS, status.ordinal)
         values.put(TaskEntry.COLUMN_NAME_PROGRESS, progress)
         values.put(TaskEntry.COLUMN_NAME_RESUMABLE, if (resumable) 1 else 0)
         values.put(TaskEntry.COLUMN_NAME_TIME_CREATED, System.currentTimeMillis())
@@ -246,7 +246,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         return DownloadTask(
             primaryId,
             taskId,
-            status,
+            DownloadStatus.values()[status],
             progress,
             url,
             filename,

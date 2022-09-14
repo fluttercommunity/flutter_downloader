@@ -112,10 +112,10 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             .build()
     }
 
-    private fun sendUpdateProgress(id: String, status: Int, progress: Int) {
+    private fun sendUpdateProgress(id: String, status: DownloadStatus, progress: Int) {
         val args: MutableMap<String, Any> = HashMap()
         args["task_id"] = id
-        args["status"] = status
+        args["status"] = status.ordinal
         args["progress"] = progress
         flutterChannel?.invokeMethod("updateProgress", args)
     }
@@ -171,7 +171,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         for (task in tasks) {
             val item: MutableMap<String, Any?> = HashMap()
             item["task_id"] = task.taskId
-            item["status"] = task.status
+            item["status"] = task.status.ordinal
             item["progress"] = task.progress
             item["url"] = task.url
             item["file_name"] = task.filename
@@ -189,7 +189,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         for (task in tasks) {
             val item: MutableMap<String, Any?> = HashMap()
             item["task_id"] = task.taskId
-            item["status"] = task.status
+            item["status"] = task.status.ordinal
             item["progress"] = task.progress
             item["url"] = task.url
             item["file_name"] = task.filename
