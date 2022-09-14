@@ -401,6 +401,10 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                         outputStream = context.getContentResolver().openOutputStream(uri, "w");
                     } else {
                         File file = createFileInAppSpecificDir(filename, savedDir);
+                        if (file.getName() != filename) {
+                            filename = file.getName();
+                            taskDao.updateTask(getId().toString(), filename, contentType);
+                        }
                         savedFilePath = file.getPath();
                         outputStream = new FileOutputStream(file, false);
                     }
@@ -497,6 +501,28 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     private File createFileInAppSpecificDir(String filename, String savedDir) {
         File newFile = new File(savedDir, filename);
         try {
+            int deduplicationFileNumber = 0;
+            while (newFile.exists()) {
+                deduplicationFileNumber++;
+                int fileNameExtensionIndex = filename.lastIndexOf(".");
+                String fileNameWithoutExtension;
+                String fileExtension;
+                if (fileNameExtensionIndex != -1) {
+                    fileNameWithoutExtension = filename.substring(0, fileNameExtensionIndex);
+                    if (fileNameExtensionIndex + 1 < filename.length()) {
+                        fileExtension = "." + filename.substring(fileNameExtensionIndex + 1);
+                    } else if (fileNameExtensionIndex + 1 == filename.length()) {
+                        fileExtension = ".";
+                    } else {
+                        fileExtension = "";
+                    }
+                } else {
+                    fileNameWithoutExtension = filename;
+                    fileExtension = "";
+                }
+                newFile = new File(savedDir,
+                        fileNameWithoutExtension + "(" + deduplicationFileNumber + ")" + fileExtension);
+            }
             boolean rs = newFile.createNewFile();
             if (rs) {
                 return newFile;
