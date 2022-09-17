@@ -340,8 +340,9 @@ class FlutterDownloader {
   static Future<bool> open({required String taskId}) async {
     assert(_initialized, 'plugin flutter_downloader is not initialized');
 
+    bool? result;
     try {
-      final result = await _channel.invokeMethod<bool>(
+      result = await _channel.invokeMethod<bool>(
         'open',
         {'task_id': taskId},
       );
@@ -351,10 +352,9 @@ class FlutterDownloader {
       }
     } on PlatformException catch (err) {
       _log('Failed to open downloaded file. Reason: ${err.message}');
-      return false;
     }
 
-    return false;
+    return result ?? false;
   }
 
   /// Registers a [callback] to track the status and progress of a download

@@ -1,3 +1,7 @@
+## 1.8.4
+
+- Fix `FlutterDownloader.open()` always returning false (#726)
+
 ## 1.8.3+2
 
 - Populate `issue_tracker` field in pubspec (#717)
