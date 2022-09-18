@@ -15,6 +15,7 @@ void main() {
       final metaFile = File('${testDir.path}/$sampleUrlHash.meta');
       assert(metaFile.existsSync());
     } finally {
+      Directory.current = testDir.parent;
       await testDir.delete(recursive: true);
     }
   });
