@@ -48,7 +48,6 @@ android {
     lint {
         disable 'InvalidPackage'
     }
-
 }
 
 flutter {
