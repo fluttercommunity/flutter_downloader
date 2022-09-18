@@ -10,7 +10,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -31,18 +30,31 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.view.FlutterCallbackInformation
 import org.json.JSONException
 import org.json.JSONObject
-import java.io.*
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import java.io.UnsupportedEncodingException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLDecoder
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
-import java.util.*
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.regex.Pattern
-import javax.net.ssl.*
+import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.HttpsURLConnection
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
+import java.util.ArrayDeque
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
-class DownloadWorker(context: Context, params: WorkerParameters) : Worker(context, params),
+class DownloadWorker(context: Context, params: WorkerParameters) :
+    Worker(context, params),
     MethodChannel.MethodCallHandler {
     private val charsetPattern = Pattern.compile("(?i)\\bcharset=\\s*\"?([^\\s;\"]*)")
     private val filenameStarPattern =
@@ -137,10 +149,14 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
     override fun doWork(): Result {
         dbHelper = TaskDbHelper.getInstance(applicationContext)
         taskDao = TaskDao(dbHelper!!)
-        val url: String = inputData.getString(ARG_URL) ?: throw IllegalArgumentException("Argument '$ARG_URL' should not be null")
-        val filename: String? = inputData.getString(ARG_FILE_NAME) //?: throw IllegalArgumentException("Argument '$ARG_FILE_NAME' should not be null")
-        val savedDir: String = inputData.getString(ARG_SAVED_DIR) ?: throw IllegalArgumentException("Argument '$ARG_SAVED_DIR' should not be null")
-        val headers: String = inputData.getString(ARG_HEADERS) ?: throw IllegalArgumentException("Argument '$ARG_HEADERS' should not be null")
+        val url: String =
+            inputData.getString(ARG_URL) ?: throw IllegalArgumentException("Argument '$ARG_URL' should not be null")
+        val filename: String? =
+            inputData.getString(ARG_FILE_NAME) // ?: throw IllegalArgumentException("Argument '$ARG_FILE_NAME' should not be null")
+        val savedDir: String = inputData.getString(ARG_SAVED_DIR)
+            ?: throw IllegalArgumentException("Argument '$ARG_SAVED_DIR' should not be null")
+        val headers: String = inputData.getString(ARG_HEADERS)
+            ?: throw IllegalArgumentException("Argument '$ARG_HEADERS' should not be null")
         var isResume: Boolean = inputData.getBoolean(ARG_IS_RESUME, false)
         debug = inputData.getBoolean(ARG_DEBUG, false)
         step = inputData.getInt(ARG_STEP, 10)
@@ -154,7 +170,10 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
         msgComplete = res.getString(R.string.flutter_downloader_notification_complete)
         val task = taskDao?.loadTask(id.toString())
         log(
-            "DownloadWorker{url=$url,filename=$filename,savedDir=$savedDir,header=$headers,isResume=$isResume,status=" + (task?.status ?: "GONE")
+            "DownloadWorker{url=$url,filename=$filename,savedDir=$savedDir,header=$headers,isResume=$isResume,status=" + (
+                    task?.status
+                        ?: "GONE"
+                    )
         )
 
         // Task has been deleted or cancelled
@@ -177,7 +196,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
         )
         taskDao?.updateTask(id.toString(), DownloadStatus.RUNNING, task.progress)
 
-        //automatic resume for partial files. (if the workmanager unexpectedly quited in background)
+        // automatic resume for partial files. (if the workmanager unexpectedly quited in background)
         val saveFilePath = savedDir + File.separator + filename
         val partialFile = File(saveFilePath)
         if (partialFile.exists()) {
@@ -327,7 +346,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
                         if (!disposition.isNullOrEmpty()) {
                             filename = getFileNameFromContentDisposition(disposition, charset)
                         }
-                        if (filename == null || filename.isEmpty()) {
+                        if (filename.isNullOrEmpty()) {
                             filename = url.substring(url.lastIndexOf("/") + 1)
                             try {
                                 filename = URLDecoder.decode(filename, "UTF-8")
@@ -374,8 +393,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
                     count += bytesRead.toLong()
                     val progress = (count * 100 / (contentLength + downloadedBytes)).toInt()
                     outputStream?.write(buffer, 0, bytesRead)
-                    if ((lastProgress == 0 || progress > lastProgress + step || progress == 100)
-                        && progress != lastProgress
+                    if ((lastProgress == 0 || progress > lastProgress + step || progress == 100) &&
+                        progress != lastProgress
                     ) {
                         lastProgress = progress
 
@@ -511,28 +530,27 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
     private fun getMediaStoreEntryPathApi29(uri: Uri): String? {
         try {
             applicationContext.contentResolver.query(
-                uri, arrayOf(MediaStore.Files.FileColumns.DATA),
+                uri,
+                arrayOf(MediaStore.Files.FileColumns.DATA),
                 null,
                 null,
                 null
             ).use { cursor ->
                 if (cursor == null) return null
-                return if (!cursor.moveToFirst()) null else cursor.getString(
-                    cursor.getColumnIndexOrThrow(
-                        MediaStore.Files.FileColumns.DATA
+                return if (!cursor.moveToFirst()) {
+                    null
+                } else {
+                    cursor.getString(
+                        cursor.getColumnIndexOrThrow(
+                            MediaStore.Files.FileColumns.DATA
+                        )
                     )
-                )
+                }
             }
         } catch (e: IllegalArgumentException) {
             e.printStackTrace()
             logError("Get a path for a MediaStore failed")
             return null
-        }
-    }
-
-    fun scanFilePath(path: String, mimeType: String, callback: CallbackUri) {
-        MediaScannerConnection.scanFile(applicationContext, arrayOf(path), arrayOf(mimeType)) { _, uri ->
-            callback.invoke(uri)
         }
     }
 
@@ -605,10 +623,10 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
         if (showNotification) {
             // Create the notification
             val builder = NotificationCompat.Builder(context, CHANNEL_ID).setContentTitle(title)
-                    .setContentIntent(intent)
-                    .setOnlyAlertOnce(true)
-                    .setAutoCancel(true)
-                    .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setContentIntent(intent)
+                .setOnlyAlertOnce(true)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
             when (status) {
                 DownloadStatus.RUNNING -> {
                     if (progress <= 0) {
@@ -627,26 +645,31 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
                             .setSmallIcon(android.R.drawable.stat_sys_download_done)
                     }
                 }
+
                 DownloadStatus.CANCELED -> {
                     builder.setContentText(msgCanceled).setProgress(0, 0, false)
                     builder.setOngoing(false)
                         .setSmallIcon(android.R.drawable.stat_sys_download_done)
                 }
+
                 DownloadStatus.FAILED -> {
                     builder.setContentText(msgFailed).setProgress(0, 0, false)
                     builder.setOngoing(false)
                         .setSmallIcon(android.R.drawable.stat_sys_download_done)
                 }
+
                 DownloadStatus.PAUSED -> {
                     builder.setContentText(msgPaused).setProgress(0, 0, false)
                     builder.setOngoing(false)
                         .setSmallIcon(android.R.drawable.stat_sys_download_done)
                 }
+
                 DownloadStatus.COMPLETE -> {
                     builder.setContentText(msgComplete).setProgress(0, 0, false)
                     builder.setOngoing(false)
                         .setSmallIcon(android.R.drawable.stat_sys_download_done)
                 }
+
                 else -> {
                     builder.setProgress(0, 0, false)
                     builder.setOngoing(false).setSmallIcon(notificationIconRes)
@@ -702,7 +725,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
         val m = charsetPattern.matcher(contentType)
         return if (m.find()) {
             m.group(1)?.trim { it <= ' ' }?.uppercase(Locale.US)
-        } else null
+        } else {
+            null
+        }
     }
 
     @Throws(UnsupportedEncodingException::class)
@@ -714,7 +739,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
         var name: String? = null
         var charset = contentCharset
 
-        //first, match plain filename, and then replace it with star filename, to follow the spec
+        // first, match plain filename, and then replace it with star filename, to follow the spec
         val plainMatcher = filenamePattern.matcher(disposition)
         if (plainMatcher.find()) name = plainMatcher.group(1)
         val starMatcher = filenameStarPattern.matcher(disposition)
@@ -722,10 +747,14 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
             name = starMatcher.group(3)
             charset = starMatcher.group(1)?.uppercase(Locale.US)
         }
-        return if (name == null) null else URLDecoder.decode(
-            name,
-            charset ?: "ISO-8859-1"
-        )
+        return if (name == null) {
+            null
+        } else {
+            URLDecoder.decode(
+                name,
+                charset ?: "ISO-8859-1"
+            )
+        }
     }
 
     private fun getContentTypeWithoutCharset(contentType: String?): String? {
@@ -733,14 +762,13 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
     }
 
     private fun isImageOrVideoFile(contentType: String): Boolean {
-        var contentType: String? = contentType
-        contentType = getContentTypeWithoutCharset(contentType)
-        return contentType != null && (contentType.startsWith("image/") || contentType.startsWith("video"))
+        val newContentType = getContentTypeWithoutCharset(contentType)
+        return newContentType != null && (newContentType.startsWith("image/") || newContentType.startsWith("video"))
     }
 
     private fun isExternalStoragePath(filePath: String?): Boolean {
         val externalStorageDir: File = Environment.getExternalStorageDirectory()
-        return filePath != null && externalStorageDir != null && filePath.startsWith(
+        return filePath != null && filePath.startsWith(
             externalStorageDir.path
         )
     }
@@ -791,10 +819,6 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
         }
     }
 
-    interface CallbackUri {
-        operator fun invoke(uri: Uri?)
-    }
-
     companion object {
         const val ARG_URL = "url"
         const val ARG_FILE_NAME = "file_name"
@@ -814,13 +838,13 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
         private val isolateStarted = AtomicBoolean(false)
         private val isolateQueue = ArrayDeque<List<Any>>()
         private var backgroundFlutterEngine: FlutterEngine? = null
-        val DO_NOT_VERIFY = HostnameVerifier { hostname: String?, session: SSLSession? -> true }
+        val DO_NOT_VERIFY = HostnameVerifier { _, _ -> true }
 
         /**
          * Trust every server - dont check for any certificate
          */
         private fun trustAllHosts() {
-            val TAG = "trustAllHosts"
+            val tag = "trustAllHosts"
             // Create a trust manager that does not validate certificate chains
             val trustManagers: Array<TrustManager> = arrayOf(
                 @SuppressLint("CustomX509TrustManager")
@@ -830,18 +854,19 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
                         chain: Array<X509Certificate>,
                         authType: String
                     ) {
-                        Log.i(TAG, "checkClientTrusted")
+                        Log.i(tag, "checkClientTrusted")
                     }
 
                     override fun checkServerTrusted(
                         chain: Array<X509Certificate>,
                         authType: String
                     ) {
-                        Log.i(TAG, "checkServerTrusted")
+                        Log.i(tag, "checkServerTrusted")
                     }
 
                     override fun getAcceptedIssuers(): Array<out X509Certificate> = emptyArray()
-                })
+                }
+            )
 
             // Install the all-trusting trust manager
             try {

@@ -1,6 +1,7 @@
 name: prepare
 
 on:
+  workflow_dispatch:
   push:
     branches: [master]
     # don't run this workflow on version tags
@@ -52,6 +53,10 @@ jobs:
 
       - name: flutter test
         run: flutter test
+
+      - name: ktlint check
+        working-directory: example/android
+        run: ./gradlew :flutter_downloader:ktlintCheck
 
       - name: flutter pub get (example app)
         working-directory: ./example
