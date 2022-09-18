@@ -45,7 +45,6 @@ android {
             signingConfig signingConfigs.debug
         }
     }
-
     lint {
         disable 'InvalidPackage'
     }
