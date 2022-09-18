@@ -81,9 +81,16 @@ class Download extends ChangeNotifier {
   int get progress => _progress;
 
   Future<void> _updateMetaData() async {
-    await _metadataFile.writeAsString(
-        'url=$_url\nfilename=${_filename ?? ''}\netag=${_etag ?? ''}\ntarget=$_target\nheaders:\n${_headers.entries.map((e) => '${e.key}=${e.value}').join('\n')}'
-            .trimRight());
+    final writer = _metadataFile.openWrite()
+      ..write('url=$_url\n')
+      ..write('filename=${_filename ?? ''}\n')
+      ..write('etag=${_etag ?? ''}\n')
+      ..write('target=$_target\n')
+      ..write('headers:');
+    _headers.forEach((key, value) {
+      writer.write('\n$key=$value');
+    });
+    await writer.close();
   }
 
   /// Continue the download, does nothing when status is running.
