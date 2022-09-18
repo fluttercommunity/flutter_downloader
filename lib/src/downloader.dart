@@ -5,6 +5,7 @@ import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_downloader/src/download_progress.dart';
 import 'package:flutter_downloader/src/exceptions.dart';
 
 import 'callback_dispatcher.dart';
@@ -17,6 +18,12 @@ typedef DownloadCallback = void Function(
   DownloadTaskStatus status,
   int progress,
 );
+
+enum Target {
+  downloadsFolder,
+  desktopFolder,
+  internal,
+}
 
 /// Provides access to all functions of the plugin in a single place.
 class FlutterDownloader {
@@ -32,6 +39,25 @@ class FlutterDownloader {
 
   /// If true, more logs are printed.
   static bool get debug => _debug;
+
+  /// Mock for new download interface
+  Future<Download> startDownload(
+    String url, {
+    String userAgent = 'flutter_downloader',
+    String? fileName,
+    Map<String, String> additionalHeaders = const {},
+    Target target = Target.internal,
+  }) async {
+    var headers = Map<String, String>.from(additionalHeaders);
+    headers['User-Agent'] = userAgent;
+    final download = await Download.create(
+      url: url,
+      headers: additionalHeaders,
+      target: target,
+    );
+    await download.resume();
+    return download;
+  }
 
   /// Initializes the plugin. This must be called before any other method.
   ///
