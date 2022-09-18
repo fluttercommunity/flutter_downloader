@@ -6,7 +6,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.NameNotFoundException
-import android.database.Cursor
 import android.net.Uri
 import android.util.Log
 import androidx.work.Configuration
@@ -20,34 +19,25 @@ class FlutterDownloaderInitializer : ContentProvider() {
     }
 
     override fun onCreate(): Boolean {
-        val maximumConcurrentTask = getMaxConcurrentTaskMetadata(requireContext())
+        val context = requireNotNull(this.context) { "Cannot find context from the provider." }
+        val maximumConcurrentTask = getMaxConcurrentTaskMetadata(context)
         WorkManager.initialize(
-            requireContext(), Configuration.Builder()
+            context, Configuration.Builder()
                 .setExecutor(Executors.newFixedThreadPool(maximumConcurrentTask))
                 .build()
         )
         return true
     }
 
-    override fun query(uri: Uri, strings: Array<String>?, s: String?, strings1: Array<String>?, s1: String?): Cursor? {
-        return null
-    }
+    override fun query(uri: Uri, strings: Array<String>?, s: String?, strings1: Array<String>?, s1: String?): Nothing? = null
 
-    override fun getType(uri: Uri): String? {
-        return null
-    }
+    override fun getType(uri: Uri): Nothing? = null
+    
+    override fun insert(uri: Uri, contentValues: ContentValues?): Uri? = null
 
-    override fun insert(uri: Uri, contentValues: ContentValues?): Uri? {
-        return null
-    }
+    override fun delete(uri: Uri, s: String?, strings: Array<String>?) = 0
 
-    override fun delete(uri: Uri, s: String?, strings: Array<String>?): Int {
-        return 0
-    }
-
-    override fun update(uri: Uri, contentValues: ContentValues?, s: String?, strings: Array<String>?): Int {
-        return 0
-    }
+    override fun update(uri: Uri, contentValues: ContentValues?, s: String?, strings: Array<String>?) = 0
 
     private fun getMaxConcurrentTaskMetadata(context: Context): Int {
         try {
