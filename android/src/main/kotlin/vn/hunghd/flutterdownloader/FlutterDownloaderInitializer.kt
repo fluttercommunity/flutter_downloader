@@ -22,7 +22,8 @@ class FlutterDownloaderInitializer : ContentProvider() {
         val context = requireNotNull(this.context) { "Cannot find context from the provider." }
         val maximumConcurrentTask = getMaxConcurrentTaskMetadata(context)
         WorkManager.initialize(
-            context, Configuration.Builder()
+            context,
+            Configuration.Builder()
                 .setExecutor(Executors.newFixedThreadPool(maximumConcurrentTask))
                 .build()
         )
@@ -32,7 +33,7 @@ class FlutterDownloaderInitializer : ContentProvider() {
     override fun query(uri: Uri, strings: Array<String>?, s: String?, strings1: Array<String>?, s1: String?): Nothing? = null
 
     override fun getType(uri: Uri): Nothing? = null
-    
+
     override fun insert(uri: Uri, contentValues: ContentValues?): Uri? = null
 
     override fun delete(uri: Uri, s: String?, strings: Array<String>?) = 0

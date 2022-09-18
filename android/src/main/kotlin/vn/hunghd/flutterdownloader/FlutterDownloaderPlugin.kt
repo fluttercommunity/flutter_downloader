@@ -4,18 +4,23 @@ import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
-import android.database.Cursor
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.core.app.NotificationManagerCompat
-import androidx.work.*
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import io.flutter.embedding.engine.plugins.FlutterPlugin
-import io.flutter.embedding.engine.plugins.FlutterPlugin.*
+import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
-import java.util.*
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
@@ -30,7 +35,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
     private var ignoreSsl = 0
     private val initializationLock = Any()
 
-    fun onAttachedToEngine(applicationContext: Context?, messenger: BinaryMessenger) {
+    private fun onAttachedToEngine(applicationContext: Context?, messenger: BinaryMessenger) {
         synchronized(initializationLock) {
             if (flutterChannel != null) {
                 return
@@ -38,31 +43,31 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             context = applicationContext
             flutterChannel = MethodChannel(messenger, CHANNEL)
             flutterChannel?.setMethodCallHandler(this)
-            val dbHelper: TaskDbHelper = TaskDbHelper.Companion.getInstance(context)
+            val dbHelper: TaskDbHelper = TaskDbHelper.getInstance(context)
             taskDao = TaskDao(dbHelper)
         }
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        when(call.method) {
-            "initialize" ->initialize(call, result)
-            "registerCallback" ->registerCallback(call, result)
-            "enqueue" ->enqueue(call, result)
-            "loadTasks" ->loadTasks(call, result)
-            "loadTasksWithRawQuery" ->loadTasksWithRawQuery(call, result)
-            "cancel" ->cancel(call, result)
-            "cancelAll" ->cancelAll(call, result)
-            "pause" ->pause(call, result)
-            "resume" ->resume(call, result)
-            "retry" ->retry(call, result)
-            "open" ->open(call, result)
-            "remove" ->remove(call, result)
+        when (call.method) {
+            "initialize" -> initialize(call, result)
+            "registerCallback" -> registerCallback(call, result)
+            "enqueue" -> enqueue(call, result)
+            "loadTasks" -> loadTasks(call, result)
+            "loadTasksWithRawQuery" -> loadTasksWithRawQuery(call, result)
+            "cancel" -> cancel(call, result)
+            "cancelAll" -> cancelAll(call, result)
+            "pause" -> pause(call, result)
+            "resume" -> resume(call, result)
+            "retry" -> retry(call, result)
+            "open" -> open(call, result)
+            "remove" -> remove(call, result)
             else -> result.notImplemented()
         }
     }
 
     override fun onAttachedToEngine(binding: FlutterPluginBinding) {
-        onAttachedToEngine(binding.applicationContext, binding.getBinaryMessenger())
+        onAttachedToEngine(binding.applicationContext, binding.binaryMessenger)
     }
 
     override fun onDetachedFromEngine(binding: FlutterPluginBinding) {
@@ -74,9 +79,15 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
     private fun requireContext() = requireNotNull(context)
 
     private fun buildRequest(
-        url: String?, savedDir: String?, filename: String?, headers: String?,
-        showNotification: Boolean, openFileFromNotification: Boolean,
-        isResume: Boolean, requiresStorageNotLow: Boolean, saveInPublicStorage: Boolean
+        url: String?,
+        savedDir: String?,
+        filename: String?,
+        headers: String?,
+        showNotification: Boolean,
+        openFileFromNotification: Boolean,
+        isResume: Boolean,
+        requiresStorageNotLow: Boolean,
+        saveInPublicStorage: Boolean
     ): WorkRequest {
         return OneTimeWorkRequest.Builder(DownloadWorker::class.java)
             .setConstraints(
@@ -239,7 +250,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                         task.headers, task.showNotification, task.openFileFromNotification,
                         true, requiresStorageNotLow, task.saveInPublicStorage
                     )
-                    val newTaskId: String = request.getId().toString()
+                    val newTaskId: String = request.id.toString()
                     result.success(newTaskId)
                     sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress)
                     taskDao!!.updateTask(

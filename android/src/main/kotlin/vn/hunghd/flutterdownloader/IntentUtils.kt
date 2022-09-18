@@ -1,16 +1,16 @@
 package vn.hunghd.flutterdownloader
 
 import android.content.Context
-import java.io.File
-import java.lang.Exception
-import java.io.IOException
-import android.os.Build
-import android.net.Uri
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import androidx.core.content.FileProvider
-import kotlin.jvm.Synchronized
+import java.io.File
 import java.io.FileInputStream
+import java.io.IOException
+import java.lang.Exception
 import java.net.URLConnection
+import kotlin.jvm.Synchronized
 
 object IntentUtils {
     private fun buildIntent(context: Context, file: File, mime: String?): Intent {

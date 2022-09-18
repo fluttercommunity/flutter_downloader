@@ -28,7 +28,8 @@ class TaskDbHelper private constructor(context: Context) :
         const val DATABASE_VERSION = 3
         const val DATABASE_NAME = "download_tasks.db"
         private var instance: TaskDbHelper? = null
-        private const val SQL_CREATE_ENTRIES = ("CREATE TABLE " + TaskEntry.TABLE_NAME + " (" +
+        private const val SQL_CREATE_ENTRIES = (
+            "CREATE TABLE " + TaskEntry.TABLE_NAME + " (" +
                 BaseColumns._ID + " INTEGER PRIMARY KEY," +
                 TaskEntry.COLUMN_NAME_TASK_ID + " VARCHAR(256), " +
                 TaskEntry.COLUMN_NAME_URL + " TEXT, " +
@@ -42,8 +43,9 @@ class TaskDbHelper private constructor(context: Context) :
                 TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION + " TINYINT DEFAULT 0, " +
                 TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION + " TINYINT DEFAULT 0, " +
                 TaskEntry.COLUMN_NAME_TIME_CREATED + " INTEGER DEFAULT 0, " +
-                TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE + " TINYINT DEFAULT 0"
-                + ")")
+                TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE + " TINYINT DEFAULT 0" +
+                ")"
+            )
         private const val SQL_DELETE_ENTRIES = "DROP TABLE IF EXISTS " + TaskEntry.TABLE_NAME
 
         fun getInstance(ctx: Context?): TaskDbHelper {
