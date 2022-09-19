@@ -27,8 +27,8 @@
 -(instancetype)initWithDatabaseFilePath:(NSString *)dbFilePath{
     self = [super init];
     if (self) {
-        // Set the documents directory path to the documentsDirectory property.
-        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+        // Set the documents directory path to the application support files property.
+        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
         self.documentsDirectory = [paths objectAtIndex:0];
 
         // Keep the database filepath
