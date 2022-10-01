@@ -102,7 +102,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : Worker(contex
         }
         backgroundChannel = MethodChannel(
             backgroundFlutterEngine!!.dartExecutor,
-            "vn.hunghd/downloader_background"
+            "fluttercommunity/flutter_downloader_background"
         )
         backgroundChannel?.setMethodCallHandler(this)
     }

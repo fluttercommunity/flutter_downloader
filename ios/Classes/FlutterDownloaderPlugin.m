@@ -73,12 +73,12 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         _registrar = registrar;
 
         _mainChannel = [FlutterMethodChannel
-                           methodChannelWithName:@"vn.hunghd/downloader"
+                           methodChannelWithName:@"fluttercommunity/flutter_downloader"
                            binaryMessenger:[registrar messenger]];
         [registrar addMethodCallDelegate:self channel:_mainChannel];
 
         _callbackChannel =
-        [FlutterMethodChannel methodChannelWithName:@"vn.hunghd/downloader_background"
+        [FlutterMethodChannel methodChannelWithName:@"fluttercommunity/flutter_downloader_background"
                                     binaryMessenger:[_headlessRunner binaryMessenger]];
 
         _eventQueue = [[NSMutableArray alloc] init];

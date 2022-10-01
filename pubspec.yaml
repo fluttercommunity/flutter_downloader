@@ -12,6 +12,8 @@ flutter:
         pluginClass: FlutterDownloaderPlugin
       ios:
         pluginClass: FlutterDownloaderPlugin
+      windows:
+        dartPluginClass: FlutterDownloaderPluginDesktop
 
 environment:
   sdk: ">=2.17.0 <3.0.0"
@@ -21,6 +23,7 @@ dependencies:
   crypto: ^3.0.2
   flutter:
     sdk: flutter
+  plugin_platform_interface: ^2.1.3
 
 dev_dependencies:
   flutter_test:

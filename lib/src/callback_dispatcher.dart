@@ -10,7 +10,7 @@ import 'models.dart';
 /// https://github.com/dart-lang/sdk/blob/master/runtime/docs/compiler/aot/entry_point_pragma.md
 @pragma('vm:entry-point')
 void callbackDispatcher() {
-  const backgroundChannel = MethodChannel('vn.hunghd/downloader_background');
+  const backgroundChannel = MethodChannel('fluttercommunity/flutter_downloader_background');
 
   WidgetsFlutterBinding.ensureInitialized();
 

@@ -391,7 +391,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
     }
 
     companion object {
-        private const val CHANNEL = "vn.hunghd/downloader"
+        private const val CHANNEL = "fluttercommunity/flutter_downloader"
         private const val TAG = "flutter_download_task"
         const val SHARED_PREFERENCES_KEY = "vn.hunghd.downloader.pref"
         const val CALLBACK_DISPATCHER_HANDLE_KEY = "callback_dispatcher_handle_key"

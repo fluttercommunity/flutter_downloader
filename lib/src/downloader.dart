@@ -27,20 +27,21 @@ enum Target {
 
 /// Provides access to all functions of the plugin in a single place.
 class FlutterDownloader {
-  static const _channel = MethodChannel('vn.hunghd/downloader');
+  static const _channel = MethodChannel('fluttercommunity/flutter_downloader');
 
-  static bool _initialized = false;
+  //static bool _initialized = false;
 
   /// Whether the plugin is initialized. The plugin must be initialized before
   /// use.
-  static bool get initialized => _initialized;
+  //static bool get initialized => _initialized;
 
   static bool _debug = false;
 
   /// If true, more logs are printed.
   static bool get debug => _debug;
 
-  /// Mock for new download interface
+  /// Start a new download. The [Download] instance encapsulates the download
+  /// status and controls like cancel, pause and resume.
   Future<Download> startDownload(
     String url, {
     String userAgent = 'flutter_downloader',
@@ -48,15 +49,21 @@ class FlutterDownloader {
     Map<String, String> additionalHeaders = const {},
     Target target = Target.internal,
   }) async {
-    var headers = Map<String, String>.from(additionalHeaders);
+    final headers = Map<String, String>.from(additionalHeaders);
     headers['User-Agent'] = userAgent;
     final download = await Download.create(
       url: url,
       headers: additionalHeaders,
       target: target,
+      methodChannel: _channel,
     );
     await download.resume();
     return download;
+  }
+
+  Future<List<Download>> getDownloads() async {
+    // todo look for .meta files
+    return [];
   }
 
   /// Initializes the plugin. This must be called before any other method.
@@ -66,6 +73,7 @@ class FlutterDownloader {
   /// To ignore SSL-related errors on Android, set [ignoreSsl] to true. This may
   /// be useful when connecting to a test server which is not using SSL, but
   /// should be never used in production.
+  /*
   static Future<void> initialize({
     bool debug = false,
     bool ignoreSsl = false,
@@ -273,7 +281,7 @@ class FlutterDownloader {
   /// Pauses a running download task with id [taskId].
   ///
   static Future<void> pause({required String taskId}) async {
-    assert(_initialized, 'plugin flutter_downloader is not initialized');
+   // assert(_initialized, 'plugin flutter_downloader is not initialized');
 
     try {
       return await _channel.invokeMethod('pause', {'task_id': taskId});
@@ -290,7 +298,7 @@ class FlutterDownloader {
     required String taskId,
     bool requiresStorageNotLow = true,
   }) async {
-    assert(_initialized, 'plugin flutter_downloader is not initialized');
+    //assert(_initialized, 'plugin flutter_downloader is not initialized');
 
     try {
       return await _channel.invokeMethod('resume', {
@@ -447,7 +455,7 @@ class FlutterDownloader {
       'registerCallback',
       <dynamic>[callbackHandle!.toRawHandle(), step],
     );
-  }
+  }*/
 
   /// Prints [message] to console if [_debug] is true.
   static void _log(String? message) {

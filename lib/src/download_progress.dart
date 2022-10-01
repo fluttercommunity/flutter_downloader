@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/src/services/platform_channel.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 
 /// The current download status/progress
@@ -12,10 +14,12 @@ class Download extends ChangeNotifier {
     required String url,
     required Target target,
     required HttpClient httpClient,
+    required MethodChannel methodChannel,
   })  : _headers = headers,
         _url = url,
         _target = target,
-        _httpClient = httpClient {
+        _httpClient = httpClient,
+        _methodChannel = methodChannel {
     final urlHash = sha1.convert(utf8.encode(url));
     _cacheFile = File('$urlHash.part');
     _metadataFile = File('$urlHash.meta');
@@ -23,8 +27,9 @@ class Download extends ChangeNotifier {
 
   /// Create a new download
   static Future<Download> create({
-    Map<String, String> headers = const {},
     required String url,
+    required MethodChannel methodChannel,
+    Map<String, String> headers = const {},
     Target target = Target.internal,
     HttpClient? customHttpClient,
   }) async {
@@ -33,6 +38,7 @@ class Download extends ChangeNotifier {
       url: url,
       target: target,
       httpClient: _createHttpClient(),
+      methodChannel: methodChannel,
     );
     if (download._metadataFile.existsSync()) {
       var parseHeaders = false;
@@ -62,8 +68,9 @@ class Download extends ChangeNotifier {
     return HttpClient()..connectionTimeout = const Duration(seconds: 10);
   }
 
-  final Map<String, String> _headers;
   final String _url;
+  final MethodChannel _methodChannel;
+  final Map<String, String> _headers;
   final Target _target;
   final HttpClient _httpClient;
   late final File _cacheFile;
@@ -77,7 +84,7 @@ class Download extends ChangeNotifier {
   /// The state of the download
   DownloadTaskStatus get status => _status;
 
-  /// The current progress in permille
+  /// The current progress in permille [0...1000]
   int get progress => _progress;
 
   Future<void> _updateMetaData() async {
@@ -97,26 +104,24 @@ class Download extends ChangeNotifier {
   Future<void> resume() async {
     _status = DownloadTaskStatus.running;
     notifyListeners();
-    await _cacheFile.writeAsString('some content');
     final request = await _httpClient.getUrl(Uri.parse(_url));
     _headers.forEach((key, value) {
       request.headers.add(key, value);
     });
     try {
       final response = await request.close();
-      print("Response headers:");
+      print('Response headers:');
       response.headers.forEach((name, values) {
-        print("- $name: $values");
+        print('- $name: $values');
       });
       final stringData = await response.transform(utf8.decoder).join();
-      print("Content:");
-      print(stringData);
+      await _cacheFile.writeAsString(stringData);
+      print('Content written to cache file');
+      //print('Content:');
+      //print(stringData);
     } finally {
       _httpClient.close();
     }
-    //final client = Client();
-    //final response = _httpClient.close();
-    //response;
   }
 
   /// Pauses the download when running.
