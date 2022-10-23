@@ -57,6 +57,7 @@ class DownloadTask {
     required this.progress,
     required this.url,
     required this.filename,
+    required this.extras,
     required this.savedDir,
     required this.timeCreated,
   });
@@ -76,6 +77,9 @@ class DownloadTask {
   /// Local file name of the downloaded file.
   final String? filename;
 
+  /// Optional, extra string associated with this task
+  final Map<String, String>? extras;
+
   /// Absolute path to the directory where the downloaded file will saved.
   final String savedDir;
 
@@ -84,5 +88,5 @@ class DownloadTask {
 
   @override
   String toString() =>
-      'DownloadTask(taskId: $taskId, status: $status, progress: $progress, url: $url, filename: $filename, savedDir: $savedDir, timeCreated: $timeCreated)';
+      'DownloadTask(taskId: $taskId, status: $status, progress: $progress, url: $url, filename: $filename, extra: $extras, savedDir: $savedDir, timeCreated: $timeCreated)';
 }

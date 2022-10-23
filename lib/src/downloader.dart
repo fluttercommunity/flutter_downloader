@@ -94,6 +94,7 @@ class FlutterDownloader {
     required String url,
     required String savedDir,
     String? fileName,
+    Map<String, String>? extras,
     Map<String, String> headers = const {},
     bool showNotification = true,
     bool openFileFromNotification = true,
@@ -108,6 +109,7 @@ class FlutterDownloader {
         'url': url,
         'saved_dir': savedDir,
         'file_name': fileName,
+        'extras': jsonEncode(extras),
         'headers': jsonEncode(headers),
         'show_notification': showNotification,
         'open_file_from_notification': openFileFromNotification,
@@ -148,12 +150,19 @@ class FlutterDownloader {
         (dynamic item) {
           // item as Map<String, dynamic>; // throws
 
+          Map<String, String>? extras;
+
+          if ((item['extras'] as String?) != null) {
+            extras = Map.castFrom(jsonDecode(item['extras'] as String));
+          }
+
           return DownloadTask(
             taskId: item['task_id'] as String,
             status: DownloadTaskStatus(item['status'] as int),
             progress: item['progress'] as int,
             url: item['url'] as String,
             filename: item['file_name'] as String?,
+            extras: extras,
             savedDir: item['saved_dir'] as String,
             timeCreated: item['time_created'] as int,
           );
@@ -205,12 +214,19 @@ class FlutterDownloader {
         (dynamic item) {
           // item as Map<String, dynamic>; // throws
 
+          Map<String, String>? extras;
+
+          if ((item['extras'] as String?) != null) {
+            extras = Map.castFrom(jsonDecode(item['extras'] as String));
+          }
+
           return DownloadTask(
             taskId: item['task_id'] as String,
             status: DownloadTaskStatus(item['status'] as int),
             progress: item['progress'] as int,
             url: item['url'] as String,
             filename: item['file_name'] as String?,
+            extras: extras,
             savedDir: item['saved_dir'] as String,
             timeCreated: item['time_created'] as int,
           );
