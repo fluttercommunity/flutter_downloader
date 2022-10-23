@@ -153,6 +153,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
             inputData.getString(ARG_URL) ?: throw IllegalArgumentException("Argument '$ARG_URL' should not be null")
         val filename: String? =
             inputData.getString(ARG_FILE_NAME) // ?: throw IllegalArgumentException("Argument '$ARG_FILE_NAME' should not be null")
+        val extras: String? =
+            inputData.getString(ARG_EXTRAS)
         val savedDir: String = inputData.getString(ARG_SAVED_DIR)
             ?: throw IllegalArgumentException("Argument '$ARG_SAVED_DIR' should not be null")
         val headers: String = inputData.getString(ARG_HEADERS)
@@ -170,7 +172,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         msgComplete = res.getString(R.string.flutter_downloader_notification_complete)
         val task = taskDao?.loadTask(id.toString())
         log(
-            "DownloadWorker{url=$url,filename=$filename,savedDir=$savedDir,header=$headers,isResume=$isResume,status=" + (
+            "DownloadWorker{url=$url,filename=$filename,extras=$extras,savedDir=$savedDir,header=$headers,isResume=$isResume,status=" + (
                     task?.status
                         ?: "GONE"
                     )
@@ -822,6 +824,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
     companion object {
         const val ARG_URL = "url"
         const val ARG_FILE_NAME = "file_name"
+        const val ARG_EXTRAS = "extras"
         const val ARG_SAVED_DIR = "saved_file"
         const val ARG_HEADERS = "headers"
         const val ARG_IS_RESUME = "is_resume"

@@ -7,6 +7,7 @@ data class DownloadTask(
     var progress: Int,
     var url: String,
     var filename: String?,
+    var extras: String?,
     var savedDir: String,
     var headers: String,
     var mimeType: String,

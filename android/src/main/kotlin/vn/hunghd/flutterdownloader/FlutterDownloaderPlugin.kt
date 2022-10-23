@@ -82,6 +82,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         url: String?,
         savedDir: String?,
         filename: String?,
+        extras: String?,
         headers: String?,
         showNotification: Boolean,
         openFileFromNotification: Boolean,
@@ -103,6 +104,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                     .putString(DownloadWorker.ARG_URL, url)
                     .putString(DownloadWorker.ARG_SAVED_DIR, savedDir)
                     .putString(DownloadWorker.ARG_FILE_NAME, filename)
+                    .putString(DownloadWorker.ARG_EXTRAS, extras)
                     .putString(DownloadWorker.ARG_HEADERS, headers)
                     .putBoolean(DownloadWorker.ARG_SHOW_NOTIFICATION, showNotification)
                     .putBoolean(
@@ -157,13 +159,14 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         val url: String = call.requireArgument("url")
         val savedDir: String = call.requireArgument("saved_dir")
         val filename: String? = call.argument("file_name")
+        val extras: String? = call.argument("extras")
         val headers: String = call.requireArgument("headers")
         val showNotification: Boolean = call.requireArgument("show_notification")
         val openFileFromNotification: Boolean = call.requireArgument("open_file_from_notification")
         val requiresStorageNotLow: Boolean = call.requireArgument("requires_storage_not_low")
         val saveInPublicStorage: Boolean = call.requireArgument("save_in_public_storage")
         val request: WorkRequest = buildRequest(
-            url, savedDir, filename, headers, showNotification,
+            url, savedDir, filename, extras, headers, showNotification,
             openFileFromNotification, false, requiresStorageNotLow, saveInPublicStorage
         )
         WorkManager.getInstance(requireContext()).enqueue(request)
@@ -171,7 +174,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         result.success(taskId)
         sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0)
         taskDao!!.insertOrUpdateNewTask(
-            taskId, url, DownloadStatus.ENQUEUED, 0, filename,
+            taskId, url, DownloadStatus.ENQUEUED, 0, filename, extras,
             savedDir, headers, showNotification, openFileFromNotification, saveInPublicStorage
         )
     }
@@ -186,6 +189,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             item["progress"] = task.progress
             item["url"] = task.url
             item["file_name"] = task.filename
+            item["extras"] = task.extras
             item["saved_dir"] = task.savedDir
             item["time_created"] = task.timeCreated
             array.add(item)
@@ -204,6 +208,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             item["progress"] = task.progress
             item["url"] = task.url
             item["file_name"] = task.filename
+            item["extras"] = task.extras
             item["saved_dir"] = task.savedDir
             item["time_created"] = task.timeCreated
             array.add(item)
@@ -246,7 +251,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                 val partialFile = File(partialFilePath)
                 if (partialFile.exists()) {
                     val request: WorkRequest = buildRequest(
-                        task.url, task.savedDir, task.filename,
+                        task.url, task.savedDir, task.filename, task.extras,
                         task.headers, task.showNotification, task.openFileFromNotification,
                         true, requiresStorageNotLow, task.saveInPublicStorage
                     )
@@ -284,7 +289,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         if (task != null) {
             if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
                 val request: WorkRequest = buildRequest(
-                    task.url, task.savedDir, task.filename,
+                    task.url, task.savedDir, task.filename, task.extras,
                     task.headers, task.showNotification, task.openFileFromNotification,
                     false, requiresStorageNotLow, task.saveInPublicStorage
                 )
