@@ -25,7 +25,7 @@ class TaskDbHelper private constructor(context: Context) :
     }
 
     companion object {
-        const val DATABASE_VERSION = 3
+        const val DATABASE_VERSION = 4
         const val DATABASE_NAME = "download_tasks.db"
         private var instance: TaskDbHelper? = null
         private const val SQL_CREATE_ENTRIES = (
