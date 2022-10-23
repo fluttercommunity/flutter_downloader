@@ -41,6 +41,7 @@ import java.net.URL
 import java.net.URLDecoder
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
+import java.util.ArrayDeque
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.regex.Pattern
@@ -49,7 +50,6 @@ import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
-import java.util.ArrayDeque
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
@@ -173,9 +173,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         val task = taskDao?.loadTask(id.toString())
         log(
             "DownloadWorker{url=$url,filename=$filename,extras=$extras,savedDir=$savedDir,header=$headers,isResume=$isResume,status=" + (
-                    task?.status
-                        ?: "GONE"
-                    )
+                task?.status
+                    ?: "GONE"
+                )
         )
 
         // Task has been deleted or cancelled
