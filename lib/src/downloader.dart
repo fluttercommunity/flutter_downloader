@@ -91,7 +91,7 @@ class FlutterDownloader {
   /// directory instead, set [saveInPublicStorage] to true. In that case,
   /// [savedDir] will be ignored.
   ///
-  /// [timeout] is added for android devices to manually change connection timeout.
+  /// [timeout] is the HTTP connection timeout.
   static Future<String?> enqueue({
     required String url,
     required String savedDir,
