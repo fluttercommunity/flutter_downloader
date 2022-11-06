@@ -101,7 +101,7 @@ class FlutterDownloader {
     bool openFileFromNotification = true,
     bool requiresStorageNotLow = true,
     bool saveInPublicStorage = false,
-    int timeout = 15000, // Works on Android only
+    int timeout = 15000,
   }) async {
     assert(_initialized, 'plugin flutter_downloader is not initialized');
     assert(Directory(savedDir).existsSync(), 'savedDir does not exist');
@@ -267,7 +267,7 @@ class FlutterDownloader {
   static Future<String?> resume({
     required String taskId,
     bool requiresStorageNotLow = true,
-    int timeout = 15000, // Works on Android only
+    int timeout = 15000,
   }) async {
     assert(_initialized, 'plugin flutter_downloader is not initialized');
 
@@ -288,7 +288,7 @@ class FlutterDownloader {
   /// **parameters:**
   ///
   /// * `taskId`: unique identifier of a failed download task
-  /// * `timeout`: http request connection timeout.
+  /// * `timeout`: http request connection timeout. Android only.
   ///
   /// **return:**
   ///
@@ -297,7 +297,7 @@ class FlutterDownloader {
   static Future<String?> retry({
     required String taskId,
     bool requiresStorageNotLow = true,
-    int timeout = 15000, // Works on Android only
+    int timeout = 15000,
   }) async {
     assert(_initialized, 'plugin flutter_downloader is not initialized');
 
