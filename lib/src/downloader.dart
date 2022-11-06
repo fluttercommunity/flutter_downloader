@@ -322,7 +322,6 @@ class FlutterDownloader {
   /// * `taskId`: unique identifier of a download task
   /// * `shouldDeleteContent`: if the task is completed, set `true` to let the
   ///   plugin remove the downloaded file. The default value is `false`.
-  /// * `timeout`: http request connection timeout.
   static Future<void> remove({
     required String taskId,
     bool shouldDeleteContent = false,
