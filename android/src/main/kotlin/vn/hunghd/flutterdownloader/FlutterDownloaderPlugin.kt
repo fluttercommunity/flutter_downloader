@@ -87,7 +87,8 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         openFileFromNotification: Boolean,
         isResume: Boolean,
         requiresStorageNotLow: Boolean,
-        saveInPublicStorage: Boolean
+        saveInPublicStorage: Boolean, 
+        timeout: Int, 
     ): WorkRequest {
         return OneTimeWorkRequest.Builder(DownloadWorker::class.java)
             .setConstraints(
@@ -118,6 +119,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                         DownloadWorker.ARG_SAVE_IN_PUBLIC_STORAGE,
                         saveInPublicStorage
                     )
+                    .putInt(DownloadWorker.ARG_TIMEOUT, timeout)
                     .build()
             )
             .build()
@@ -158,13 +160,14 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         val savedDir: String = call.requireArgument("saved_dir")
         val filename: String? = call.argument("file_name")
         val headers: String = call.requireArgument("headers")
+        val timeout: Int = call.requireArgument("timeout")
         val showNotification: Boolean = call.requireArgument("show_notification")
         val openFileFromNotification: Boolean = call.requireArgument("open_file_from_notification")
         val requiresStorageNotLow: Boolean = call.requireArgument("requires_storage_not_low")
         val saveInPublicStorage: Boolean = call.requireArgument("save_in_public_storage")
         val request: WorkRequest = buildRequest(
             url, savedDir, filename, headers, showNotification,
-            openFileFromNotification, false, requiresStorageNotLow, saveInPublicStorage
+            openFileFromNotification, false, requiresStorageNotLow, saveInPublicStorage, timeout
         )
         WorkManager.getInstance(requireContext()).enqueue(request)
         val taskId: String = request.id.toString()
@@ -236,6 +239,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         val taskId: String = call.requireArgument("task_id")
         val task = taskDao!!.loadTask(taskId)
         val requiresStorageNotLow: Boolean = call.requireArgument("requires_storage_not_low")
+        var timeout: Int = call.requireArgument("timeout")
         if (task != null) {
             if (task.status == DownloadStatus.PAUSED) {
                 var filename = task.filename
@@ -248,7 +252,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                     val request: WorkRequest = buildRequest(
                         task.url, task.savedDir, task.filename,
                         task.headers, task.showNotification, task.openFileFromNotification,
-                        true, requiresStorageNotLow, task.saveInPublicStorage
+                        true, requiresStorageNotLow, task.saveInPublicStorage, timeout
                     )
                     val newTaskId: String = request.id.toString()
                     result.success(newTaskId)
@@ -281,12 +285,13 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         val taskId: String = call.requireArgument("task_id")
         val task = taskDao!!.loadTask(taskId)
         val requiresStorageNotLow: Boolean = call.requireArgument("requires_storage_not_low")
+        var timeout: Int = call.requireArgument("timeout")
         if (task != null) {
             if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
                 val request: WorkRequest = buildRequest(
                     task.url, task.savedDir, task.filename,
                     task.headers, task.showNotification, task.openFileFromNotification,
-                    false, requiresStorageNotLow, task.saveInPublicStorage
+                    false, requiresStorageNotLow, task.saveInPublicStorage, timeout
                 )
                 val newTaskId: String = request.id.toString()
                 result.success(newTaskId)
