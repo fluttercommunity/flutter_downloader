@@ -277,6 +277,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         var timeout = timeout
         visited = HashMap()
         try {
+            val task = taskDao?.loadTask(id.toString())
+            if (task != null) lastProgress = task.progress;
+
             // handle redirection logic
             while (true) {
                 if (!visited.containsKey(url)) {
