@@ -1,3 +1,8 @@
+## 1.9.1
+
+- Fix last download progress being wrong on Android (#752)
+- Make HTTP timeout configurable on Android (#741)
+
 ## 1.9.0
 
 - Migrate the Android part to Kotlin from Java (#719)
