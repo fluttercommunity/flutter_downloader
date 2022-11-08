@@ -278,7 +278,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         visited = HashMap()
         try {
             val task = taskDao?.loadTask(id.toString())
-            if (task != null) lastProgress = task.progress;
+            if (task != null) {
+                lastProgress = task.progress
+            }
 
             // handle redirection logic
             while (true) {
