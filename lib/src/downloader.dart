@@ -10,7 +10,7 @@ import 'package:flutter_downloader/src/exceptions.dart';
 import 'callback_dispatcher.dart';
 import 'models.dart';
 
-/// Singature for a function which is called when the download state of a task
+/// Signature for a function which is called when the download state of a task
 /// with [id] changes.
 typedef DownloadCallback = void Function(
   String id,
@@ -101,6 +101,7 @@ class FlutterDownloader {
     bool openFileFromNotification = true,
     bool requiresStorageNotLow = true,
     bool saveInPublicStorage = false,
+    bool allowCellular = true,
     int timeout = 15000,
   }) async {
     assert(_initialized, 'plugin flutter_downloader is not initialized');
@@ -117,6 +118,7 @@ class FlutterDownloader {
         'requires_storage_not_low': requiresStorageNotLow,
         'save_in_public_storage': saveInPublicStorage,
         'timeout': timeout,
+        'allow_cellular': allowCellular,
       });
 
       if (taskId == null) {
@@ -160,6 +162,7 @@ class FlutterDownloader {
             filename: item['file_name'] as String?,
             savedDir: item['saved_dir'] as String,
             timeCreated: item['time_created'] as int,
+            allowCellular: item['allow_cellular'] as bool,
           );
         },
       ).toList();
@@ -217,6 +220,7 @@ class FlutterDownloader {
             filename: item['file_name'] as String?,
             savedDir: item['saved_dir'] as String,
             timeCreated: item['time_created'] as int,
+            allowCellular: item['allow_cellular'] as bool,
           );
         },
       ).toList();

@@ -41,6 +41,7 @@ import java.net.URL
 import java.net.URLDecoder
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
+import java.util.ArrayDeque
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.regex.Pattern
@@ -49,9 +50,6 @@ import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
-import java.util.ArrayDeque
-import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
 
 class DownloadWorker(context: Context, params: WorkerParameters) :
     Worker(context, params),
@@ -158,7 +156,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         val headers: String = inputData.getString(ARG_HEADERS)
             ?: throw IllegalArgumentException("Argument '$ARG_HEADERS' should not be null")
         var isResume: Boolean = inputData.getBoolean(ARG_IS_RESUME, false)
-        var timeout: Int = inputData.getInt(ARG_TIMEOUT, 15000)
+        val timeout: Int = inputData.getInt(ARG_TIMEOUT, 15000)
         debug = inputData.getBoolean(ARG_DEBUG, false)
         step = inputData.getInt(ARG_STEP, 10)
         ignoreSsl = inputData.getBoolean(ARG_IGNORESSL, false)
@@ -172,9 +170,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         val task = taskDao?.loadTask(id.toString())
         log(
             "DownloadWorker{url=$url,filename=$filename,savedDir=$savedDir,header=$headers,isResume=$isResume,status=" + (
-                    task?.status
-                        ?: "GONE"
-                    )
+                task?.status
+                    ?: "GONE"
+                )
         )
 
         // Task has been deleted or cancelled
@@ -258,10 +256,10 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         savedDir: String,
         filename: String?,
         headers: String,
-        isResume: Boolean, 
-        timeout: Int, 
+        isResume: Boolean,
+        timeout: Int,
     ) {
-        var filename = filename
+        var actualFilename = filename
         var url = fileURL
         var resourceUrl: URL
         var base: URL?
@@ -274,7 +272,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         var downloadedBytes: Long = 0
         var responseCode: Int
         var times: Int
-        var timeout = timeout
+        var actualTimeout = timeout
         visited = HashMap()
         try {
             val task = taskDao?.loadTask(id.toString())
@@ -306,8 +304,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                     resourceUrl.openConnection() as HttpsURLConnection
                 }
                 log("Open connection to $url")
-                httpConn.connectTimeout = timeout
-                httpConn.readTimeout = timeout
+                httpConn.connectTimeout = actualTimeout
+                httpConn.readTimeout = actualTimeout
                 httpConn.instanceFollowRedirects = false // Make the logic below easier to detect redirections
                 httpConn.setRequestProperty("User-Agent", "Mozilla/5.0...")
 
@@ -315,7 +313,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                 setupHeaders(httpConn, headers)
                 // try to continue downloading a file from its partial downloaded data.
                 if (isResume) {
-                    downloadedBytes = setupPartialDownloadedDataHeader(httpConn, filename, savedDir)
+                    downloadedBytes = setupPartialDownloadedDataHeader(httpConn, actualFilename, savedDir)
                 }
                 responseCode = httpConn.responseCode
                 when (responseCode) {
@@ -348,16 +346,16 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                 log("Charset = $charset")
                 if (!isResume) {
                     // try to extract filename from HTTP headers if it is not given by user
-                    if (filename == null) {
+                    if (actualFilename == null) {
                         val disposition: String? = httpConn.getHeaderField("Content-Disposition")
                         log("Content-Disposition = $disposition")
                         if (!disposition.isNullOrEmpty()) {
-                            filename = getFileNameFromContentDisposition(disposition, charset)
+                            actualFilename = getFileNameFromContentDisposition(disposition, charset)
                         }
-                        if (filename.isNullOrEmpty()) {
-                            filename = url.substring(url.lastIndexOf("/") + 1)
+                        if (actualFilename.isNullOrEmpty()) {
+                            actualFilename = url.substring(url.lastIndexOf("/") + 1)
                             try {
-                                filename = URLDecoder.decode(filename, "UTF-8")
+                                actualFilename = URLDecoder.decode(actualFilename, "UTF-8")
                             } catch (e: IllegalArgumentException) {
                                 /* ok, just let filename be not encoded */
                                 e.printStackTrace()
@@ -365,8 +363,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                         }
                     }
                 }
-                log("fileName = $filename")
-                taskDao?.updateTask(id.toString(), filename, contentType)
+                log("fileName = $actualFilename")
+                taskDao?.updateTask(id.toString(), actualFilename, contentType)
 
                 // opens input stream from the HTTP connection
                 inputStream = httpConn.inputStream
@@ -375,7 +373,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                 // there are two case:
                 if (isResume) {
                     // 1. continue downloading (append data to partial downloaded file)
-                    savedFilePath = savedDir + File.separator + filename
+                    savedFilePath = savedDir + File.separator + actualFilename
                     outputStream = FileOutputStream(savedFilePath, true)
                 } else {
                     // 2. new download, create new file
@@ -384,11 +382,11 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                     // or public shared download directory (external storage).
                     // The second option will ignore `savedDir` parameter.
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && saveInPublicStorage) {
-                        val uri = createFileInPublicDownloadsDir(filename, contentType)
+                        val uri = createFileInPublicDownloadsDir(actualFilename, contentType)
                         savedFilePath = getMediaStoreEntryPathApi29(uri!!)
                         outputStream = context.contentResolver.openOutputStream(uri, "w")
                     } else {
-                        val file = createFileInAppSpecificDir(filename!!, savedDir)
+                        val file = createFileInAppSpecificDir(actualFilename!!, savedDir)
                         savedFilePath = file!!.path
                         outputStream = FileOutputStream(file, false)
                     }
@@ -413,7 +411,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                         taskDao!!.updateTask(id.toString(), DownloadStatus.RUNNING, progress)
                         updateNotification(
                             context,
-                            filename,
+                            actualFilename,
                             DownloadStatus.RUNNING,
                             progress,
                             null,
@@ -434,7 +432,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
                         if (isImageOrVideoFile(contentType) && isExternalStoragePath(savedFilePath)) {
                             addImageOrVideoToGallery(
-                                filename,
+                                actualFilename,
                                 savedFilePath,
                                 getContentTypeWithoutCharset(contentType)
                             )
@@ -459,19 +457,19 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                     }
                 }
                 taskDao!!.updateTask(id.toString(), status, progress)
-                updateNotification(context, filename, status, progress, pendingIntent, true)
+                updateNotification(context, actualFilename, status, progress, pendingIntent, true)
                 log(if (isStopped) "Download canceled" else "File downloaded")
             } else {
                 val task = taskDao!!.loadTask(id.toString())
                 val status =
                     if (isStopped) if (task!!.resumable) DownloadStatus.PAUSED else DownloadStatus.CANCELED else DownloadStatus.FAILED
                 taskDao!!.updateTask(id.toString(), status, lastProgress)
-                updateNotification(context, filename ?: fileURL, status, -1, null, true)
+                updateNotification(context, actualFilename ?: fileURL, status, -1, null, true)
                 log(if (isStopped) "Download canceled" else "Server replied HTTP code: $responseCode")
             }
         } catch (e: IOException) {
             taskDao!!.updateTask(id.toString(), DownloadStatus.FAILED, lastProgress)
-            updateNotification(context, filename ?: fileURL, DownloadStatus.FAILED, -1, null, true)
+            updateNotification(context, actualFilename ?: fileURL, DownloadStatus.FAILED, -1, null, true)
             e.printStackTrace()
         } finally {
             if (outputStream != null) {
