@@ -216,10 +216,18 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             NSURLSessionTaskState state = download.state;
             NSString *taskIdValue = [weakSelf identifierForTask:download];
             if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
-                int64_t bytesReceived = download.countOfBytesReceived;
-                int64_t bytesExpectedToReceive = download.countOfBytesExpectedToReceive;
-                int progress = round(bytesReceived * 100 / (double)bytesExpectedToReceive);
                 NSDictionary *task = [weakSelf loadTaskWithId:taskIdValue];
+                
+                int progress = 0;
+                if (download.countOfBytesExpectedToReceive > 0) {
+                    int64_t bytesReceived = download.countOfBytesReceived;
+                    int64_t bytesExpectedToReceive = download.countOfBytesExpectedToReceive;
+                    progress = round(bytesReceived * 100 / (double)bytesExpectedToReceive);
+                } else {
+                    NSNumber *progressNumOfTask = task[@"progress"];
+                    progress = progressNumOfTask.intValue;
+                }
+                
                 [download cancelByProducingResumeData:^(NSData * _Nullable resumeData) {
                     // Save partial downloaded data to a file
                     NSFileManager *fileManager = [NSFileManager defaultManager];
@@ -917,10 +925,19 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         int progress = round(totalBytesWritten * 100 / (double)totalBytesExpectedToWrite);
         NSNumber *lastProgress = _runningTaskById[taskId][KEY_PROGRESS];
         if (([lastProgress intValue] == 0 || (progress > ([lastProgress intValue] + _step)) || progress == 100) && progress != [lastProgress intValue]) {
-            [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_RUNNING) andProgress:@(progress)];
+            
+            NSNumber *status;
+            if (downloadTask.state == NSURLSessionTaskStateRunning) {
+                status = @(STATUS_RUNNING);
+            } else {
+                NSDictionary *taskDict = [self loadTaskWithId:taskId];
+                status = taskDict[@"status"];
+            }
+            
+            [self sendUpdateProgressForTaskId:taskId inStatus:status andProgress:@(progress)];
             __typeof__(self) __weak weakSelf = self;
             [self executeInDatabaseQueueForTask:^{
-                [weakSelf updateTask:taskId status:STATUS_RUNNING progress:progress];
+                [weakSelf updateTask:taskId status:status.intValue progress:progress];
             }];
             _runningTaskById[taskId][KEY_PROGRESS] = @(progress);
         }

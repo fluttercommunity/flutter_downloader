@@ -160,6 +160,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         val headers: String = inputData.getString(ARG_HEADERS)
             ?: throw IllegalArgumentException("Argument '$ARG_HEADERS' should not be null")
         var isResume: Boolean = inputData.getBoolean(ARG_IS_RESUME, false)
+        var timeout: Int = inputData.getInt(ARG_TIMEOUT, 15000)
         debug = inputData.getBoolean(ARG_DEBUG, false)
         step = inputData.getInt(ARG_STEP, 10)
         ignoreSsl = inputData.getBoolean(ARG_IGNORESSL, false)
@@ -206,7 +207,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
             log("exists file for " + filename + "automatic resuming...")
         }
         return try {
-            downloadFile(applicationContext, url, savedDir, filename, headers, isResume)
+            downloadFile(applicationContext, url, savedDir, filename, headers, isResume, timeout)
             cleanUp()
             dbHelper = null
             taskDao = null
@@ -259,7 +260,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         savedDir: String,
         filename: String?,
         headers: String,
-        isResume: Boolean
+        isResume: Boolean, 
+        timeout: Int, 
     ) {
         var filename = filename
         var url = fileURL
@@ -274,8 +276,14 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         var downloadedBytes: Long = 0
         var responseCode: Int
         var times: Int
+        var timeout = timeout
         visited = HashMap()
         try {
+            val task = taskDao?.loadTask(id.toString())
+            if (task != null) {
+                lastProgress = task.progress
+            }
+
             // handle redirection logic
             while (true) {
                 if (!visited.containsKey(url)) {
@@ -300,8 +308,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                     resourceUrl.openConnection() as HttpsURLConnection
                 }
                 log("Open connection to $url")
-                httpConn.connectTimeout = 15000
-                httpConn.readTimeout = 15000
+                httpConn.connectTimeout = timeout
+                httpConn.readTimeout = timeout
                 httpConn.instanceFollowRedirects = false // Make the logic below easier to detect redirections
                 httpConn.setRequestProperty("User-Agent", "Mozilla/5.0...")
 
@@ -828,6 +836,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         const val ARG_SAVED_DIR = "saved_file"
         const val ARG_HEADERS = "headers"
         const val ARG_IS_RESUME = "is_resume"
+        const val ARG_TIMEOUT = "timeout"
         const val ARG_SHOW_NOTIFICATION = "show_notification"
         const val ARG_OPEN_FILE_FROM_NOTIFICATION = "open_file_from_notification"
         const val ARG_CALLBACK_HANDLE = "callback_handle"
