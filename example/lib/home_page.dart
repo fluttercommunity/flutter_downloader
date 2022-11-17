@@ -111,61 +111,61 @@ class _MyHomePageState extends State<MyHomePage> {
             Checkbox(
               value: _saveInPublicStorage,
               onChanged: (newValue) {
-                setState(() {
-                  _saveInPublicStorage = newValue ?? false;
-                  print('_saveInPublicStorage: $_saveInPublicStorage');
-                });
+                setState(() => _saveInPublicStorage = newValue ?? false);
               },
             ),
             const Text('Save in public storage'),
           ],
         ),
-        for (final item in _items)
-          item.task == null
-              ? _buildListSectionHeading(item.name!)
-              : DownloadListItem(
-                  data: item,
-                  onTap: (task) async {
-                    final success = await _openDownloadedFile(task);
-                    if (!success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Cannot open this file'),
-                        ),
-                      );
-                    }
-                  },
-                  onActionTap: (task) {
-                    if (task.status == DownloadTaskStatus.undefined) {
-                      _requestDownload(task);
-                    } else if (task.status == DownloadTaskStatus.running) {
-                      _pauseDownload(task);
-                    } else if (task.status == DownloadTaskStatus.paused) {
-                      _resumeDownload(task);
-                    } else if (task.status == DownloadTaskStatus.complete ||
-                        task.status == DownloadTaskStatus.canceled) {
-                      _delete(task);
-                    } else if (task.status == DownloadTaskStatus.failed) {
-                      _retryDownload(task);
-                    }
-                  },
-                  onCancel: _delete,
+        ..._items.map(
+          (item) {
+            final task = item.task;
+            if (task == null) {
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  item.name!,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                    fontSize: 18,
+                  ),
                 ),
-      ],
-    );
-  }
+              );
+            }
 
-  Widget _buildListSectionHeading(String title) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.blue,
-          fontSize: 18,
+            return DownloadListItem(
+              data: item,
+              onTap: (task) async {
+                final success = await _openDownloadedFile(task);
+                if (!success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Cannot open this file'),
+                    ),
+                  );
+                }
+              },
+              onActionTap: (task) {
+                if (task.status == DownloadTaskStatus.undefined) {
+                  _requestDownload(task);
+                } else if (task.status == DownloadTaskStatus.running) {
+                  _pauseDownload(task);
+                } else if (task.status == DownloadTaskStatus.paused) {
+                  _resumeDownload(task);
+                } else if (task.status == DownloadTaskStatus.complete ||
+                    task.status == DownloadTaskStatus.canceled) {
+                  _delete(task);
+                } else if (task.status == DownloadTaskStatus.failed) {
+                  _retryDownload(task);
+                }
+              },
+              onCancel: _delete,
+            );
+          },
         ),
-      ),
+      ],
     );
   }
 
@@ -216,7 +216,7 @@ class _MyHomePageState extends State<MyHomePage> {
       url: task.link!,
       headers: {'auth': 'test_for_sql_encoding'},
       savedDir: _localPath,
-      saveInPublicStorage: true,
+      saveInPublicStorage: _saveInPublicStorage,
     );
   }
 
@@ -234,10 +234,10 @@ class _MyHomePageState extends State<MyHomePage> {
     task.taskId = newTaskId;
   }
 
-  Future<bool> _openDownloadedFile(TaskInfo? task) {
+  Future<bool> _openDownloadedFile(TaskInfo? task) async {
     final taskId = task?.taskId;
     if (taskId == null) {
-      return Future.value(false);
+      return false;
     }
 
     return FlutterDownloader.open(taskId: taskId);
