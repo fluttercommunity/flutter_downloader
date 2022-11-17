@@ -27,6 +27,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late List<ItemHolder> _items;
   late bool _showContent;
   late bool _permissionReady;
+  late bool _saveInPublicStorage;
   late String _localPath;
   final ReceivePort _port = ReceivePort();
 
@@ -40,6 +41,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     _showContent = false;
     _permissionReady = false;
+    _saveInPublicStorage = false;
 
     _prepare();
   }
@@ -100,42 +102,58 @@ class _MyHomePageState extends State<MyHomePage> {
         ?.send([id, status, progress]);
   }
 
-  Widget _buildDownloadList() => ListView(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        children: [
-          for (final item in _items)
-            item.task == null
-                ? _buildListSectionHeading(item.name!)
-                : DownloadListItem(
-                    data: item,
-                    onTap: (task) async {
-                      final success = await _openDownloadedFile(task);
-                      if (!success) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Cannot open this file'),
-                          ),
-                        );
-                      }
-                    },
-                    onActionTap: (task) {
-                      if (task.status == DownloadTaskStatus.undefined) {
-                        _requestDownload(task);
-                      } else if (task.status == DownloadTaskStatus.running) {
-                        _pauseDownload(task);
-                      } else if (task.status == DownloadTaskStatus.paused) {
-                        _resumeDownload(task);
-                      } else if (task.status == DownloadTaskStatus.complete ||
-                          task.status == DownloadTaskStatus.canceled) {
-                        _delete(task);
-                      } else if (task.status == DownloadTaskStatus.failed) {
-                        _retryDownload(task);
-                      }
-                    },
-                    onCancel: _delete,
-                  ),
-        ],
-      );
+  Widget _buildDownloadList() {
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      children: [
+        Row(
+          children: [
+            Checkbox(
+              value: _saveInPublicStorage,
+              onChanged: (newValue) {
+                setState(() {
+                  _saveInPublicStorage = newValue ?? false;
+                  print('_saveInPublicStorage: $_saveInPublicStorage');
+                });
+              },
+            ),
+            const Text('Save in public storage'),
+          ],
+        ),
+        for (final item in _items)
+          item.task == null
+              ? _buildListSectionHeading(item.name!)
+              : DownloadListItem(
+                  data: item,
+                  onTap: (task) async {
+                    final success = await _openDownloadedFile(task);
+                    if (!success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Cannot open this file'),
+                        ),
+                      );
+                    }
+                  },
+                  onActionTap: (task) {
+                    if (task.status == DownloadTaskStatus.undefined) {
+                      _requestDownload(task);
+                    } else if (task.status == DownloadTaskStatus.running) {
+                      _pauseDownload(task);
+                    } else if (task.status == DownloadTaskStatus.paused) {
+                      _resumeDownload(task);
+                    } else if (task.status == DownloadTaskStatus.complete ||
+                        task.status == DownloadTaskStatus.canceled) {
+                      _delete(task);
+                    } else if (task.status == DownloadTaskStatus.failed) {
+                      _retryDownload(task);
+                    }
+                  },
+                  onCancel: _delete,
+                ),
+      ],
+    );
+  }
 
   Widget _buildListSectionHeading(String title) {
     return Container(
@@ -217,11 +235,12 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<bool> _openDownloadedFile(TaskInfo? task) {
-    if (task != null) {
-      return FlutterDownloader.open(taskId: task.taskId!);
-    } else {
+    final taskId = task?.taskId;
+    if (taskId == null) {
       return Future.value(false);
     }
+
+    return FlutterDownloader.open(taskId: taskId);
   }
 
   Future<void> _delete(TaskInfo task) async {
