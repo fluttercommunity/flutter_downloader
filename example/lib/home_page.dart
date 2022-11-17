@@ -25,7 +25,7 @@ class MyHomePage extends StatefulWidget with WidgetsBindingObserver {
 class _MyHomePageState extends State<MyHomePage> {
   List<TaskInfo>? _tasks;
   late List<ItemHolder> _items;
-  late bool _loading;
+  late bool _showContent;
   late bool _permissionReady;
   late String _localPath;
   final ReceivePort _port = ReceivePort();
@@ -38,7 +38,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     FlutterDownloader.registerCallback(downloadCallback, step: 1);
 
-    _loading = true;
+    _showContent = false;
     _permissionReady = false;
 
     _prepare();
@@ -325,30 +325,32 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     _permissionReady = await _checkPermission();
-
     if (_permissionReady) {
       await _prepareSaveDir();
     }
 
     setState(() {
-      _loading = false;
+      _showContent = true;
     });
   }
 
   Future<void> _prepareSaveDir() async {
-    _localPath = (await _findLocalPath())!;
+    _localPath = (await _getSavedDir())!;
     final savedDir = Directory(_localPath);
     if (!savedDir.existsSync()) {
       await savedDir.create();
     }
   }
 
-  Future<String?> _findLocalPath() async {
+  Future<String?> _getSavedDir() async {
     String? externalStorageDirPath;
+
     if (Platform.isAndroid) {
       try {
         externalStorageDirPath = await AndroidPathProvider.downloadsPath;
-      } catch (e) {
+      } catch (err, st) {
+        print('failed to get downloads path: $err, $st');
+
         final directory = await getExternalStorageDirectory();
         externalStorageDirPath = directory?.path;
       }
@@ -387,7 +389,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Builder(
         builder: (context) {
-          if (_loading) {
+          if (!_showContent) {
             return const Center(child: CircularProgressIndicator());
           }
 

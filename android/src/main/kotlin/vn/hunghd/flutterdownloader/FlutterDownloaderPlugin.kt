@@ -25,6 +25,10 @@ import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
+private const val invalidTaskId = "invalid_task_id"
+private const val invalidStatus = "invalid_status"
+private const val invalidData = "invalid_data"
+
 class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
     private var flutterChannel: MethodChannel? = null
     private var taskDao: TaskDao? = null
@@ -87,8 +91,8 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         openFileFromNotification: Boolean,
         isResume: Boolean,
         requiresStorageNotLow: Boolean,
-        saveInPublicStorage: Boolean, 
-        timeout: Int, 
+        saveInPublicStorage: Boolean,
+        timeout: Int,
     ): WorkRequest {
         return OneTimeWorkRequest.Builder(DownloadWorker::class.java)
             .setConstraints(
@@ -268,16 +272,16 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                 } else {
                     taskDao!!.updateTask(taskId, false)
                     result.error(
-                        "invalid_data",
+                        invalidData,
                         "not found partial downloaded data, this task cannot be resumed",
                         null
                     )
                 }
             } else {
-                result.error("invalid_status", "only paused task can be resumed", null)
+                result.error(invalidStatus, "only paused task can be resumed", null)
             }
         } else {
-            result.error("invalid_task_id", "not found task corresponding to given task id", null)
+            result.error(invalidTaskId, "not found task corresponding to given task id", null)
         }
     }
 
@@ -305,38 +309,40 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                 )
                 WorkManager.getInstance(requireContext()).enqueue(request)
             } else {
-                result.error("invalid_status", "only failed and canceled task can be retried", null)
+                result.error(invalidStatus, "only failed and canceled task can be retried", null)
             }
         } else {
-            result.error("invalid_task_id", "not found task corresponding to given task id", null)
+            result.error(invalidTaskId, "not found task corresponding to given task id", null)
         }
     }
 
     private fun open(call: MethodCall, result: MethodChannel.Result) {
         val taskId: String = call.requireArgument("task_id")
         val task = taskDao!!.loadTask(taskId)
-        if (task != null) {
-            if (task.status == DownloadStatus.COMPLETE) {
-                val fileURL = task.url
-                val savedDir = task.savedDir
-                var filename = task.filename
-                if (filename == null) {
-                    filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length)
-                }
-                val saveFilePath = savedDir + File.separator + filename
-                val intent: Intent? =
-                    IntentUtils.validatedFileIntent(requireContext(), saveFilePath, task.mimeType)
-                if (intent != null) {
-                    requireContext().startActivity(intent)
-                    result.success(true)
-                } else {
-                    result.success(false)
-                }
-            } else {
-                result.error("invalid_status", "only success task can be opened", null)
-            }
+        if (task == null) {
+            result.error(invalidTaskId, "not found task with id $taskId", null)
+            return
+        }
+
+        if (task.status != DownloadStatus.COMPLETE) {
+            result.error(invalidStatus, "only completed tasks can be opened", null)
+            return
+        }
+
+        val fileURL = task.url
+        val savedDir = task.savedDir
+        var filename = task.filename
+        if (filename == null) {
+            filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length)
+        }
+        val saveFilePath = savedDir + File.separator + filename
+        val intent: Intent? =
+            IntentUtils.validatedFileIntent(requireContext(), saveFilePath, task.mimeType)
+        if (intent != null) {
+            requireContext().startActivity(intent)
+            result.success(true)
         } else {
-            result.error("invalid_task_id", "not found task corresponding to given task id", null)
+            result.success(false)
         }
     }
 
@@ -364,7 +370,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             NotificationManagerCompat.from(requireContext()).cancel(task.primaryId)
             result.success(null)
         } else {
-            result.error("invalid_task_id", "not found task corresponding to given task id", null)
+            result.error(invalidTaskId, "not found task corresponding to given task id", null)
         }
     }
 
