@@ -3,7 +3,7 @@ import 'dart:isolate';
 import 'dart:ui';
 
 import 'package:android_path_provider/android_path_provider.dart';
-import 'package:device_info/device_info.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_downloader_example/data.dart';
@@ -238,23 +238,22 @@ class _MyHomePageState extends State<MyHomePage> {
       return true;
     }
 
-    final deviceInfo = DeviceInfoPlugin();
-    final androidInfo = await deviceInfo.androidInfo;
-    if (widget.platform == TargetPlatform.android &&
-        androidInfo.version.sdkInt <= 28) {
-      final status = await Permission.storage.status;
-      if (status != PermissionStatus.granted) {
-        final result = await Permission.storage.request();
-        if (result == PermissionStatus.granted) {
-          return true;
-        }
-      } else {
+    if (Platform.isAndroid) {
+      final info = await DeviceInfoPlugin().androidInfo;
+      if (info.version.sdkInt > 28) {
         return true;
       }
-    } else {
-      return true;
+
+      final status = await Permission.storage.status;
+      if (status == PermissionStatus.granted) {
+        return true;
+      }
+
+      final result = await Permission.storage.request();
+      return result == PermissionStatus.granted;
     }
-    return false;
+
+    throw StateError('unknown platform');
   }
 
   Future<void> _prepare() async {
@@ -339,8 +338,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _prepareSaveDir() async {
     _localPath = (await _findLocalPath())!;
     final savedDir = Directory(_localPath);
-    final hasExisted = savedDir.existsSync();
-    if (!hasExisted) {
+    if (!savedDir.existsSync()) {
       await savedDir.create();
     }
   }
