@@ -42,6 +42,7 @@
     return self;
 }
 
+// Will be removed in the next major version.
 -(void)copyDatabaseIntoAppDirectory{
     // Check if the database file exists in the app directory.
     NSString *destinationPath = [self.appDirectory stringByAppendingPathComponent:self.databaseFilename];
