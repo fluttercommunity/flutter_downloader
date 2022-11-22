@@ -22,8 +22,6 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
 
 private const val invalidTaskId = "invalid_task_id"
 private const val invalidStatus = "invalid_status"
@@ -91,14 +89,15 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         openFileFromNotification: Boolean,
         isResume: Boolean,
         requiresStorageNotLow: Boolean,
-        saveInPublicStorage: Boolean,
+        saveInPublicStorage: Boolean, 
         timeout: Int,
+        allowCellular: Boolean,
     ): WorkRequest {
         return OneTimeWorkRequest.Builder(DownloadWorker::class.java)
             .setConstraints(
                 Constraints.Builder()
                     .setRequiresStorageNotLow(requiresStorageNotLow)
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .setRequiredNetworkType(if (allowCellular) NetworkType.CONNECTED else NetworkType.UNMETERED)
                     .build()
             )
             .addTag(TAG)
@@ -169,9 +168,10 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         val openFileFromNotification: Boolean = call.requireArgument("open_file_from_notification")
         val requiresStorageNotLow: Boolean = call.requireArgument("requires_storage_not_low")
         val saveInPublicStorage: Boolean = call.requireArgument("save_in_public_storage")
+        val allowCellular: Boolean = call.requireArgument("allow_cellular")
         val request: WorkRequest = buildRequest(
             url, savedDir, filename, headers, showNotification,
-            openFileFromNotification, false, requiresStorageNotLow, saveInPublicStorage, timeout
+            openFileFromNotification, false, requiresStorageNotLow, saveInPublicStorage, timeout, allowCellular = allowCellular
         )
         WorkManager.getInstance(requireContext()).enqueue(request)
         val taskId: String = request.id.toString()
@@ -179,7 +179,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0)
         taskDao!!.insertOrUpdateNewTask(
             taskId, url, DownloadStatus.ENQUEUED, 0, filename,
-            savedDir, headers, showNotification, openFileFromNotification, saveInPublicStorage
+            savedDir, headers, showNotification, openFileFromNotification, saveInPublicStorage, allowCellular = allowCellular
         )
     }
 
@@ -195,6 +195,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             item["file_name"] = task.filename
             item["saved_dir"] = task.savedDir
             item["time_created"] = task.timeCreated
+            item["allow_cellular"] = task.allowCellular
             array.add(item)
         }
         result.success(array)
@@ -256,7 +257,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                     val request: WorkRequest = buildRequest(
                         task.url, task.savedDir, task.filename,
                         task.headers, task.showNotification, task.openFileFromNotification,
-                        true, requiresStorageNotLow, task.saveInPublicStorage, timeout
+                        true, requiresStorageNotLow, task.saveInPublicStorage, timeout, allowCellular = task.allowCellular
                     )
                     val newTaskId: String = request.id.toString()
                     result.success(newTaskId)
@@ -295,7 +296,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                 val request: WorkRequest = buildRequest(
                     task.url, task.savedDir, task.filename,
                     task.headers, task.showNotification, task.openFileFromNotification,
-                    false, requiresStorageNotLow, task.saveInPublicStorage, timeout
+                    false, requiresStorageNotLow, task.saveInPublicStorage, timeout, allowCellular = task.allowCellular
                 )
                 val newTaskId: String = request.id.toString()
                 result.success(newTaskId)
