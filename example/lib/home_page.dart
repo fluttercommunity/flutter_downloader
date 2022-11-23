@@ -149,7 +149,7 @@ class _MyHomePageState extends State<MyHomePage> {
               },
               onActionTap: (task) {
                 if (task.status == DownloadTaskStatus.undefined) {
-                  _requestDownload(task);
+                  _enqueueDownload(task);
                 } else if (task.status == DownloadTaskStatus.running) {
                   _pauseDownload(task);
                 } else if (task.status == DownloadTaskStatus.paused) {
@@ -211,7 +211,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<void> _requestDownload(TaskInfo task) async {
+  Future<void> _enqueueDownload(TaskInfo task) async {
     task.taskId = await FlutterDownloader.enqueue(
       url: task.link!,
       headers: {'auth': 'test_for_sql_encoding'},

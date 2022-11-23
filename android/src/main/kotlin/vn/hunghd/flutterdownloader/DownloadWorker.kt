@@ -170,9 +170,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         val task = taskDao?.loadTask(id.toString())
         log(
             "DownloadWorker{url=$url,filename=$filename,savedDir=$savedDir,header=$headers,isResume=$isResume,status=" + (
-                task?.status
-                    ?: "GONE"
-                )
+                    task?.status
+                        ?: "GONE"
+                    )
         )
 
         // Task has been deleted or cancelled
@@ -387,7 +387,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                         outputStream = context.contentResolver.openOutputStream(uri, "w")
                     } else {
                         val file = createFileInAppSpecificDir(actualFilename!!, savedDir)
-                        savedFilePath = file!!.path
+                            ?: throw IllegalStateException("Couldn't create file in app specific directory")
+
+                        savedFilePath = file.path
                         outputStream = FileOutputStream(file, false)
                     }
                 }
