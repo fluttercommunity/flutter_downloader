@@ -10,7 +10,7 @@ import 'package:flutter_downloader/src/exceptions.dart';
 import 'callback_dispatcher.dart';
 import 'models.dart';
 
-/// Singature for a function which is called when the download state of a task
+/// Signature for a function which is called when the download state of a task
 /// with [id] changes.
 typedef DownloadCallback = void Function(
   String id,
@@ -90,6 +90,8 @@ class FlutterDownloader {
   /// external storage. If you want to save the file in the public Downloads
   /// directory instead, set [saveInPublicStorage] to true. In that case,
   /// [savedDir] will be ignored.
+  ///
+  /// [timeout] is the HTTP connection timeout.
   static Future<String?> enqueue({
     required String url,
     required String savedDir,
@@ -99,6 +101,8 @@ class FlutterDownloader {
     bool openFileFromNotification = true,
     bool requiresStorageNotLow = true,
     bool saveInPublicStorage = false,
+    bool allowCellular = true,
+    int timeout = 15000,
   }) async {
     assert(_initialized, 'plugin flutter_downloader is not initialized');
     assert(Directory(savedDir).existsSync(), 'savedDir does not exist');
@@ -113,6 +117,8 @@ class FlutterDownloader {
         'open_file_from_notification': openFileFromNotification,
         'requires_storage_not_low': requiresStorageNotLow,
         'save_in_public_storage': saveInPublicStorage,
+        'timeout': timeout,
+        'allow_cellular': allowCellular,
       });
 
       if (taskId == null) {
@@ -156,6 +162,7 @@ class FlutterDownloader {
             filename: item['file_name'] as String?,
             savedDir: item['saved_dir'] as String,
             timeCreated: item['time_created'] as int,
+            allowCellular: item['allow_cellular'] as bool,
           );
         },
       ).toList();
@@ -213,6 +220,7 @@ class FlutterDownloader {
             filename: item['file_name'] as String?,
             savedDir: item['saved_dir'] as String,
             timeCreated: item['time_created'] as int,
+            allowCellular: item['allow_cellular'] as bool,
           );
         },
       ).toList();
@@ -263,6 +271,7 @@ class FlutterDownloader {
   static Future<String?> resume({
     required String taskId,
     bool requiresStorageNotLow = true,
+    int timeout = 15000,
   }) async {
     assert(_initialized, 'plugin flutter_downloader is not initialized');
 
@@ -270,6 +279,7 @@ class FlutterDownloader {
       return await _channel.invokeMethod('resume', {
         'task_id': taskId,
         'requires_storage_not_low': requiresStorageNotLow,
+        'timeout': timeout,
       });
     } on PlatformException catch (e) {
       _log(e.message);
@@ -282,6 +292,7 @@ class FlutterDownloader {
   /// **parameters:**
   ///
   /// * `taskId`: unique identifier of a failed download task
+  /// * `timeout`: http request connection timeout. Android only.
   ///
   /// **return:**
   ///
@@ -290,6 +301,7 @@ class FlutterDownloader {
   static Future<String?> retry({
     required String taskId,
     bool requiresStorageNotLow = true,
+    int timeout = 15000,
   }) async {
     assert(_initialized, 'plugin flutter_downloader is not initialized');
 
@@ -297,6 +309,7 @@ class FlutterDownloader {
       return await _channel.invokeMethod('retry', {
         'task_id': taskId,
         'requires_storage_not_low': requiresStorageNotLow,
+        'timeout': timeout,
       });
     } on PlatformException catch (e) {
       _log(e.message);

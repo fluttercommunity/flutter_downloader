@@ -20,7 +20,8 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION,
         TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION,
         TaskEntry.COLUMN_NAME_TIME_CREATED,
-        TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE
+        TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE,
+        TaskEntry.COLUMN_ALLOW_CELLULAR,
     )
 
     fun insertOrUpdateNewTask(
@@ -33,7 +34,8 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         headers: String?,
         showNotification: Boolean,
         openFileFromNotification: Boolean,
-        saveInPublicStorage: Boolean
+        saveInPublicStorage: Boolean,
+        allowCellular: Boolean
     ) {
         val db = dbHelper.writableDatabase
         val values = ContentValues()
@@ -53,6 +55,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         values.put(TaskEntry.COLUMN_NAME_RESUMABLE, 0)
         values.put(TaskEntry.COLUMN_NAME_TIME_CREATED, System.currentTimeMillis())
         values.put(TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE, if (saveInPublicStorage) 1 else 0)
+        values.put(TaskEntry.COLUMN_ALLOW_CELLULAR, if(allowCellular) 1 else 0)
         db.beginTransaction()
         try {
             db.insertWithOnConflict(
@@ -243,6 +246,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         val clickToOpenDownloadedFile = cursor.getShort(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION)).toInt()
         val timeCreated = cursor.getLong(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_TIME_CREATED))
         val saveInPublicStorage = cursor.getShort(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE)).toInt()
+        val allowCelluar = cursor.getShort(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_ALLOW_CELLULAR)).toInt()
         return DownloadTask(
             primaryId,
             taskId,
@@ -257,7 +261,8 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
             showNotification == 1,
             clickToOpenDownloadedFile == 1,
             timeCreated,
-            saveInPublicStorage == 1
+            saveInPublicStorage == 1,
+            allowCellular = allowCelluar == 1
         )
     }
 }

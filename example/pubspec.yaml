@@ -9,7 +9,7 @@ environment:
 
 dependencies:
   android_path_provider: ^0.3.0
-  device_info: ^2.0.3
+  device_info_plus: ^8.0.0
   flutter:
     sdk: flutter
   flutter_downloader:
@@ -20,7 +20,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  leancode_lint: ^1.2.1
+  leancode_lint: ^2.0.0+1
 
 flutter:
   uses-material-design: true

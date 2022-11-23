@@ -22,8 +22,10 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
+
+private const val invalidTaskId = "invalid_task_id"
+private const val invalidStatus = "invalid_status"
+private const val invalidData = "invalid_data"
 
 class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
     private var flutterChannel: MethodChannel? = null
@@ -87,13 +89,15 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         openFileFromNotification: Boolean,
         isResume: Boolean,
         requiresStorageNotLow: Boolean,
-        saveInPublicStorage: Boolean
+        saveInPublicStorage: Boolean, 
+        timeout: Int,
+        allowCellular: Boolean,
     ): WorkRequest {
         return OneTimeWorkRequest.Builder(DownloadWorker::class.java)
             .setConstraints(
                 Constraints.Builder()
                     .setRequiresStorageNotLow(requiresStorageNotLow)
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .setRequiredNetworkType(if (allowCellular) NetworkType.CONNECTED else NetworkType.UNMETERED)
                     .build()
             )
             .addTag(TAG)
@@ -118,6 +122,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                         DownloadWorker.ARG_SAVE_IN_PUBLIC_STORAGE,
                         saveInPublicStorage
                     )
+                    .putInt(DownloadWorker.ARG_TIMEOUT, timeout)
                     .build()
             )
             .build()
@@ -158,13 +163,15 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         val savedDir: String = call.requireArgument("saved_dir")
         val filename: String? = call.argument("file_name")
         val headers: String = call.requireArgument("headers")
+        val timeout: Int = call.requireArgument("timeout")
         val showNotification: Boolean = call.requireArgument("show_notification")
         val openFileFromNotification: Boolean = call.requireArgument("open_file_from_notification")
         val requiresStorageNotLow: Boolean = call.requireArgument("requires_storage_not_low")
         val saveInPublicStorage: Boolean = call.requireArgument("save_in_public_storage")
+        val allowCellular: Boolean = call.requireArgument("allow_cellular")
         val request: WorkRequest = buildRequest(
             url, savedDir, filename, headers, showNotification,
-            openFileFromNotification, false, requiresStorageNotLow, saveInPublicStorage
+            openFileFromNotification, false, requiresStorageNotLow, saveInPublicStorage, timeout, allowCellular = allowCellular
         )
         WorkManager.getInstance(requireContext()).enqueue(request)
         val taskId: String = request.id.toString()
@@ -172,7 +179,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0)
         taskDao!!.insertOrUpdateNewTask(
             taskId, url, DownloadStatus.ENQUEUED, 0, filename,
-            savedDir, headers, showNotification, openFileFromNotification, saveInPublicStorage
+            savedDir, headers, showNotification, openFileFromNotification, saveInPublicStorage, allowCellular = allowCellular
         )
     }
 
@@ -188,6 +195,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             item["file_name"] = task.filename
             item["saved_dir"] = task.savedDir
             item["time_created"] = task.timeCreated
+            item["allow_cellular"] = task.allowCellular
             array.add(item)
         }
         result.success(array)
@@ -236,6 +244,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         val taskId: String = call.requireArgument("task_id")
         val task = taskDao!!.loadTask(taskId)
         val requiresStorageNotLow: Boolean = call.requireArgument("requires_storage_not_low")
+        var timeout: Int = call.requireArgument("timeout")
         if (task != null) {
             if (task.status == DownloadStatus.PAUSED) {
                 var filename = task.filename
@@ -248,7 +257,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                     val request: WorkRequest = buildRequest(
                         task.url, task.savedDir, task.filename,
                         task.headers, task.showNotification, task.openFileFromNotification,
-                        true, requiresStorageNotLow, task.saveInPublicStorage
+                        true, requiresStorageNotLow, task.saveInPublicStorage, timeout, allowCellular = task.allowCellular
                     )
                     val newTaskId: String = request.id.toString()
                     result.success(newTaskId)
@@ -264,16 +273,16 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                 } else {
                     taskDao!!.updateTask(taskId, false)
                     result.error(
-                        "invalid_data",
+                        invalidData,
                         "not found partial downloaded data, this task cannot be resumed",
                         null
                     )
                 }
             } else {
-                result.error("invalid_status", "only paused task can be resumed", null)
+                result.error(invalidStatus, "only paused task can be resumed", null)
             }
         } else {
-            result.error("invalid_task_id", "not found task corresponding to given task id", null)
+            result.error(invalidTaskId, "not found task corresponding to given task id", null)
         }
     }
 
@@ -281,12 +290,13 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         val taskId: String = call.requireArgument("task_id")
         val task = taskDao!!.loadTask(taskId)
         val requiresStorageNotLow: Boolean = call.requireArgument("requires_storage_not_low")
+        var timeout: Int = call.requireArgument("timeout")
         if (task != null) {
             if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
                 val request: WorkRequest = buildRequest(
                     task.url, task.savedDir, task.filename,
                     task.headers, task.showNotification, task.openFileFromNotification,
-                    false, requiresStorageNotLow, task.saveInPublicStorage
+                    false, requiresStorageNotLow, task.saveInPublicStorage, timeout, allowCellular = task.allowCellular
                 )
                 val newTaskId: String = request.id.toString()
                 result.success(newTaskId)
@@ -300,38 +310,40 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                 )
                 WorkManager.getInstance(requireContext()).enqueue(request)
             } else {
-                result.error("invalid_status", "only failed and canceled task can be retried", null)
+                result.error(invalidStatus, "only failed and canceled task can be retried", null)
             }
         } else {
-            result.error("invalid_task_id", "not found task corresponding to given task id", null)
+            result.error(invalidTaskId, "not found task corresponding to given task id", null)
         }
     }
 
     private fun open(call: MethodCall, result: MethodChannel.Result) {
         val taskId: String = call.requireArgument("task_id")
         val task = taskDao!!.loadTask(taskId)
-        if (task != null) {
-            if (task.status == DownloadStatus.COMPLETE) {
-                val fileURL = task.url
-                val savedDir = task.savedDir
-                var filename = task.filename
-                if (filename == null) {
-                    filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length)
-                }
-                val saveFilePath = savedDir + File.separator + filename
-                val intent: Intent? =
-                    IntentUtils.validatedFileIntent(requireContext(), saveFilePath, task.mimeType)
-                if (intent != null) {
-                    requireContext().startActivity(intent)
-                    result.success(true)
-                } else {
-                    result.success(false)
-                }
-            } else {
-                result.error("invalid_status", "only success task can be opened", null)
-            }
+        if (task == null) {
+            result.error(invalidTaskId, "not found task with id $taskId", null)
+            return
+        }
+
+        if (task.status != DownloadStatus.COMPLETE) {
+            result.error(invalidStatus, "only completed tasks can be opened", null)
+            return
+        }
+
+        val fileURL = task.url
+        val savedDir = task.savedDir
+        var filename = task.filename
+        if (filename == null) {
+            filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length)
+        }
+        val saveFilePath = savedDir + File.separator + filename
+        val intent: Intent? =
+            IntentUtils.validatedFileIntent(requireContext(), saveFilePath, task.mimeType)
+        if (intent != null) {
+            requireContext().startActivity(intent)
+            result.success(true)
         } else {
-            result.error("invalid_task_id", "not found task corresponding to given task id", null)
+            result.success(false)
         }
     }
 
@@ -359,7 +371,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             NotificationManagerCompat.from(requireContext()).cancel(task.primaryId)
             result.success(null)
         } else {
-            result.error("invalid_task_id", "not found task corresponding to given task id", null)
+            result.error(invalidTaskId, "not found task corresponding to given task id", null)
         }
     }
 

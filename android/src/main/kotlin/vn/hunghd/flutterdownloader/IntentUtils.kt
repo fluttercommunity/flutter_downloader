@@ -34,7 +34,7 @@ object IntentUtils {
     fun validatedFileIntent(context: Context, path: String, contentType: String?): Intent? {
         val file = File(path)
         var intent = buildIntent(context, file, contentType)
-        if (validateIntent(context, intent)) {
+        if (canBeHandled(context, intent)) {
             return intent
         }
         var mime: String? = null
@@ -58,15 +58,15 @@ object IntentUtils {
         }
         if (mime != null) {
             intent = buildIntent(context, file, mime)
-            if (validateIntent(context, intent)) return intent
+            if (canBeHandled(context, intent)) return intent
         }
         return null
     }
 
-    private fun validateIntent(context: Context, intent: Intent): Boolean {
+    private fun canBeHandled(context: Context, intent: Intent): Boolean {
         val manager = context.packageManager
         val results = manager.queryIntentActivities(intent, 0)
-        // Valid if there is at least one app that can handle this intent
+        // return if there is at least one app that can handle this intent
         return results.size > 0
     }
 }
