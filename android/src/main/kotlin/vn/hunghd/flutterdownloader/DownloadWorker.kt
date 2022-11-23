@@ -340,15 +340,15 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                 contentType = httpConn.contentType
                 val contentLength: Long =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) httpConn.contentLengthLong else httpConn.contentLength.toLong()
-                log("Content-Type = $contentType")
-                log("Content-Length = $contentLength")
+                log("\tContent-Type = $contentType")
+                log("\tContent-Length = $contentLength")
                 val charset = getCharsetFromContentType(contentType)
-                log("Charset = $charset")
+                log("\tCharset = $charset")
                 if (!isResume) {
                     // try to extract filename from HTTP headers if it is not given by user
                     if (actualFilename == null) {
                         val disposition: String? = httpConn.getHeaderField("Content-Disposition")
-                        log("Content-Disposition = $disposition")
+                        log("\tContent-Disposition = $disposition")
                         if (!disposition.isNullOrEmpty()) {
                             actualFilename = getFileNameFromContentDisposition(disposition, charset)
                         }
@@ -363,7 +363,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                         }
                     }
                 }
-                log("fileName = $actualFilename")
+                log("\tfileName = $actualFilename")
                 taskDao?.updateTask(id.toString(), actualFilename, contentType)
 
                 // opens input stream from the HTTP connection
