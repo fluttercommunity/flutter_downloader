@@ -78,6 +78,9 @@ class FlutterDownloader {
   /// If [showNotification] is true, a notification with the current download
   /// progress will be shown.
   ///
+  /// If [displayName] is set and if [showNotification] is true, sets title of notification.
+  /// If this parameter is not set, the plugin will apply value of [fileName] or [url] parameter
+  ///
   /// If [requiresStorageNotLow] is true, the download won't run unless the
   /// device's available storage is at an acceptable level.
   ///
@@ -96,6 +99,7 @@ class FlutterDownloader {
     required String url,
     required String savedDir,
     String? fileName,
+    String? displayName,
     Map<String, String> headers = const {},
     bool showNotification = true,
     bool openFileFromNotification = true,
@@ -112,6 +116,7 @@ class FlutterDownloader {
         'url': url,
         'saved_dir': savedDir,
         'file_name': fileName,
+        'display_name': displayName,
         'headers': jsonEncode(headers),
         'show_notification': showNotification,
         'open_file_from_notification': openFileFromNotification,

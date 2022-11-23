@@ -216,6 +216,7 @@ class _MyHomePageState extends State<MyHomePage> {
       url: task.link!,
       headers: {'auth': 'test_for_sql_encoding'},
       savedDir: _localPath,
+      displayName: task.name,
       saveInPublicStorage: _saveInPublicStorage,
     );
   }

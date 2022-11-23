@@ -84,6 +84,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         url: String?,
         savedDir: String?,
         filename: String?,
+        displayName: String?,
         headers: String?,
         showNotification: Boolean,
         openFileFromNotification: Boolean,
@@ -107,6 +108,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                     .putString(DownloadWorker.ARG_URL, url)
                     .putString(DownloadWorker.ARG_SAVED_DIR, savedDir)
                     .putString(DownloadWorker.ARG_FILE_NAME, filename)
+                    .putString(DownloadWorker.ARG_DISPLAY_NAME, displayName)
                     .putString(DownloadWorker.ARG_HEADERS, headers)
                     .putBoolean(DownloadWorker.ARG_SHOW_NOTIFICATION, showNotification)
                     .putBoolean(
@@ -162,6 +164,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         val url: String = call.requireArgument("url")
         val savedDir: String = call.requireArgument("saved_dir")
         val filename: String? = call.argument("file_name")
+        val displayName: String? = call.argument("display_name")
         val headers: String = call.requireArgument("headers")
         val timeout: Int = call.requireArgument("timeout")
         val showNotification: Boolean = call.requireArgument("show_notification")
@@ -170,7 +173,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         val saveInPublicStorage: Boolean = call.requireArgument("save_in_public_storage")
         val allowCellular: Boolean = call.requireArgument("allow_cellular")
         val request: WorkRequest = buildRequest(
-            url, savedDir, filename, headers, showNotification,
+            url, savedDir, filename, displayName, headers, showNotification,
             openFileFromNotification, false, requiresStorageNotLow, saveInPublicStorage, timeout, allowCellular = allowCellular
         )
         WorkManager.getInstance(requireContext()).enqueue(request)
@@ -178,7 +181,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         result.success(taskId)
         sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0)
         taskDao!!.insertOrUpdateNewTask(
-            taskId, url, DownloadStatus.ENQUEUED, 0, filename,
+            taskId, url, DownloadStatus.ENQUEUED, 0, filename, displayName,
             savedDir, headers, showNotification, openFileFromNotification, saveInPublicStorage, allowCellular = allowCellular
         )
     }
@@ -255,7 +258,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                 val partialFile = File(partialFilePath)
                 if (partialFile.exists()) {
                     val request: WorkRequest = buildRequest(
-                        task.url, task.savedDir, task.filename,
+                        task.url, task.savedDir, task.filename, task.displayName,
                         task.headers, task.showNotification, task.openFileFromNotification,
                         true, requiresStorageNotLow, task.saveInPublicStorage, timeout, allowCellular = task.allowCellular
                     )
@@ -294,7 +297,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         if (task != null) {
             if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
                 val request: WorkRequest = buildRequest(
-                    task.url, task.savedDir, task.filename,
+                    task.url, task.savedDir, task.filename, task.displayName,
                     task.headers, task.showNotification, task.openFileFromNotification,
                     false, requiresStorageNotLow, task.saveInPublicStorage, timeout, allowCellular = task.allowCellular
                 )
