@@ -28,7 +28,7 @@
 @synthesize debug;
 
 // Version of the database
-const int dbVersion = 1;
+const int dbVersion = 2;
 
 - (instancetype)initWithDatabaseFilePath:(NSString *)dbFilePath {
     self = [super init];
@@ -55,6 +55,9 @@ const int dbVersion = 1;
                     [db executeQuery:@"CREATE TABLE version(version INTEGER UNIQUE NOT NULL);"];
                     [db executeQuery:@"INSERT INTO version(version) VALUES(1);"];
                 },
+                @2: ^(DBManager *db) {
+                    [db executeQuery:@"ALTER TABLE task ADD COLUMN allow_cellular INTEGER DEFAULT TRUE;"];
+                }
         };
         [self migrateDatabase];
     }
