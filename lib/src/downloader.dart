@@ -1,14 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
-import 'package:flutter_downloader/src/download_progress.dart';
-import 'package:flutter_downloader/src/exceptions.dart';
+import 'package:flutter_downloader/flutter_downloader.dart';
 
-import 'callback_dispatcher.dart';
 import 'models.dart';
 
 /// Singature for a function which is called when the download state of a task
@@ -64,6 +58,12 @@ class FlutterDownloader {
   Future<List<Download>> getDownloads() async {
     // todo look for .meta files
     return [];
+  }
+
+  Future<void> continueAllDownloads() async {
+    for (final download in await getDownloads()) {
+      download.resume();
+    }
   }
 
   /// Initializes the plugin. This must be called before any other method.

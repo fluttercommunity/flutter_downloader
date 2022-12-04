@@ -12,8 +12,8 @@ flutter:
         pluginClass: FlutterDownloaderPlugin
       ios:
         pluginClass: FlutterDownloaderPlugin
-      windows:
-        dartPluginClass: FlutterDownloaderPluginDesktop
+      #windows:
+      #  dartPluginClass: FlutterDownloaderPluginDesktop
 
 environment:
   sdk: ">=2.17.0 <3.0.0"

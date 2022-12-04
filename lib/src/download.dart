@@ -77,6 +77,9 @@ class Download extends ChangeNotifier {
   String? _filename;
   String? _etag;
 
+  /// The url of the download
+  String get url => _url;
+
   var _status = DownloadTaskStatus.paused;
   var _progress = 0;
 
@@ -113,9 +116,8 @@ class Download extends ChangeNotifier {
       response.headers.forEach((name, values) {
         print('- $name: $values');
       });
-      final stringData = await response.transform(utf8.decoder).join();
-      await _cacheFile.writeAsString(stringData);
-      print('Content written to cache file');
+      await response.pipe(_cacheFile.openWrite());
+      print('Content written to cache file ${_cacheFile.absolute}');
       //print('Content:');
       //print(stringData);
     } finally {
@@ -128,4 +130,10 @@ class Download extends ChangeNotifier {
 
   /// Cancel the download when running or paused
   Future<void> cancel() async {}
+
+  /// Delete the download
+  Future<void> delete() async {
+    await _cacheFile.delete();
+    await _metadataFile.delete();
+  }
 }
