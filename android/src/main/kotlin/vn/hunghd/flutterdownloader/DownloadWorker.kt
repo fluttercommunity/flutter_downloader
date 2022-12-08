@@ -497,17 +497,33 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
     private fun createFileInAppSpecificDir(filename: String, savedDir: String): File? {
         val newFile = File(savedDir, filename)
         try {
-            val rs: Boolean = newFile.createNewFile()
-            if (rs) {
-                return newFile
-            } else {
-                logError("It looks like you are trying to save file in public storage but not setting 'saveInPublicStorage' to 'true'")
+            if (newFile.exists()) {
+                val deleted = newFile.delete()
+                if (!deleted) {
+                    logError("Unable to delete existing file: ${newFile.absolutePath}")
+                    return null
+                }
             }
+
+            val created: Boolean = newFile.createNewFile()
+            if (!created) {
+                logError(
+                    """
+                        Unable to create new file: ${newFile.absolutePath}.
+                         Are are trying to save file in public storage 
+                         but not setting 'saveInPublicStorage' to 'true'?
+                    """.trimIndent()
+                )
+                return null
+            }
+
+            return newFile
+
         } catch (e: IOException) {
             e.printStackTrace()
             logError("Create a file using java.io API failed ")
+            return null
         }
-        return null
     }
 
     /**
