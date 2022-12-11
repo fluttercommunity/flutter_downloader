@@ -1,7 +1,9 @@
 /// Defines a set of possible states which a [DownloadTask] can be in.
 @pragma('vm:entry-point')
+@Deprecated('Use the DownloadStatus class instead')
 class DownloadTaskStatus {
   /// Creates a new [DownloadTaskStatus].
+  @Deprecated('Use the DownloadStatus class instead')
   const DownloadTaskStatus(int value) : _value = value;
 
   final int _value;
@@ -46,11 +48,11 @@ class DownloadTaskStatus {
   String toString() => 'DownloadTaskStatus($_value)';
 }
 
-/// Encapsulates all information of a single download task.
-///
-/// This is also the structure of the record saved in the SQLite database.
+/// Encapsulates all legacy information of a single download task.
+@Deprecated('Use the Download class instead')
 class DownloadTask {
   /// Creates a new [DownloadTask].
+  @Deprecated('Use the Download class instead')
   DownloadTask({
     required this.taskId,
     required this.status,
