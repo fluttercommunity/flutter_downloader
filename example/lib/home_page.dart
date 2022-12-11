@@ -24,7 +24,7 @@ class MyHomePage extends StatefulWidget with WidgetsBindingObserver {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late List<ItemHolder> _items;
+  List<ItemHolder> _items = [];
   late bool _loading;
   late bool _permissionReady;
   late String _localPath;
@@ -189,6 +189,7 @@ class _MyHomePageState extends State<MyHomePage> {
     //}
 
     setState(() {
+      _items = items;
       _loading = false;
     });
   }

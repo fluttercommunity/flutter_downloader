@@ -62,4 +62,7 @@ class DownloadItem {
 
   final String name;
   final String url;
+
+  @override
+  String toString() => 'DownloadItem{name: $name, url: $url}';
 }

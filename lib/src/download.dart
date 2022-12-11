@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,13 +6,14 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:flutter_downloader/src/download_status.dart';
 
 /// The current download status/progress
-class Download extends ChangeNotifier {
+class Download extends ChangeNotifier implements DownloadProgress {
   Download._({
     required Map<String, String> headers,
     required String url,
-    required Target target,
+    required DownloadTarget target,
     required HttpClient httpClient,
     required MethodChannel methodChannel,
   })  : _headers = headers,
@@ -19,17 +21,20 @@ class Download extends ChangeNotifier {
         _target = target,
         _httpClient = httpClient,
         _methodChannel = methodChannel {
-    final urlHash = sha1.convert(utf8.encode(url));
+    urlHash = sha1.convert(utf8.encode(url)).toString();
     _cacheFile = File('$urlHash.part');
     _metadataFile = File('$urlHash.meta');
   }
+
+  /// For internal use only
+  late final String urlHash;
 
   /// Create a new download
   static Future<Download> create({
     required String url,
     required MethodChannel methodChannel,
     Map<String, String> headers = const {},
-    Target target = Target.internal,
+    DownloadTarget target = DownloadTarget.internal,
     HttpClient? customHttpClient,
   }) async {
     final download = Download._(
@@ -70,23 +75,25 @@ class Download extends ChangeNotifier {
   final String _url;
   final MethodChannel _methodChannel;
   final Map<String, String> _headers;
-  final Target _target;
+  final DownloadTarget _target;
   final HttpClient _httpClient;
   late final File _cacheFile;
   late final File _metadataFile;
   String? _filename;
   String? _etag;
+  bool? _resumable;
+  int? _finalSize;
 
   /// The url of the download
   String get url => _url;
 
-  var _status = DownloadTaskStatus.paused;
-  var _progress = 0;
+  DownloadStatus _status = DownloadStatus.paused;
+  int _progress = 0;
 
-  /// The state of the download
-  DownloadTaskStatus get status => _status;
+  @override
+  DownloadStatus get status => _status;
 
-  /// The current progress in permille [0...1000]
+  @override
   int get progress => _progress;
 
   Future<void> _updateMetaData() async {
@@ -104,7 +111,7 @@ class Download extends ChangeNotifier {
 
   /// Continue the download, does nothing when status is running.
   Future<void> resume() async {
-    _status = DownloadTaskStatus.running;
+    _status = DownloadStatus.running;
     notifyListeners();
     final request = await _httpClient.getUrl(Uri.parse(_url));
     _headers.forEach((key, value) {
@@ -113,23 +120,44 @@ class Download extends ChangeNotifier {
     try {
       final response = await request.close();
       print('Response headers:');
-      response.headers.forEach((name, values) {
-        print('- $name: $values');
+      response.headers.forEach((name, values) async {
+        //print('- $name: $values');
+        if (name == 'etag') {
+          _etag = values.first;
+          notifyListeners();
+          await _updateMetaData();
+        } else if(name == 'accept-ranges') {
+          print('can be continued!');
+          _resumable = true;
+        } else if(name == 'content-length') {
+          print('${values.first} to download');
+          _finalSize = int.parse(values.first);
+        }
+      });
+      Future<void>.delayed(const Duration(milliseconds: 500), () {
+        _httpClient.close(force: true);
+        print('### close called!');
       });
       await response.pipe(_cacheFile.openWrite());
+
       print('Content written to cache file ${_cacheFile.absolute}');
-      //print('Content:');
-      //print(stringData);
+      _status = DownloadStatus.complete;
+      notifyListeners();
     } finally {
       _httpClient.close();
     }
   }
 
   /// Pauses the download when running.
-  Future<void> pause() async {}
+  void pause() {
+    _httpClient.close(force: true);
+  }
 
   /// Cancel the download when running or paused
-  Future<void> cancel() async {}
+  Future<void> cancel() async {
+    _httpClient.close(force: true);
+    await delete();
+  }
 
   /// Delete the download
   Future<void> delete() async {

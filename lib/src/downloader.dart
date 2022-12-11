@@ -19,6 +19,17 @@ enum Target {
   internal,
 }
 
+/// Abstraction to observe download status updates
+abstract class DownloadProgress extends ChangeNotifier {
+  /// The state of the download
+  DownloadStatus get status;
+
+  /// The current progress in per mille [0...1000]
+  // If you need percent simply device it by ten. Per mille is used here for
+  // big downloads where you would see big jumps between progress steps.
+  int get progress;
+}
+
 /// Provides access to all functions of the plugin in a single place.
 class FlutterDownloader {
   static const _channel = MethodChannel('fluttercommunity/flutter_downloader');
