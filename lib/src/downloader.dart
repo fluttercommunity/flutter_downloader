@@ -68,11 +68,11 @@ class FlutterDownloader extends ChangeNotifier with FlutterDownloaderLegacy impl
     headers['User-Agent'] = userAgent;
     final download = await Download.create(
       url: url,
-      headers: additionalHeaders,
+      headers: headers,
       target: target,
       methodChannel: _channel,
     );
-    await download.resume();
+    unawaited(download.resume());
     return download;
   }
 

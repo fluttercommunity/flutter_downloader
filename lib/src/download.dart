@@ -76,7 +76,7 @@ class Download extends ChangeNotifier implements DownloadProgress {
   final MethodChannel _methodChannel;
   final Map<String, String> _headers;
   final DownloadTarget _target;
-  final HttpClient _httpClient;
+  HttpClient _httpClient;
   late final File _cacheFile;
   late final File _metadataFile;
   String? _filename;
@@ -97,16 +97,20 @@ class Download extends ChangeNotifier implements DownloadProgress {
   int get progress => _progress;
 
   Future<void> _updateMetaData() async {
-    final writer = _metadataFile.openWrite()
-      ..write('url=$_url\n')
-      ..write('filename=${_filename ?? ''}\n')
-      ..write('etag=${_etag ?? ''}\n')
-      ..write('target=$_target\n')
-      ..write('headers:');
-    _headers.forEach((key, value) {
-      writer.write('\n$key=$value');
-    });
-    await writer.close();
+    final writer = _metadataFile.openWrite();
+    try {
+      writer
+        ..write('url=$_url\n')
+        ..write('filename=${_filename ?? ''}\n')
+        ..write('etag=${_etag ?? ''}\n')
+        ..write('target=$_target\n')
+        ..write('headers:');
+      _headers.forEach((key, value) {
+        writer.write('\n$key=$value');
+      });
+    } finally {
+      await writer.close();
+    }
   }
 
   /// Continue the download, does nothing when status is running.
@@ -117,6 +121,7 @@ class Download extends ChangeNotifier implements DownloadProgress {
     _headers.forEach((key, value) {
       request.headers.add(key, value);
     });
+    IOSink? outStream;
     try {
       final response = await request.close();
       print('Response headers:');
@@ -126,25 +131,34 @@ class Download extends ChangeNotifier implements DownloadProgress {
           _etag = values.first;
           notifyListeners();
           await _updateMetaData();
-        } else if(name == 'accept-ranges') {
+        } else if (name == 'accept-ranges') {
           print('can be continued!');
           _resumable = true;
-        } else if(name == 'content-length') {
+        } else if (name == 'content-length') {
           print('${values.first} to download');
           _finalSize = int.parse(values.first);
         }
       });
       Future<void>.delayed(const Duration(milliseconds: 500), () {
         _httpClient.close(force: true);
-        print('### close called!');
+        _httpClient = _createHttpClient();
+        //print('### close called!');
       });
-      await response.pipe(_cacheFile.openWrite());
+      outStream = _cacheFile.openWrite();
+      await response.pipe(outStream);
 
       print('Content written to cache file ${_cacheFile.absolute}');
       _status = DownloadStatus.complete;
       notifyListeners();
+      print('notifyListeners($_status)');
+    } on HttpException catch(e, trace) {
+      //print('### error: $e');
+      _status = _resumable == true ? DownloadStatus.paused : DownloadStatus.failed;
+      notifyListeners();
     } finally {
       _httpClient.close();
+      //print('### download ended... $_status');
+      await outStream?.close();
     }
   }
 

@@ -9,6 +9,7 @@ import 'package:flutter_downloader_example/data.dart';
 import 'package:flutter_downloader_example/download_list_item.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:windows_taskbar/windows_taskbar.dart';
 
 class MyHomePage extends StatefulWidget with WidgetsBindingObserver {
   MyHomePage({super.key, required this.title, required this.platform});
@@ -39,46 +40,73 @@ class _MyHomePageState extends State<MyHomePage> {
     _prepare();
   }
 
-  Widget _buildDownloadList() => ListView(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        children: [
-          for (final item in _items)
-            item.headline != null
-                ? _buildListSectionHeading(item.headline!)
-                : DownloadListItem(
-                    data: item,
-                    onTap: (task) async {
-                      final success = await _openDownloadedFile(task);
-                      if (!success) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Cannot open this file'),
-                          ),
-                        );
+  Widget _buildDownloadList() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      itemCount: _items.length,
+      itemBuilder: (context, index) => _items[index].headline != null
+          ? _buildListSectionHeading(_items[index].headline!)
+          : DownloadListItem(
+              data: _items[index],
+              onTap: (task) async {
+                final success = await _openDownloadedFile(task);
+                if (!success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Cannot open this file')),
+                  );
+                }
+              },
+              onActionTap: (item) async {
+                if (item.download == null) {
+                  print('### before start');
+                  item.download =
+                      await widget.downloader.startDownload(item.metaInfo!.url);
+                  item.download?.addListener(() {
+                    if (Platform.isWindows) {
+                      switch (item.download!.status) {
+                        case DownloadStatus.running:
+                          WindowsTaskbar.setProgressMode(
+                            TaskbarProgressMode.indeterminate,
+                          );
+                          break;
+                        case DownloadStatus.paused:
+                          WindowsTaskbar.setProgressMode(
+                            TaskbarProgressMode.paused,
+                          );
+                          break;
+                        case DownloadStatus.canceled:
+                          WindowsTaskbar.setProgressMode(
+                            TaskbarProgressMode.error,
+                          );
+                          break;
+                        default:
                       }
-                    },
-                    onActionTap: (item) async {
-                      if (item.download == null) {
-                        item.download = await widget.downloader.startDownload(item.metaInfo!.url);
-                      } else if (item.download?.status == DownloadTaskStatus.undefined ||
-                          item.download?.status == DownloadTaskStatus.paused ||
-                          item.download?.status == DownloadTaskStatus.failed) {
-                        await item.download?.resume();
-                      } else if (item.download?.status ==
-                              DownloadTaskStatus.complete ||
-                          item.download?.status == DownloadTaskStatus.canceled) {
-                        await item.download?.delete();
-                      } else if (item.download?.status ==
-                          DownloadTaskStatus.running) {
-                        await item.download?.pause();
-                      }
-                    },
-                    onCancel: (download) async {
-                      await download.delete();
-                    },
-                  ),
-        ],
-      );
+                    }
+                    print('~~~ download status: ${item.download?.status}');
+                  });
+                  print('### after start');
+                  item.download!.addListener(() {
+                    print('### New state: ${item.download?.status}');
+                    item.notifyListeners();
+                  });
+                  print('### after listener set');
+                } else if (item.download!.status == DownloadStatus.paused ||
+                    item.download?.status == DownloadStatus.canceled ||
+                    item.download?.status == DownloadStatus.failed) {
+                  await item.download?.resume();
+                } else if (item.download?.status == DownloadStatus.complete ||
+                    item.download?.status == DownloadStatus.canceled) {
+                  await item.download?.delete();
+                } else if (item.download?.status == DownloadStatus.running) {
+                  item.download?.pause();
+                }
+              },
+              onCancel: (download) async {
+                await download.delete();
+              },
+            ),
+    );
+  }
 
   Widget _buildListSectionHeading(String title) {
     return Container(
@@ -166,7 +194,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _prepare() async {
-    _items = [
+    final items = [
       ItemHolder.group('Documents'),
       ...DownloadItems.documents.map(ItemHolder.download),
       ItemHolder.group('Images'),
@@ -179,7 +207,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     for (final download in await widget.downloader.getDownloads()) {
       final item =
-          _items.firstWhereOrNull((item) => item.metaInfo?.url == download.url);
+          items.firstWhereOrNull((item) => item.metaInfo?.url == download.url);
       item?.download = download;
     }
     //for(final item in _items) {
@@ -262,15 +290,24 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class ItemHolder {
-  ItemHolder.download(this.metaInfo) : headline = null;
+class ItemHolder extends ValueNotifier<Download?> {
+  ItemHolder.download(this.metaInfo) : headline = null, super(null);
 
-  ItemHolder.group(this.headline) : metaInfo = null;
+  ItemHolder.group(this.headline) : metaInfo = null, super(null);
 
   final String? headline;
   final DownloadItem? metaInfo;
-  Download? download;
+  Download? _download;
+
+  Download? get download => _download;
+
+  set download(Download? download) {
+    _download = download;
+    value = download;
+    download?.addListener(notifyListeners);
+  }
 
   @override
-  String toString() => 'ItemHolder{headline: $headline, metaInfo: $metaInfo, download: $download}';
+  String toString() => 'ItemHolder{headline: $headline, metaInfo: $metaInfo, '
+      'download: $_download}';
 }

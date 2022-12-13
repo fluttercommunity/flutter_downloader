@@ -24,7 +24,7 @@ class DownloadListItem extends StatelessWidget {
         icon: const Icon(Icons.file_download),
         tooltip: 'Start',
       );
-    } else if (holder.download?.status == DownloadTaskStatus.running) {
+    } else if (holder.download?.status == DownloadStatus.running) {
       return Row(
         children: [
           Text('${holder.download?.progress}%'),
@@ -36,7 +36,7 @@ class DownloadListItem extends StatelessWidget {
           ),
         ],
       );
-    } else if (holder.download?.status == DownloadTaskStatus.paused) {
+    } else if (holder.download?.status == DownloadStatus.paused) {
       return Row(
         children: [
           Text('${holder.download?.progress}%'),
@@ -46,16 +46,15 @@ class DownloadListItem extends StatelessWidget {
             icon: const Icon(Icons.play_arrow, color: Colors.green),
             tooltip: 'Resume',
           ),
-          if (onCancel != null)
-            IconButton(
-              onPressed: () => onCancel.call(holder.download!),
-              constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-              icon: const Icon(Icons.cancel, color: Colors.red),
-              tooltip: 'Cancel',
-            ),
+          IconButton(
+            onPressed: () => onCancel.call(holder.download!),
+            constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+            icon: const Icon(Icons.cancel, color: Colors.red),
+            tooltip: 'Cancel',
+          ),
         ],
       );
-    } else if (holder.download?.status == DownloadTaskStatus.complete) {
+    } else if (holder.download?.status == DownloadStatus.complete) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.end,
@@ -69,22 +68,21 @@ class DownloadListItem extends StatelessWidget {
           )
         ],
       );
-    } else if (holder.download?.status == DownloadTaskStatus.canceled) {
+    } else if (holder.download?.status == DownloadStatus.canceled) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           const Text('Canceled', style: TextStyle(color: Colors.red)),
-          if (onActionTap != null)
-            IconButton(
-              onPressed: () => onActionTap.call(holder),
-              constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
-              icon: const Icon(Icons.cancel),
-              tooltip: 'Cancel',
-            )
+          IconButton(
+            onPressed: () => onActionTap.call(holder),
+            constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+            icon: const Icon(Icons.cancel),
+            tooltip: 'Cancel',
+          )
         ],
       );
-    } else if (holder.download?.status == DownloadTaskStatus.failed) {
+    } else if (holder.download?.status == DownloadStatus.failed) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.end,
@@ -98,8 +96,8 @@ class DownloadListItem extends StatelessWidget {
           )
         ],
       );
-    } else if (holder.download?.status == DownloadTaskStatus.enqueued) {
-      return const Text('Pending', style: TextStyle(color: Colors.orange));
+    //} else if (holder.download?.status == DownloadStatus.enqueued) {
+    //  return const Text('Pending', style: TextStyle(color: Colors.orange));
     } else {
       return null;
     }
@@ -108,7 +106,7 @@ class DownloadListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: data.download?.status == DownloadTaskStatus.complete
+      onTap: data.download?.status == DownloadStatus.complete
           ? () {
               onTap(data.download!);
             }
@@ -133,13 +131,16 @@ class DownloadListItem extends StatelessWidget {
                     ),
                     Padding(
                       padding: const EdgeInsets.only(left: 8),
-                      child: _buildTrailing(data),
+                      child: ValueListenableBuilder<Download?>(
+                        valueListenable : data,
+                        builder: (context, holder, child) => _buildTrailing(data)!,
+                      ),
                     ),
                   ],
                 ),
               ),
-              if (data.download?.status == DownloadTaskStatus.running ||
-                  data.download?.status == DownloadTaskStatus.paused)
+              if (data.download?.status == DownloadStatus.running ||
+                  data.download?.status == DownloadStatus.paused)
                 Positioned(
                   left: 0,
                   right: 0,

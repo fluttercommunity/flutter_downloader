@@ -13,6 +13,7 @@
 library flutter_downloader;
 
 export 'src/download.dart';
+export 'src/download_status.dart';
 export 'src/downloader.dart';
 export 'src/exceptions.dart';
 export 'src/models.dart';
