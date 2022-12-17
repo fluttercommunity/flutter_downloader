@@ -356,6 +356,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _prepareSaveDir() async {
     _localPath = (await _getSavedDir())!;
     final savedDir = Directory(_localPath);
+    print('savedDir: $_localPath');
     if (!savedDir.existsSync()) {
       await savedDir.create();
     }

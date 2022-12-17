@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
+import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
@@ -36,6 +37,8 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
     private var debugMode = 0
     private var ignoreSsl = 0
     private val initializationLock = Any()
+
+    private val TAG = DownloadWorker::class.java.simpleName
 
     private fun onAttachedToEngine(applicationContext: Context?, messenger: BinaryMessenger) {
         synchronized(initializationLock) {
@@ -89,7 +92,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         openFileFromNotification: Boolean,
         isResume: Boolean,
         requiresStorageNotLow: Boolean,
-        saveInPublicStorage: Boolean, 
+        saveInPublicStorage: Boolean,
         timeout: Int,
         allowCellular: Boolean,
     ): WorkRequest {
@@ -170,16 +173,34 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         val saveInPublicStorage: Boolean = call.requireArgument("save_in_public_storage")
         val allowCellular: Boolean = call.requireArgument("allow_cellular")
         val request: WorkRequest = buildRequest(
-            url, savedDir, filename, headers, showNotification,
-            openFileFromNotification, false, requiresStorageNotLow, saveInPublicStorage, timeout, allowCellular = allowCellular
+            url,
+            savedDir,
+            filename,
+            headers,
+            showNotification,
+            openFileFromNotification,
+            false,
+            requiresStorageNotLow,
+            saveInPublicStorage,
+            timeout,
+            allowCellular = allowCellular
         )
         WorkManager.getInstance(requireContext()).enqueue(request)
         val taskId: String = request.id.toString()
         result.success(taskId)
         sendUpdateProgress(taskId, DownloadStatus.ENQUEUED, 0)
         taskDao!!.insertOrUpdateNewTask(
-            taskId, url, DownloadStatus.ENQUEUED, 0, filename,
-            savedDir, headers, showNotification, openFileFromNotification, saveInPublicStorage, allowCellular = allowCellular
+            taskId,
+            url,
+            DownloadStatus.ENQUEUED,
+            0,
+            filename,
+            savedDir,
+            headers,
+            showNotification,
+            openFileFromNotification,
+            saveInPublicStorage,
+            allowCellular = allowCellular
         )
     }
 
@@ -255,9 +276,17 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                 val partialFile = File(partialFilePath)
                 if (partialFile.exists()) {
                     val request: WorkRequest = buildRequest(
-                        task.url, task.savedDir, task.filename,
-                        task.headers, task.showNotification, task.openFileFromNotification,
-                        true, requiresStorageNotLow, task.saveInPublicStorage, timeout, allowCellular = task.allowCellular
+                        task.url,
+                        task.savedDir,
+                        task.filename,
+                        task.headers,
+                        task.showNotification,
+                        task.openFileFromNotification,
+                        true,
+                        requiresStorageNotLow,
+                        task.saveInPublicStorage,
+                        timeout,
+                        allowCellular = task.allowCellular
                     )
                     val newTaskId: String = request.id.toString()
                     result.success(newTaskId)
@@ -330,6 +359,8 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             return
         }
 
+        Log.i(TAG, "open(taskId: $taskId)")
+
         val fileURL = task.url
         val savedDir = task.savedDir
         var filename = task.filename
@@ -337,9 +368,12 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             filename = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length)
         }
         val saveFilePath = savedDir + File.separator + filename
-        val intent: Intent? =
-            IntentUtils.validatedFileIntent(requireContext(), saveFilePath, task.mimeType)
+
+        Log.i(TAG, "Resolved file path: $saveFilePath")
+
+        val intent = IntentUtils.validatedFileIntent(requireContext(), saveFilePath, task.mimeType)
         if (intent != null) {
+            Log.i(TAG, "Starting intent $intent...")
             requireContext().startActivity(intent)
             result.success(true)
         } else {

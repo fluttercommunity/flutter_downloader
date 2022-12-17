@@ -220,7 +220,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
 
     private fun setupHeaders(conn: HttpURLConnection, headers: String) {
         if (headers.isNotEmpty()) {
-            log("Headers = $headers")
+            log("\tHeaders = $headers")
             try {
                 val json = JSONObject(headers)
                 val it: Iterator<String> = json.keys()
