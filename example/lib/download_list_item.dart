@@ -27,7 +27,7 @@ class DownloadListItem extends StatelessWidget {
     } else if (holder.download?.status == DownloadStatus.running) {
       return Row(
         children: [
-          Text('${holder.download?.progress}%'),
+          Text('${(holder.download?.progress ?? 0) ~/ 10}%'),
           IconButton(
             onPressed: () => onActionTap.call(holder),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
@@ -39,7 +39,7 @@ class DownloadListItem extends StatelessWidget {
     } else if (holder.download?.status == DownloadStatus.paused) {
       return Row(
         children: [
-          Text('${holder.download?.progress}%'),
+          Text('${(holder.download?.progress ?? 0) ~/ 10}%'),
           IconButton(
             onPressed: () => onActionTap.call(holder),
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),

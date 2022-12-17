@@ -117,6 +117,7 @@ class Download extends ChangeNotifier implements DownloadProgress {
   Future<void> resume() async {
     _status = DownloadStatus.running;
     notifyListeners();
+    print('notifyListeners($_status)');
     final request = await _httpClient.getUrl(Uri.parse(_url));
     _headers.forEach((key, value) {
       request.headers.add(key, value);
@@ -130,6 +131,7 @@ class Download extends ChangeNotifier implements DownloadProgress {
         if (name == 'etag') {
           _etag = values.first;
           notifyListeners();
+          //print('notifyListeners($_status)');
           await _updateMetaData();
         } else if (name == 'accept-ranges') {
           print('can be continued!');
@@ -139,26 +141,48 @@ class Download extends ChangeNotifier implements DownloadProgress {
           _finalSize = int.parse(values.first);
         }
       });
-      Future<void>.delayed(const Duration(milliseconds: 500), () {
-        _httpClient.close(force: true);
-        _httpClient = _createHttpClient();
-        //print('### close called!');
-      });
-      outStream = _cacheFile.openWrite();
-      await response.pipe(outStream);
+      //Future<void>.delayed(const Duration(milliseconds: 500), () {
+      //  _httpClient.close(force: true);
+      //  _httpClient = _createHttpClient();
+      //  //print('### close called!');
+      //});
+      outStream = _cacheFile.openWrite(encoding: Encoding.getByName('l1')!);
+      var saved = 0;
+      response.listen(
+        (event) {
+          event.forEach((char) => outStream?.writeCharCode(char));
+          saved += event.length;
+          if (_finalSize != null) {
+            final progress = (saved * 1000) ~/ _finalSize!;
+            if (progress != _progress) {
+              _progress = progress;
+              notifyListeners();
+              //print('$_progress‰');
+            }
+          }
+        },
+        onDone: () async {
+          print('Saved $saved bytes to cache file ${_cacheFile.absolute}');
+          _status = DownloadStatus.complete;
+          notifyListeners();
+          await outStream?.flush();
+          await outStream?.close();
+        },
+        onError: () async {
+          print('error');
+          await outStream?.close();
+        },
+      );
 
-      print('Content written to cache file ${_cacheFile.absolute}');
-      _status = DownloadStatus.complete;
-      notifyListeners();
-      print('notifyListeners($_status)');
-    } on HttpException catch(e, trace) {
-      //print('### error: $e');
-      _status = _resumable == true ? DownloadStatus.paused : DownloadStatus.failed;
-      notifyListeners();
+      //print('notifyListeners($_status)');
+    } on HttpException catch (e, trace) {
+      print('### error: $e');
+      //_status = _resumable == true ? DownloadStatus.paused : DownloadStatus.failed;
+      //notifyListeners();
     } finally {
-      _httpClient.close();
+      //_httpClient.close();
       //print('### download ended... $_status');
-      await outStream?.close();
+      //await outStream?.close();
     }
   }
 
@@ -177,5 +201,33 @@ class Download extends ChangeNotifier implements DownloadProgress {
   Future<void> delete() async {
     await _cacheFile.delete();
     await _metadataFile.delete();
+  }
+}
+
+class _ObservablePipe extends StreamConsumer<List<int>> {
+  _ObservablePipe(this.base);
+
+  final IOSink base;
+  late StreamSubscription<List<int>> _subscription;
+
+  @override
+  Future addStream(Stream<List<int>> stream) {
+    _subscription = stream.listen((data) {
+      print('Write ${data.length}bytes');
+      try {
+        base.writeAll(data);
+      } catch (e) {
+        base.close();
+        _subscription.cancel();
+        print('closed');
+      }
+    });
+    //return _subscription;
+    return base.addStream(stream);
+  }
+
+  @override
+  Future close() {
+    return base.close();
   }
 }

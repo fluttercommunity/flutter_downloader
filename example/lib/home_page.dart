@@ -58,7 +58,6 @@ class _MyHomePageState extends State<MyHomePage> {
               },
               onActionTap: (item) async {
                 if (item.download == null) {
-                  print('### before start');
                   item.download =
                       await widget.downloader.startDownload(item.metaInfo!.url);
                   item.download?.addListener(() {
@@ -82,14 +81,10 @@ class _MyHomePageState extends State<MyHomePage> {
                         default:
                       }
                     }
-                    print('~~~ download status: ${item.download?.status}');
                   });
-                  print('### after start');
-                  item.download!.addListener(() {
-                    print('### New state: ${item.download?.status}');
-                    item.notifyListeners();
-                  });
-                  print('### after listener set');
+                  //item.download!.addListener(() {
+                  //  item.notifyListeners();
+                  //});
                 } else if (item.download!.status == DownloadStatus.paused ||
                     item.download?.status == DownloadStatus.canceled ||
                     item.download?.status == DownloadStatus.failed) {
