@@ -55,7 +55,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         values.put(TaskEntry.COLUMN_NAME_RESUMABLE, 0)
         values.put(TaskEntry.COLUMN_NAME_TIME_CREATED, System.currentTimeMillis())
         values.put(TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE, if (saveInPublicStorage) 1 else 0)
-        values.put(TaskEntry.COLUMN_ALLOW_CELLULAR, if(allowCellular) 1 else 0)
+        values.put(TaskEntry.COLUMN_ALLOW_CELLULAR, if (allowCellular) 1 else 0)
         db.beginTransaction()
         try {
             db.insertWithOnConflict(
