@@ -1,22 +1,24 @@
-group 'vn.hunghd.flutterdownloader'
-version '1.0-SNAPSHOT'
-
 buildscript {
-    ext.kotlin_version = '1.7.10'
+    ext.kotlin_version = "1.7.22"
     repositories {
         google()
         mavenCentral()
-        maven {
-            url "https://plugins.gradle.org/m2/"
-        }
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:7.2.2'
+        classpath "com.android.tools.build:gradle:7.2.2"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath 'org.jlleitschuh.gradle:ktlint-gradle:11.0.0'
     }
 }
+
+plugins {
+    id "com.android.library"
+    id "kotlin-android"
+    id "org.jlleitschuh.gradle.ktlint" version "11.0.0"
+}
+
+group "vn.hunghd.flutterdownloader"
+version "1.0-SNAPSHOT"
 
 rootProject.allprojects {
     repositories {
@@ -25,32 +27,21 @@ rootProject.allprojects {
     }
 }
 
-apply plugin: 'com.android.library'
-apply plugin: 'org.jetbrains.kotlin.android'
-apply plugin: "org.jlleitschuh.gradle.ktlint"
-
 android {
-    compileSdkVersion 32
+    compileSdk 32
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+    }
 
     defaultConfig {
-        minSdkVersion 19
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-    }
-    lintOptions {
-        disable 'InvalidPackage'
-    }
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-    sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
+        minSdk 19
+        targetSdk 32
     }
 }
 
 dependencies {
-    implementation 'androidx.work:work-runtime:2.7.1'
-    implementation 'androidx.annotation:annotation:1.4.0'
-    implementation 'androidx.core:core:1.9.0'
-    implementation 'androidx.fragment:fragment:1.5.2'
+    implementation "androidx.work:work-runtime:2.7.1"
+    implementation "androidx.annotation:annotation:1.5.0"
+    implementation "androidx.core:core-ktx:1.9.0"
 }

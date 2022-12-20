@@ -89,7 +89,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         openFileFromNotification: Boolean,
         isResume: Boolean,
         requiresStorageNotLow: Boolean,
-        saveInPublicStorage: Boolean, 
+        saveInPublicStorage: Boolean,
         timeout: Int,
         allowCellular: Boolean,
     ): WorkRequest {

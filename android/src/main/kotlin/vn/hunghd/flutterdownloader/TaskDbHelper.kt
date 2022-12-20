@@ -12,10 +12,9 @@ class TaskDbHelper private constructor(context: Context) :
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if(newVersion == 4) {
+        if (newVersion == 4) {
             db.execSQL("ALTER TABLE ${TaskEntry.TABLE_NAME} ADD COLUMN ${TaskEntry.COLUMN_ALLOW_CELLULAR} TINYINT DEFAULT 1")
-        }
-        else if (oldVersion == 2 && newVersion == 3) {
+        } else if (oldVersion == 2 && newVersion == 3) {
             db.execSQL("ALTER TABLE " + TaskEntry.TABLE_NAME + " ADD COLUMN " + TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE + " TINYINT DEFAULT 0")
         } else {
             db.execSQL(SQL_DELETE_ENTRIES)
