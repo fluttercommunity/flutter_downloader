@@ -90,7 +90,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         openFileFromNotification: Boolean,
         isResume: Boolean,
         requiresStorageNotLow: Boolean,
-        saveInPublicStorage: Boolean, 
+        saveInPublicStorage: Boolean,
         timeout: Int,
         allowCellular: Boolean,
     ): WorkRequest {
@@ -217,6 +217,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             item["file_name"] = task.filename
             item["saved_dir"] = task.savedDir
             item["time_created"] = task.timeCreated
+            item["allow_cellular"] = task.allowCellular
             array.add(item)
         }
         result.success(array)
