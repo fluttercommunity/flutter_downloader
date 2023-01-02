@@ -1,6 +1,6 @@
 name: flutter_downloader
 description: Powerful plugin making it easy to download files.
-version: 1.9.1
+version: 1.10.0
 repository: https://github.com/fluttercommunity/flutter_downloader
 issue_tracker: https://github.com/fluttercommunity/flutter_downloader/issues
 maintainer: Bartek Pacia (@bartekpacia)

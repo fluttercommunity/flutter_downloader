@@ -1,3 +1,9 @@
+## 1.10.0
+
+- Add `allowCellular` argument to `loadTasksWithRawQuery()` (#765)
+- Fix database of download tasks being created in a public directory on iOS (#728)
+- Add `allowCellular` argument to `DownloadCallback` (#754)
+
 ## 1.9.1
 
 - Fix last download progress being wrong on Android (#752)
