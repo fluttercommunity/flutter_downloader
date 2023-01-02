@@ -123,6 +123,7 @@ class Download extends ChangeNotifier implements DownloadProgress {
       request.headers.add(key, value);
     });
     IOSink? outStream;
+    var hasError = false;
     try {
       final response = await request.close();
       print('Response headers:');
@@ -148,10 +149,10 @@ class Download extends ChangeNotifier implements DownloadProgress {
       //});
       outStream = _cacheFile.openWrite(encoding: Encoding.getByName('l1')!);
       var saved = 0;
-      response.listen(
-        (event) {
-          event.forEach((char) => outStream?.writeCharCode(char));
-          saved += event.length;
+      final counter = StreamTransformer<List<int>, List<int>>.fromHandlers(
+        handleData: (data, sink) {
+          sink.add(data);
+          saved += data.length;
           if (_finalSize != null) {
             final progress = (saved * 1000) ~/ _finalSize!;
             if (progress != _progress) {
@@ -161,28 +162,32 @@ class Download extends ChangeNotifier implements DownloadProgress {
             }
           }
         },
-        onDone: () async {
+        handleDone: (sink) async {
           print('Saved $saved bytes to cache file ${_cacheFile.absolute}');
-          _status = DownloadStatus.complete;
+          if (!hasError) {
+            _status = DownloadStatus.complete;
+          }
           notifyListeners();
           await outStream?.flush();
           await outStream?.close();
+          outStream = null;
         },
-        onError: () async {
-          print('error');
+        handleError: (e, trace, sink) async {
+          print('Error: $e');
+          sink.close();
+          await outStream?.flush();
           await outStream?.close();
+          outStream = null;
+          hasError = true;
+          _status = _resumable == true ? DownloadStatus.paused : DownloadStatus.failed;
+          notifyListeners();
         },
       );
-
-      //print('notifyListeners($_status)');
+      await response.transform(counter).pipe(outStream!);
     } on HttpException catch (e, trace) {
-      print('### error: $e');
-      //_status = _resumable == true ? DownloadStatus.paused : DownloadStatus.failed;
-      //notifyListeners();
-    } finally {
-      //_httpClient.close();
-      //print('### download ended... $_status');
-      //await outStream?.close();
+      //print('### error: $e');
+      _status = _resumable == true ? DownloadStatus.paused : DownloadStatus.failed;
+      notifyListeners();
     }
   }
 
@@ -195,12 +200,17 @@ class Download extends ChangeNotifier implements DownloadProgress {
   Future<void> cancel() async {
     _httpClient.close(force: true);
     await delete();
+    _status = DownloadStatus.canceled;
+    notifyListeners();
   }
 
   /// Delete the download
   Future<void> delete() async {
     await _cacheFile.delete();
     await _metadataFile.delete();
+    _status = DownloadStatus.canceled;
+    _progress = 0;
+    notifyListeners();
   }
 }
 
