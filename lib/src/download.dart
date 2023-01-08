@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_downloader/src/download_status.dart';
 
+// ignore_for_file: use_if_null_to_convert_nulls_to_bools
 /// The current download status/progress
 class Download extends ChangeNotifier implements DownloadProgress {
   Download._({
@@ -122,33 +123,45 @@ class Download extends ChangeNotifier implements DownloadProgress {
     _headers.forEach((key, value) {
       request.headers.add(key, value);
     });
+    //print('Cachefile: ${_cacheFile.absolute.path}');
+    var saved = 0;
+    if (_resumable == true && _finalSize != null) {
+      final alreadyDownloaded = await _cacheFile.length();
+      if (_etag != null) {
+        request.headers.add('If-Match', _etag!);
+      }
+      request.headers.add('Range', 'bytes=$alreadyDownloaded-$_finalSize');
+      saved = alreadyDownloaded;
+    }
     IOSink? outStream;
     var hasError = false;
     try {
       final response = await request.close();
       print('Response headers:');
-      response.headers.forEach((name, values) async {
-        //print('- $name: $values');
-        if (name == 'etag') {
-          _etag = values.first;
-          notifyListeners();
-          //print('notifyListeners($_status)');
-          await _updateMetaData();
-        } else if (name == 'accept-ranges') {
-          print('can be continued!');
-          _resumable = true;
-        } else if (name == 'content-length') {
-          print('${values.first} to download');
-          _finalSize = int.parse(values.first);
-        }
-      });
+      if (response.statusCode == 200) {
+        response.headers.forEach((name, values) async {
+          //print('- $name: $values');
+          if (name == 'etag') {
+            _etag = values.first;
+            notifyListeners();
+            //print('notifyListeners($_status)');
+            await _updateMetaData();
+          } else if (name == 'accept-ranges') {
+            print('can be continued!');
+            _resumable = true;
+          } else if (name == 'content-length') {
+            print('${values.first} to download');
+            _finalSize = int.parse(values.first);
+          }
+        });
+      }
       //Future<void>.delayed(const Duration(milliseconds: 500), () {
       //  _httpClient.close(force: true);
       //  _httpClient = _createHttpClient();
       //  //print('### close called!');
       //});
-      outStream = _cacheFile.openWrite(encoding: Encoding.getByName('l1')!);
-      var saved = 0;
+      final mode = response.statusCode == 206 ? FileMode.append : FileMode.write;
+      outStream = _cacheFile.openWrite(mode: mode, encoding: Encoding.getByName('l1')!);
       final counter = StreamTransformer<List<int>, List<int>>.fromHandlers(
         handleData: (data, sink) {
           sink.add(data);
@@ -211,33 +224,5 @@ class Download extends ChangeNotifier implements DownloadProgress {
     _status = DownloadStatus.canceled;
     _progress = 0;
     notifyListeners();
-  }
-}
-
-class _ObservablePipe extends StreamConsumer<List<int>> {
-  _ObservablePipe(this.base);
-
-  final IOSink base;
-  late StreamSubscription<List<int>> _subscription;
-
-  @override
-  Future addStream(Stream<List<int>> stream) {
-    _subscription = stream.listen((data) {
-      print('Write ${data.length}bytes');
-      try {
-        base.writeAll(data);
-      } catch (e) {
-        base.close();
-        _subscription.cancel();
-        print('closed');
-      }
-    });
-    //return _subscription;
-    return base.addStream(stream);
-  }
-
-  @override
-  Future close() {
-    return base.close();
   }
 }
