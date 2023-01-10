@@ -1,7 +1,12 @@
+## 1.10.1
+
+- Fix crash when `allowCellular` is null on iOS (#774)
+
 ## 1.10.0
 
 - Add `allowCellular` argument to `loadTasksWithRawQuery()` (#765)
-- Fix database of download tasks being created in a public directory on iOS (#728)
+- Fix database of download tasks being created in a public directory on iOS
+  (#728)
 - Add `allowCellular` argument to `DownloadCallback` (#754)
 
 ## 1.9.1
@@ -64,7 +69,8 @@
 
 - Improve documentation
 
-- Make it possible to disable logging using `FlutterDownloader.initialize(debug: false)`
+- Make it possible to disable logging using `FlutterDownloader.initialize(debug:
+false)`
 
 ## 1.7.4
 
@@ -135,7 +141,8 @@
 
 ## 1.4.1
 
-- Android: fix bug `ensureInitializationComplete must be called after startInitialization`
+- Android: fix bug `ensureInitializationComplete must be called after
+startInitialization`
 - clarify integration documents
 
 ## 1.4.0
