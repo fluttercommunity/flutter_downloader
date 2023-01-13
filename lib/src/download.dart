@@ -8,6 +8,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_downloader/src/download_status.dart';
 
+/// Factory interface
+typedef CustomHttpClientFactory = HttpClient Function();
+
 // ignore_for_file: use_if_null_to_convert_nulls_to_bools
 /// The current download status/progress
 class Download extends ChangeNotifier implements DownloadProgress {
@@ -29,6 +32,20 @@ class Download extends ChangeNotifier implements DownloadProgress {
 
   /// For internal use only
   late final String urlHash;
+  final String _url;
+  final MethodChannel _methodChannel;
+  final Map<String, String> _headers;
+  final DownloadTarget _target;
+  HttpClient _httpClient;
+  late final File _cacheFile;
+  late final File _metadataFile;
+  String? _filename;
+  String? _etag;
+  bool? _resumable;
+  int? _finalSize;
+
+  /// Add a custom http factory
+  static CustomHttpClientFactory? customHttpClientFactory;
 
   /// Create a new download
   static Future<Download> create({
@@ -36,10 +53,9 @@ class Download extends ChangeNotifier implements DownloadProgress {
     required MethodChannel methodChannel,
     Map<String, String> headers = const {},
     DownloadTarget target = DownloadTarget.internal,
-    HttpClient? customHttpClient,
   }) async {
     final download = Download._(
-      headers: headers,
+      headers: Map<String, String>.from(headers),
       url: url,
       target: target,
       httpClient: _createHttpClient(),
@@ -52,7 +68,7 @@ class Download extends ChangeNotifier implements DownloadProgress {
           parseHeaders = true;
         } else {
           final delimiter = row.indexOf('=');
-          final key = row.substring(0, delimiter - 1);
+          final key = row.substring(0, delimiter);
           final value = row.substring(delimiter + 1);
           if (parseHeaders) {
             download._headers[key] = value;
@@ -60,8 +76,16 @@ class Download extends ChangeNotifier implements DownloadProgress {
             download._filename = value;
           } else if (key == 'etag' && value.isNotEmpty) {
             download._etag = value;
+          } else if (key == 'resumable' && value.isNotEmpty) {
+            download._resumable = value == 'true';
+          } else if (key == 'size' && value.isNotEmpty) {
+            download._finalSize = int.parse(value);
           }
         }
+      }
+      if (download._finalSize != null) {
+        download._progress =
+            (await download._cacheFile.length() * 1000) ~/ download._finalSize!;
       }
     } else {
       await download._updateMetaData();
@@ -70,20 +94,8 @@ class Download extends ChangeNotifier implements DownloadProgress {
   }
 
   static HttpClient _createHttpClient() {
-    return HttpClient()..connectionTimeout = const Duration(seconds: 10);
+    return customHttpClientFactory?.call() ?? HttpClient()..connectionTimeout = const Duration(seconds: 10);
   }
-
-  final String _url;
-  final MethodChannel _methodChannel;
-  final Map<String, String> _headers;
-  final DownloadTarget _target;
-  HttpClient _httpClient;
-  late final File _cacheFile;
-  late final File _metadataFile;
-  String? _filename;
-  String? _etag;
-  bool? _resumable;
-  int? _finalSize;
 
   /// The url of the download
   String get url => _url;
@@ -103,8 +115,10 @@ class Download extends ChangeNotifier implements DownloadProgress {
       writer
         ..write('url=$_url\n')
         ..write('filename=${_filename ?? ''}\n')
-        ..write('etag=${_etag ?? ''}\n')
         ..write('target=$_target\n')
+        ..write('etag=${_etag ?? ''}\n')
+        ..write('size=$_finalSize\n')
+        ..write('resumable=$_resumable\n')
         ..write('headers:');
       _headers.forEach((key, value) {
         writer.write('\n$key=$value');
@@ -118,7 +132,8 @@ class Download extends ChangeNotifier implements DownloadProgress {
   Future<void> resume() async {
     _status = DownloadStatus.running;
     notifyListeners();
-    print('notifyListeners($_status)');
+    //print('notifyListeners($_status)');
+    _httpClient = _createHttpClient();
     final request = await _httpClient.getUrl(Uri.parse(_url));
     _headers.forEach((key, value) {
       request.headers.add(key, value);
@@ -137,7 +152,7 @@ class Download extends ChangeNotifier implements DownloadProgress {
     var hasError = false;
     try {
       final response = await request.close();
-      print('Response headers:');
+      //print('Response headers:');
       if (response.statusCode == 200) {
         response.headers.forEach((name, values) async {
           //print('- $name: $values');
@@ -147,10 +162,10 @@ class Download extends ChangeNotifier implements DownloadProgress {
             //print('notifyListeners($_status)');
             await _updateMetaData();
           } else if (name == 'accept-ranges') {
-            print('can be continued!');
+            //print('can be continued!');
             _resumable = true;
           } else if (name == 'content-length') {
-            print('${values.first} to download');
+            //print('${values.first} to download');
             _finalSize = int.parse(values.first);
           }
         });

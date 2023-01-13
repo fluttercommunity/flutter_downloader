@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_downloader_example/home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FlutterDownloader().continueAllDownloads();
-
   runApp(const MyApp());
 }
 

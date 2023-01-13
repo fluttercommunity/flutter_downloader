@@ -96,8 +96,6 @@ class DownloadListItem extends StatelessWidget {
           )
         ],
       );
-    //} else if (holder.download?.status == DownloadStatus.enqueued) {
-    //  return const Text('Pending', style: TextStyle(color: Colors.orange));
     } else {
       return null;
     }
@@ -132,23 +130,31 @@ class DownloadListItem extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(left: 8),
                       child: ValueListenableBuilder<Download?>(
-                        valueListenable : data,
-                        builder: (context, holder, child) => _buildTrailing(data)!,
+                        valueListenable: data,
+                        builder: (context, holder, child) =>
+                            _buildTrailing(data)!,
                       ),
                     ),
                   ],
                 ),
               ),
-              if (data.download?.status == DownloadStatus.running ||
-                  data.download?.status == DownloadStatus.paused)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: LinearProgressIndicator(
-                    value: data.download!.progress / 1000,
-                  ),
-                )
+              ValueListenableBuilder<Download?>(
+                valueListenable: data,
+                builder: (context, holder, child) {
+                  if (data.download?.status == DownloadStatus.running ||
+                      data.download?.status == DownloadStatus.paused) {
+                    return Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: LinearProgressIndicator(
+                        value: data.download!.progress / 1000,
+                      ),
+                    );
+                  }
+                  return Container();
+                },
+              ),
             ],
           ),
         ),

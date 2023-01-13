@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -12,9 +16,11 @@ enum DownloadTarget {
   /// Put the download in the download folder. If the target platform does
   /// support download folders internal will be used.
   downloadsFolder,
+
   /// Put the download in the desktop folder. If the target platform does
   /// support download folders internal will be used.
   desktopFolder,
+
   /// Put the download into the internal storage of the app.
   internal,
 }
@@ -33,12 +39,16 @@ abstract class DownloadProgress extends ChangeNotifier {
 /// Provides access to all functions of the plugin in a single place.
 /// The change notifier should just inform about changes of the
 /// [DownloadProgress].
-class FlutterDownloader extends ChangeNotifier with FlutterDownloaderLegacy implements DownloadProgress {
+class FlutterDownloader extends ChangeNotifier
+    with FlutterDownloaderLegacy
+    implements DownloadProgress {
   /// Get the flutter downloader.
   factory FlutterDownloader() {
     return FlutterDownloaderLegacy._singleton;
   }
+
   FlutterDownloader._internal();
+
   // For simplicity moved to FlutterDownloaderLegacy
   // static final FlutterDownloader _singleton = FlutterDownloader._internal();
   static const _channel = MethodChannel('fluttercommunity/flutter_downloader');
@@ -76,10 +86,39 @@ class FlutterDownloader extends ChangeNotifier with FlutterDownloaderLegacy impl
     return download;
   }
 
+  Future<Download?> _loadMetaData(String url) async {
+    final urlHash = sha1.convert(utf8.encode(url)).toString();
+    final file = File('$urlHash.meta');
+    if (file.existsSync()) {
+      return Download.create(
+        url: url,
+        methodChannel: _channel,
+      );
+    }
+    return null;
+  }
+
   /// Returns all known downloads.
   Future<List<Download>> getDownloads() async {
-    // todo look for .meta files
-    return [];
+    final files = await Directory('.').list().toList();
+    final downloads = <Download>[];
+    for (final file in files) {
+      //print('checking File: ${file.path}');
+      if (file.path.endsWith('.meta')) {
+        print('Found meta file ${file.path}');
+        final lines = await File(file.path).readAsLines();
+        for (final line in lines) {
+          if (line.startsWith('url=')) {
+            final download = await _loadMetaData(line.substring(4));
+            if (download != null) {
+              downloads.add(download);
+            }
+          }
+        }
+      }
+    }
+    //print('Found ${downloads.length} downloads');
+    return downloads;
   }
 
   /// Continue all paused downloads.
@@ -87,7 +126,7 @@ class FlutterDownloader extends ChangeNotifier with FlutterDownloaderLegacy impl
     for (final download in await getDownloads()) {
       if (download.status != DownloadStatus.complete ||
           download.status != DownloadStatus.canceled) {
-        await download.resume();
+        unawaited(download.resume());
       }
     }
   }
