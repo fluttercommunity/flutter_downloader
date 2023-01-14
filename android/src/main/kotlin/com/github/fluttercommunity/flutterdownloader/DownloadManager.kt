@@ -12,7 +12,7 @@ import java.security.MessageDigest
  */
 class DownloadManager private constructor(data: List<String>) {
     val cacheFile: File
-        get() = File(FlutterDownloaderPlugin.tempDir, id)
+        get() = File(FlutterDownloaderPlugin.tempDir, "$id.cache")
     val headers: Map<String, String> = mutableMapOf()
     val url: URL
     val id: String
