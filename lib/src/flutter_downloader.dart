@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:flutter_downloader/src/dart_download.dart';
+import 'package:flutter_downloader/src/platform_download.dart';
 
 part 'legacy_api.dart';
 
@@ -52,7 +52,8 @@ class FlutterDownloader extends ChangeNotifier
 
   FlutterDownloader._internal();
 
-  /// Add a custom http factory
+  /// Add a custom http factory for platforms without platform specific
+  /// implementations like Android and iOS.
   static CustomHttpClientFactory? customHttpClientFactory;
 
   @override
@@ -78,7 +79,7 @@ class FlutterDownloader extends ChangeNotifier
   }) async {
     final headers = Map<String, String>.from(additionalHeaders);
     headers['User-Agent'] = userAgent;
-    final download = await Download.create(
+    final download = await PlatformDownload.create(
       url: url,
       headers: headers,
       target: target,
@@ -91,7 +92,7 @@ class FlutterDownloader extends ChangeNotifier
     final urlHash = sha1.convert(utf8.encode(url)).toString();
     final file = File('$urlHash.meta');
     if (file.existsSync()) {
-      return Download.create(
+      return PlatformDownload.create(
         url: url,
       );
     }
