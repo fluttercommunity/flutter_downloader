@@ -1,4 +1,4 @@
-part of 'downloader.dart';
+part of 'flutter_downloader.dart';
 
 /// Signature for a function which is called when the download state of a task
 /// with [id] changes.

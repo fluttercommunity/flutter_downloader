@@ -7,7 +7,6 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
-import 'package:flutter_downloader/src/download_status.dart';
 
 part 'legacy_api.dart';
 
@@ -36,6 +35,9 @@ abstract class DownloadProgress extends ChangeNotifier {
   int get progress;
 }
 
+/// Factory interface
+typedef CustomHttpClientFactory = HttpClient Function();
+
 /// Provides access to all functions of the plugin in a single place.
 /// The change notifier should just inform about changes of the
 /// [DownloadProgress].
@@ -44,14 +46,14 @@ class FlutterDownloader extends ChangeNotifier
     implements DownloadProgress {
   /// Get the flutter downloader.
   factory FlutterDownloader() {
+    // Singleton is in Legacy part since it is required there too
     return FlutterDownloaderLegacy._singleton;
   }
 
   FlutterDownloader._internal();
 
-  // For simplicity moved to FlutterDownloaderLegacy
-  // static final FlutterDownloader _singleton = FlutterDownloader._internal();
-  static const _channel = MethodChannel('fluttercommunity/flutter_downloader');
+  /// Add a custom http factory
+  static CustomHttpClientFactory? customHttpClientFactory;
 
   @override
   int get progress => throw UnimplementedError();
@@ -80,7 +82,6 @@ class FlutterDownloader extends ChangeNotifier
       url: url,
       headers: headers,
       target: target,
-      methodChannel: _channel,
     );
     unawaited(download.resume());
     return download;
@@ -92,7 +93,6 @@ class FlutterDownloader extends ChangeNotifier
     if (file.existsSync()) {
       return Download.create(
         url: url,
-        methodChannel: _channel,
       );
     }
     return null;

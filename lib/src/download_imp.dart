@@ -13,18 +13,18 @@ typedef CustomHttpClientFactory = HttpClient Function();
 
 // ignore_for_file: use_if_null_to_convert_nulls_to_bools
 /// The current download status/progress
-class Download extends ChangeNotifier implements DownloadProgress {
-  Download._({
+class DownloadImpl extends Download {
+  DownloadImpl._({
     required Map<String, String> headers,
     required String url,
     required DownloadTarget target,
     required HttpClient httpClient,
-    required MethodChannel methodChannel,
+    //required MethodChannel methodChannel,
   })  : _headers = headers,
         _url = url,
         _target = target,
-        _httpClient = httpClient,
-        _methodChannel = methodChannel {
+        _httpClient = httpClient {
+        //_methodChannel = methodChannel {
     urlHash = sha1.convert(utf8.encode(url)).toString();
     _cacheFile = File('$urlHash.part');
     _metadataFile = File('$urlHash.meta');
@@ -33,7 +33,7 @@ class Download extends ChangeNotifier implements DownloadProgress {
   /// For internal use only
   late final String urlHash;
   final String _url;
-  final MethodChannel _methodChannel;
+  //final MethodChannel _methodChannel;
   final Map<String, String> _headers;
   final DownloadTarget _target;
   HttpClient _httpClient;
@@ -44,22 +44,18 @@ class Download extends ChangeNotifier implements DownloadProgress {
   bool? _resumable;
   int? _finalSize;
 
-  /// Add a custom http factory
-  static CustomHttpClientFactory? customHttpClientFactory;
-
   /// Create a new download
   static Future<Download> create({
     required String url,
-    required MethodChannel methodChannel,
+    //required MethodChannel methodChannel,
     Map<String, String> headers = const {},
     DownloadTarget target = DownloadTarget.internal,
   }) async {
-    final download = Download._(
+    final download = DownloadImpl._(
       headers: Map<String, String>.from(headers),
       url: url,
       target: target,
       httpClient: _createHttpClient(),
-      methodChannel: methodChannel,
     );
     if (download._metadataFile.existsSync()) {
       var parseHeaders = false;
@@ -94,7 +90,7 @@ class Download extends ChangeNotifier implements DownloadProgress {
   }
 
   static HttpClient _createHttpClient() {
-    return customHttpClientFactory?.call() ?? HttpClient()..connectionTimeout = const Duration(seconds: 10);
+    return FlutterDownloader.customHttpClientFactory?.call() ?? HttpClient()..connectionTimeout = const Duration(seconds: 10);
   }
 
   /// The url of the download
@@ -140,7 +136,7 @@ class Download extends ChangeNotifier implements DownloadProgress {
     });
     //print('Cachefile: ${_cacheFile.absolute.path}');
     var saved = 0;
-    if (_resumable == true && _finalSize != null) {
+    if (_resumable == true && _finalSize != null && _cacheFile.existsSync()) {
       final alreadyDownloaded = await _cacheFile.length();
       if (_etag != null) {
         request.headers.add('If-Match', _etag!);
