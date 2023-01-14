@@ -14,7 +14,7 @@ import io.flutter.plugin.common.MethodChannel.Result
 class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
     companion object {
         private const val TAG = "FlutterDownloaderPlugin"
-        private const val channelId = "fluttercommunity://flutter_downloader"
+        private const val channelId = "fluttercommunity/flutter_downloader"
         private lateinit var workManager: WorkManager
         private var messenger: BinaryMessenger? = null
 
@@ -44,8 +44,8 @@ class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
         when (call.method) {
             "resume" -> resume(call, result)
             "pause" -> pause(call, result)
-            "tempDir" -> result.success(tempPath)
-            "setUserAgent" -> updateUserAgent(call, result)
+            "getCacheDir" -> result.success(tempPath)
+            //"setUserAgent" -> updateUserAgent(call, result)
             else -> result.notImplemented()
         }
     }
@@ -57,12 +57,11 @@ class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
      * Returns true if successful, but will emit a status update that the background task is running
      */
     private fun resume(call: MethodCall, result: Result) {
-        val args = call.arguments as List<*>
-        val downloadId = args[0] as String
-        val config = args[1] as String
-        Log.v(TAG, "Starting task with id $downloadId")
+        val urlHash = call.arguments as String
+        Log.v(TAG, "Starting task with id $urlHash")
         val data = Data.Builder()
-            .putString(DownloadWorker.config, config)
+            //.putString(DownloadWorker.config, config)
+            .putString("urlHash", urlHash)
             .build()
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -71,14 +70,14 @@ class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
             .setInputData(data)
             .setConstraints(constraints)
             .addTag(TAG)
-            .addTag("downloadId=$downloadId")
+            .addTag("urlHash=$urlHash")
             .build()
         val operation = workManager.enqueue(request)
         try {
             operation.result.get()
             Log.v(TAG,"done?")
         } catch (e: Throwable) {
-            Log.w(TAG, "Unable to start background request for download $downloadId in operation: $operation")
+            Log.w(TAG, "Unable to start background request for download $urlHash in operation: $operation")
             result.success(false)
         }
         result.success(true)

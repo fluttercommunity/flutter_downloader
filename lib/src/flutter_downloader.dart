@@ -89,8 +89,9 @@ class FlutterDownloader extends ChangeNotifier
   }
 
   Future<Download?> _loadMetaData(String url) async {
+    final baseDir = await PlatformDownload.getLocalDir();
     final urlHash = sha1.convert(utf8.encode(url)).toString();
-    final file = File('$urlHash.meta');
+    final file = File('$baseDir/$urlHash.meta');
     if (file.existsSync()) {
       return PlatformDownload.create(
         url: url,
@@ -101,7 +102,8 @@ class FlutterDownloader extends ChangeNotifier
 
   /// Returns all known downloads.
   Future<List<Download>> getDownloads() async {
-    final files = await Directory('.').list().toList();
+    final baseDir = await PlatformDownload.getLocalDir();
+    final files = await baseDir.list().toList();
     final downloads = <Download>[];
     for (final file in files) {
       //print('checking File: ${file.path}');

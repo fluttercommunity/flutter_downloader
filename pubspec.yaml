@@ -8,7 +8,7 @@ flutter:
   plugin:
     platforms:
       android:
-        package: vn.hunghd.flutterdownloader
+        package: com.github.fluttercommunity.flutterdownloader
         pluginClass: FlutterDownloaderPlugin
       ios:
         pluginClass: FlutterDownloaderPlugin

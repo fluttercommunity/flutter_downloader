@@ -63,9 +63,9 @@ class DownloadManager private constructor(data: List<String>) {
         url = URL(parsedUrl)
         id = parsedUrl.sha256()
         target = parsedTarget
-        (headers as MutableMap)["User-Agent"] = FlutterDownloaderPlugin.userAgent
+        //(headers as MutableMap)["User-Agent"] = FlutterDownloaderPlugin.userAgent
         eTag?.let { eTag ->
-            headers["If-Match"] = eTag
+            (headers as MutableMap)["If-Match"] = eTag
         }
     }
 

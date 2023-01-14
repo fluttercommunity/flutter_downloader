@@ -15,14 +15,15 @@ class DartDownload extends Download {
   /// Create a new DartDownload
   @protected
   DartDownload({
+    required String baseDir,
     required this.headers,
     required String url,
     required DownloadTarget target,
   })  : _url = url,
         _target = target {
     urlHash = sha1.convert(utf8.encode(url)).toString();
-    cacheFile = File('$urlHash.part');
-    metadataFile = File('$urlHash.meta');
+    cacheFile = File('$baseDir/$urlHash.part');
+    metadataFile = File('$baseDir/$urlHash.meta');
   }
 
   /// For internal use only
@@ -30,30 +31,38 @@ class DartDownload extends Download {
   final String _url;
   final DownloadTarget _target;
   HttpClient? _httpClient;
+
   /// The request headers
   @protected
   final Map<String, String> headers;
+
   /// The cache file of the (partial) download
   @protected
   late final File cacheFile;
+
   /// The persisted meta data file
   @protected
   late final File metadataFile;
+
   /// The filename which should be used for the filesystem
   @protected
   String? filename;
+
   /// The etag if given to resume the download
   @protected
   String? etag;
+
   /// True when the server supports resuming
   @protected
   bool? resumable;
+
   /// The file size of the file to download
   @protected
   int? finalSize;
 
   static HttpClient _createHttpClient() {
-    return FlutterDownloader.customHttpClientFactory?.call() ?? HttpClient()..connectionTimeout = const Duration(seconds: 10);
+    return FlutterDownloader.customHttpClientFactory?.call() ?? HttpClient()
+      ..connectionTimeout = const Duration(seconds: 10);
   }
 
   /// The url of the download
@@ -93,12 +102,20 @@ class DartDownload extends Download {
     try {
       writer
         ..write('url=$_url\n')
-        ..write('filename=${filename ?? ''}\n')
-        ..write('target=${_target.name}\n')
-        ..write('etag=${etag ?? ''}\n')
-        ..write('size=$finalSize\n')
-        ..write('resumable=$resumable\n')
-        ..write('headers:');
+        ..write('target=${_target.name}\n');
+      if (filename?.isNotEmpty == true) {
+        writer.write('filename=$filename\n');
+      }
+      if (etag?.isNotEmpty == true) {
+        writer.write('etag=$etag\n');
+      }
+      if (finalSize != null && finalSize! > 0) {
+        writer.write('size=$finalSize\n');
+      }
+      if (resumable != null) {
+        writer.write('resumable=$resumable\n');
+      }
+      writer.write('headers:');
       headers.forEach((key, value) {
         writer.write('\n$key=$value');
       });
@@ -153,8 +170,10 @@ class DartDownload extends Download {
       //  _httpClient = _createHttpClient();
       //  //print('### close called!');
       //});
-      final mode = response.statusCode == 206 ? FileMode.append : FileMode.write;
-      outStream = cacheFile.openWrite(mode: mode, encoding: Encoding.getByName('l1')!);
+      final mode =
+          response.statusCode == 206 ? FileMode.append : FileMode.write;
+      outStream =
+          cacheFile.openWrite(mode: mode, encoding: Encoding.getByName('l1')!);
       final counter = StreamTransformer<List<int>, List<int>>.fromHandlers(
         handleData: (data, sink) {
           sink.add(data);
@@ -180,14 +199,16 @@ class DartDownload extends Download {
           await outStream?.close();
           outStream = null;
           hasError = true;
-          _status = resumable == true ? DownloadStatus.paused : DownloadStatus.failed;
+          _status =
+              resumable == true ? DownloadStatus.paused : DownloadStatus.failed;
           notifyListeners();
         },
       );
       await response.transform(counter).pipe(outStream!);
     } on HttpException catch (e, trace) {
       //print('### error: $e');
-      _status = resumable == true ? DownloadStatus.paused : DownloadStatus.failed;
+      _status =
+          resumable == true ? DownloadStatus.paused : DownloadStatus.failed;
       notifyListeners();
     }
   }
@@ -217,7 +238,7 @@ class DartDownload extends Download {
       }
       await cacheFile.delete();
       await metadataFile.delete();
-    } catch(_) {
+    } catch (_) {
       success = false;
     }
     _status = DownloadStatus.canceled;

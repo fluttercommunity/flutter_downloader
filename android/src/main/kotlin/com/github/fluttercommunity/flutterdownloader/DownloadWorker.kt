@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.work.CoroutineWorker
+import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.*
 import java.io.BufferedInputStream
@@ -165,7 +166,7 @@ class DownloadWorker(
         )
     }
 
-    fun foo(httpConn: HttpURLConnection) {
+    /*fun foo(httpConn: HttpURLConnection) {
         val contentType = httpConn.contentType
         val charset = getCharsetFromContentType(contentType)
         val disposition: String? = httpConn.getHeaderField("Content-Disposition")
@@ -182,16 +183,16 @@ class DownloadWorker(
                 e.printStackTrace()
             }
         }
-    }
+    }*/
 
     override suspend fun doWork(): Result {
-        val manager = DownloadManager.parseFrom(requireNotNull(inputData.getString(config)))
-        Log.i(TAG, "Starting download...")
+        val manager = DownloadManager.readConfig(requireNotNull(inputData.getString("urlHash")))
+        Log.i(TAG, "Starting download ${manager.url}...")
         val status = FlutterDownloaderPlugin.getProgressChannel(manager.id)
         withContext(Dispatchers.IO) {
 
 
-        try {
+        /*try {
             var url = manager.url
             Uri.parse(url.toString()).lastPathSegment
             var httpConnection = url.openConnection() as HttpURLConnection
@@ -299,9 +300,10 @@ class DownloadWorker(
                 TAG,
                 "Error downloading from ${downloadTask.url} to ${downloadTask.filename}: $e"
             )
+        }*/
+            //return@withContext DownloadTaskStatus.failed
         }
-        return DownloadTaskStatus.failed
-        }
+        return Result.success();
     }
 }
 

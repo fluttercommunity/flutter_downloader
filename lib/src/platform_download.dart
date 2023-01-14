@@ -9,6 +9,7 @@ import 'package:flutter_downloader/src/dart_download.dart';
 class PlatformDownload extends DartDownload {
   /// Create a platform specific [Download].
   PlatformDownload({
+    required super.baseDir,
     required super.headers,
     required super.url,
     required super.target,
@@ -21,7 +22,16 @@ class PlatformDownload extends DartDownload {
 
   static const _channelId = 'fluttercommunity/flutter_downloader';
   late final MethodChannel? _backChannel;
-  final _methodChannel = const MethodChannel(_channelId);
+  static const _methodChannel = MethodChannel(_channelId);
+
+  static Future<Directory> getLocalDir() async {
+    if (Platform.isAndroid) {
+      final path = await _methodChannel.invokeMethod<String>('getCacheDir');
+      return Directory(path!);
+    } else {
+      return Directory('.');
+    }
+  }
 
   /// Create a new download and load all metadata for paused downloads.
   static Future<Download> create({
@@ -29,7 +39,9 @@ class PlatformDownload extends DartDownload {
     Map<String, String> headers = const {},
     DownloadTarget target = DownloadTarget.internal,
   }) async {
+    final baseDir = await PlatformDownload.getLocalDir();
     final download = PlatformDownload(
+      baseDir: baseDir.absolute.path,
       headers: Map<String, String>.from(headers),
       url: url,
       target: target,
