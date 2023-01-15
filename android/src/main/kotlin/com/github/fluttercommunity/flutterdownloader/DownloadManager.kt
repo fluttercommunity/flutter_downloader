@@ -61,7 +61,7 @@ class DownloadManager private constructor(data: List<String>) {
             }
         }
         url = URL(parsedUrl)
-        id = parsedUrl.sha256()
+        id = parsedUrl.sha1()
         target = parsedTarget
         //(headers as MutableMap)["User-Agent"] = FlutterDownloaderPlugin.userAgent
         eTag?.let { eTag ->
@@ -121,9 +121,9 @@ class DownloadManager private constructor(data: List<String>) {
             }
         }.toString()
 
-    private fun String.sha256(): String {
+    private fun String.sha1(): String {
         val bytes = MessageDigest
-            .getInstance("SHA-256")
+            .getInstance("SHA-1")
             .digest(toByteArray())
         val result = StringBuilder(bytes.size * 2)
 

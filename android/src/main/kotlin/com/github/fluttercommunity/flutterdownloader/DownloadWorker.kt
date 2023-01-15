@@ -28,102 +28,7 @@ class DownloadWorker(
 
     companion object {
         const val TAG = "DownloadWorker"
-        const val config = "config"
     }
-
-    /**
-     * Processes a change in status for the task
-     *
-     * Sends status update via the background channel to Flutter, if requested, and if the task
-     * is finished, processes a final status update and remove references to persistent storage
-     * * /
-    fun processStatusUpdate(
-    backgroundDownloadTask: BackgroundDownloadTask,
-    status: DownloadTaskStatus
-    ) {
-    if (backgroundDownloadTask.providesStatusUpdates()) {
-    Handler(Looper.getMainLooper()).post {
-    try {
-    val gson = Gson()
-    val arg = listOf<Any>(
-    gson.toJson(backgroundDownloadTask.toJsonMap()),
-    status.ordinal
-    )
-    BackgroundDownloaderPlugin.backgroundChannel?.invokeMethod(
-    "statusUpdate",
-    arg
-    )
-    } catch (e: Exception) {
-    Log.w(TAG, "Exception trying to post status update: ${e.message}")
-    }
-    }
-    }
-    // if task is in final state, process a final progressUpdate and remove from
-    // persistent storage
-    if (status != DownloadTaskStatus.running) {
-    when (status) {
-    DownloadTaskStatus.complete -> processProgressUpdate(
-    backgroundDownloadTask,
-    1.0
-    )
-    DownloadTaskStatus.failed -> processProgressUpdate(backgroundDownloadTask, -1.0)
-    DownloadTaskStatus.canceled -> processProgressUpdate(
-    backgroundDownloadTask,
-    -2.0
-    )
-    DownloadTaskStatus.notFound -> processProgressUpdate(
-    backgroundDownloadTask,
-    -3.0
-    )
-    else -> {}
-    }
-    BackgroundDownloaderPlugin.prefsLock.write {
-    val jsonString =
-    BackgroundDownloaderPlugin.prefs.getString(
-    BackgroundDownloaderPlugin.keyTasksMap,
-    "{}"
-    )
-    val backgroundDownloadTaskMap =
-    BackgroundDownloaderPlugin.gson.fromJson<Map<String, Any>>(
-    jsonString,
-    BackgroundDownloaderPlugin.mapType
-    ).toMutableMap()
-    backgroundDownloadTaskMap.remove(backgroundDownloadTask.taskId)
-    val editor = BackgroundDownloaderPlugin.prefs.edit()
-    editor.putString(
-    BackgroundDownloaderPlugin.keyTasksMap,
-    BackgroundDownloaderPlugin.gson.toJson(backgroundDownloadTaskMap)
-    )
-    editor.apply()
-    }
-    }
-    } // */
-
-    /**
-     * Processes a progress update for the [backgroundDownloadTask]
-     *
-     * Sends progress update via the background channel to Flutter, if requested
-     * /
-    fun processProgressUpdate(
-    backgroundDownloadTask: BackgroundDownloadTask,
-    progress: Double
-    ) {
-    if (backgroundDownloadTask.providesProgressUpdates()) {
-    Handler(Looper.getMainLooper()).post {
-    try {
-    val gson = Gson()
-    val arg =
-    listOf<Any>(gson.toJson(backgroundDownloadTask.toJsonMap()), progress)
-    BackgroundDownloaderPlugin.backgroundChannel?.invokeMethod(
-    "progressUpdate",
-    arg
-    )
-    } catch (e: Exception) {
-    Log.w(TAG, "Exception trying to post progress update: ${e.message}")
-    }
-    }
-    }
-    } // */
 
     private val charsetPattern = Pattern.compile("(?i)\\bcharset=\\s*\"?([^\\s;\"]*)")
     private val filenameStarPattern = Pattern.compile("(?i)\\bfilename\\*=([^']+)'([^']*)'\"?([^\"]+)\"?")
@@ -159,32 +64,11 @@ class DownloadWorker(
         )
     }
 
-    /*fun foo(httpConn: HttpURLConnection) {
-        val contentType = httpConn.contentType
-        val charset = getCharsetFromContentType(contentType)
-        val disposition: String? = httpConn.getHeaderField("Content-Disposition")
-        var filename: String? = null
-        if (!disposition.isNullOrEmpty()) {
-            filename = getFileNameFromContentDisposition(disposition, charset)
-        }
-        if (filename.isNullOrEmpty()) {
-            filename = url.substring(url.lastIndexOf("/") + 1)
-            try {
-                filename = URLDecoder.decode(filename, "UTF-8")
-            } catch (e: IllegalArgumentException) {
-                /* ok, just let filename be not encoded */
-                e.printStackTrace()
-            }
-        }
-    }*/
-
     override suspend fun doWork(): Result {
         val manager = DownloadManager.readConfig(requireNotNull(inputData.getString("urlHash")))
-        Log.i(TAG, "Starting download ${manager.url}...")
+        //Log.i(TAG, "Starting download ${manager.url}...")
         val status = FlutterDownloaderPlugin.getProgressChannel(manager.id)
         withContext(Dispatchers.IO) {
-
-
             try {
                 var url = manager.url
                 Uri.parse(url.toString()).lastPathSegment
@@ -203,10 +87,14 @@ class DownloadWorker(
                     responseCode = httpConnection.responseCode
                 }
                 if (responseCode == 200) {
-                    val contentLength = httpConnection.getHeaderField("content-length").toLongOrNull() ?: -1
+                    val contentLength = httpConnection.getHeaderField("content-length").toLongOrNull()
+                    contentLength?.let {
+                        withContext(Dispatchers.Main) {
+                            status?.invokeMethod("updateSize", contentLength)
+                        }
+                    }
                     var bytesReceivedTotal = 0L
-                    var lastProgressUpdate = 0.0
-                    var nextProgressUpdateTime = 0L
+                    var lastProgress = 0L
                     httpConnection.getHeaderField("content-disposition")
                     try {
                         BufferedInputStream(url.openStream()).use { `in` ->
@@ -219,20 +107,21 @@ class DownloadWorker(
                                     }
                                     fileOutputStream.write(dataBuffer, 0, bytesRead)
                                     bytesReceivedTotal += bytesRead
-                                    // TODO provide progress
-                                    //val progress =
-                                    //    min(bytesReceivedTotal.toDouble() / contentLength, 0.999)
-                                    //if (contentLength > 0 &&
-                                    //    (bytesReceivedTotal < 10000 || (progress - lastProgressUpdate > 0.02 && System.currentTimeMillis() > nextProgressUpdateTime))
-                                    //) {
-                                    //    //processProgressUpdate(downloadTask, progress)
-                                    //    lastProgressUpdate = progress
-                                    //    nextProgressUpdateTime = System.currentTimeMillis() + 500
-                                    //}
+                                    contentLength?.let {
+                                        val progress = bytesReceivedTotal * 1000 / contentLength
+                                        if(progress != lastProgress) {
+                                            lastProgress = progress
+                                            withContext(Dispatchers.Main) {
+                                                status?.invokeMethod("updateProgress", progress)
+                                            }
+                                            //println("Update: ${progress / 10.0}%")
+                                        }
+                                    }
                                 }
                             }
                         }
                         if (!isStopped) {
+                            // TODO move to final position
                             /*
                             val destFile = File(filePath)
                             dir = destFile.parentFile

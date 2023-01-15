@@ -83,6 +83,9 @@ class PlatformDownload extends DartDownload {
       case 'updateProgress':
         progress = call.arguments as int;
         break;
+      case 'updateSize':
+        finalSize = call.arguments as int;
+        break;
       case 'updateStatus':
         status = DownloadStatus.values
             .firstWhere((element) => element.name == call.arguments);

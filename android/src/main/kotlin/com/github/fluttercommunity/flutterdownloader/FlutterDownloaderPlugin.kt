@@ -29,6 +29,7 @@ class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
     private var channel: MethodChannel? = null
 
     override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        messenger = flutterPluginBinding.binaryMessenger
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, channelId)
         channel?.setMethodCallHandler(this)
         workManager = WorkManager.getInstance(flutterPluginBinding.applicationContext)
@@ -38,6 +39,7 @@ class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
         channel?.setMethodCallHandler(null)
         channel = null
+        messenger = null
     }
 
     override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
