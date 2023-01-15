@@ -3,9 +3,9 @@
 #
 Pod::Spec.new do |spec|
   spec.name             = 'flutter_downloader'
-  spec.version          = '0.0.1'
-  spec.summary          = 'A plugin to create and manage bankground download tasks'
-  spec.homepage         = 'https://github.com/hnvn/flutter_downloader'
+  spec.version          = '0.0.2'
+  spec.summary          = 'A plugin to create and manage background download tasks'
+  spec.homepage         = 'https://github.com/fluttercommunity/flutterdownloader'
   spec.license          = { :file => '../LICENSE' }
   spec.author           = { 'HungHD' => 'hunghd.yb@gmail.com' }
   spec.source           = { :path => '.' }
