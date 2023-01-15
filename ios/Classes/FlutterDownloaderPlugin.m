@@ -693,54 +693,11 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 }
 
 - (void)resumeMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
-    NSString *taskId = call.arguments[KEY_TASK_ID];
-    NSDictionary* taskDict = [self loadTaskWithId:taskId];
-    if (taskDict != nil) {
-        NSNumber* status = taskDict[KEY_STATUS];
-        if ([status intValue] == STATUS_PAUSED) {
-            NSURL *partialFileURL = [self fileUrlFromDict:taskDict];
-
-            if (debug) {
-                NSLog(@"Try to load resume data at url: %@", partialFileURL);
-            }
-
-            NSData *resumeData = [NSData dataWithContentsOfURL:partialFileURL];
-
-            if (resumeData != nil) {
-                NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithResumeData:resumeData];
-                NSString *newTaskId = [self createTaskId];
-                task.taskDescription = newTaskId;
-                [task resume];
-
-                // update memory-cache, assign a new taskId for paused task
-                NSMutableDictionary *newTask = [NSMutableDictionary dictionaryWithDictionary:taskDict];
-                newTask[KEY_STATUS] = @(STATUS_RUNNING);
-                newTask[KEY_RESUMABLE] = @(NO);
-                [_runningTaskById setObject:newTask forKey:newTaskId];
-                [_runningTaskById removeObjectForKey:taskId];
-
-                result(newTaskId);
-
-                __typeof__(self) __weak weakSelf = self;
-                [self executeInDatabaseQueueForTask:^{
-                    [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_RUNNING resumable:NO];
-                    NSDictionary *task = [weakSelf loadTaskWithId:newTaskId];
-                    NSNumber *progress = task[KEY_PROGRESS];
-                    [weakSelf sendUpdateProgressForTaskId:newTaskId inStatus:@(STATUS_RUNNING) andProgress:progress];
-                }];
-            } else {
-                result([FlutterError errorWithCode:@"invalid_data"
-                                           message:@"not found resume data, this task cannot be resumed"
-                                           details:nil]);
-            }
-        } else {
-            result([FlutterError errorWithCode:@"invalid_status"
-                                       message:@"only paused task can be resumed"
-                                       details:nil]);
-        }
-    } else {
-        result(ERROR_INVALID_TASK_ID);
+    NSString *urlHash = call.arguments;
+    if (debug) {
+        NSLog(@"The hash might be: %@", urlHash);
     }
+    result(nil);
 }
 
 - (void)retryMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
@@ -864,7 +821,10 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
-    if ([@"initialize" isEqualToString:call.method]) {
+    if ([@"getCacheDir" isEqualToString:call.method]) {
+        NSString* documentDirPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+        result(documentDirPath);
+    } else if ([@"initialize" isEqualToString:call.method]) {
         [self initializeMethodCall:call result:result];
     } else if ([@"didInitializeDispatcher" isEqualToString:call.method]) {
         [self didInitializeDispatcherMethodCall:call result:result];

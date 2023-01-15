@@ -25,7 +25,7 @@ class PlatformDownload extends DartDownload {
   static const _methodChannel = MethodChannel(_channelId);
 
   static Future<Directory> getLocalDir() async {
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isIOS) {
       final path = await _methodChannel.invokeMethod<String>('getCacheDir');
       return Directory(path!);
     } else {
