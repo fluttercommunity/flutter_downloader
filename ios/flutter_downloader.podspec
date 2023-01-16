@@ -10,9 +10,10 @@ Pod::Spec.new do |spec|
   spec.author           = { 'HungHD' => 'hunghd.yb@gmail.com' }
   spec.source           = { :path => '.' }
   spec.source_files = 'Classes/**/*'
-  spec.public_header_files = 'Classes/**/*.h'
   spec.dependency 'Flutter'
-  spec.ios.library = 'sqlite3'
-  spec.ios.resource_bundle = { 'FlutterDownloaderDatabase' => 'Assets/download_tasks.sql' }
-  spec.ios.deployment_target = '9.0'
+  spec.platform = :ios, '9.0'
+
+  # Flutter.framework does not contain a i386 slice.
+  spec.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
+  spec.swift_version = '5.0'
 end
