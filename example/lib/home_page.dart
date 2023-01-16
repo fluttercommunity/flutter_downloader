@@ -276,9 +276,10 @@ class _MyHomePageState extends State<MyHomePage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          return _permissionReady
-              ? _buildDownloadList()
-              : _buildNoPermissionWarning();
+          return _buildDownloadList();
+          //return _permissionReady
+          //    ? _buildDownloadList()
+          //    : _buildNoPermissionWarning();
         },
       ),
     );
@@ -286,9 +287,13 @@ class _MyHomePageState extends State<MyHomePage> {
 }
 
 class ItemHolder extends ValueNotifier<Download?> {
-  ItemHolder.download(this.metaInfo) : headline = null, super(null);
+  ItemHolder.download(this.metaInfo)
+      : headline = null,
+        super(null);
 
-  ItemHolder.group(this.headline) : metaInfo = null, super(null);
+  ItemHolder.group(this.headline)
+      : metaInfo = null,
+        super(null);
 
   final String? headline;
   final DownloadItem? metaInfo;
