@@ -1,3 +1,7 @@
+## 1.10.1+1
+
+- Fix generation of link to release notes on GitHub Releases (#799)
+
 ## 1.10.1
 
 - Fix crash when `allowCellular` is null on iOS (#774)
