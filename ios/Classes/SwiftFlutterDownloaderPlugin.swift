@@ -17,9 +17,6 @@ public class SwiftFlutterDownloaderPlugin: NSObject, FlutterPlugin, URLSessionDe
   }
 
   private func getCacheDir(call: FlutterMethodCall, result: @escaping FlutterResult) {
-    //let group = call.arguments as! String
-
-    NSLog("Before\nAfter")
     let documentDirPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).map(\.path).first
     result(documentDirPath)
   }
@@ -31,10 +28,53 @@ public class SwiftFlutterDownloaderPlugin: NSObject, FlutterPlugin, URLSessionDe
     let config = URLSessionConfiguration.background(withIdentifier: urlHash)
     //config.timeoutIntervalForResource = Downloader.resourceTimeout
     let urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+      
+    let metaFile = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("\(urlHash).meta")
+    var url: String?
+    var headers = [String:String]()
+    do {
+      let rawData = try String(contentsOf: metaFile, encoding: .utf8)
+      //print("Meta-File:")
+      //print(rawData)
+      let lines = rawData.components(separatedBy:"\n")
+      var parseHeaders = false
+      for line in lines {
+        if line == "headers:" {
+          parseHeaders = true
+        } else {
+          let parts = line.components(separatedBy:"=")
+          let key = parts.first!
+          let value = parts.last!
+          //print("'\(key)'='\(value)\'")/*
+          if parseHeaders {
+            headers[key] = value
+          } else if key == "url" && !value.isEmpty {
+            url = value
+          // I think those fields are not relevant for iOS:
+          //} else if key == "filename" && !value.isEmpty {
+          //  filename = value
+          //} else if key == "etag" && !value.isEmpty {
+          // etag = value
+          //} else if key == "resumable" && !value.isEmpty {
+          //  resumable = value == "true";
+          //} else if key == "size" && !value.isEmpty {
+          //  finalSize = int.parse(value);
+          }
+        }
+      }
+    } catch {
+      updateStatus(urlHash: urlHash, status: "failed")
+      return
+    }
 
-    var request = URLRequest(url: URL(string: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")!)
+    if url == nil {
+      updateStatus(urlHash: urlHash, status: "failed")
+      return
+    }
+    print("Start download of \(url)...")
 
-    let headers = [String:String]() //TODO read header files
+    var request = URLRequest(url: URL(string: url!)!)
+
     for (key, value) in headers {
       request.setValue(value, forHTTPHeaderField: key)
     }
@@ -110,5 +150,49 @@ public class SwiftFlutterDownloaderPlugin: NSObject, FlutterPlugin, URLSessionDe
     } else {
       updateStatus(urlHash: urlHash, status: "failed")
     }
+      /*
+    do {
+      var success = DownloadTaskStatus.failed
+      defer {
+        processStatusUpdate(FlutterDownloadTask: FlutterDownloadTask, status: success)
+      }
+      var dir: FileManager.SearchPathDirectory
+      switch FlutterDownloadTask.baseDirectory {
+      case 0:
+        dir = .documentDirectory
+      case 1:
+        dir = .cachesDirectory
+      case 2:
+        dir = .libraryDirectory
+      default:
+        dir = .documentDirectory
+      }
+      let documentsURL = try
+      FileManager.default.url(for: dir,
+                              in: .userDomainMask,
+                              appropriateFor: nil,
+                              create: false)
+      let directory = documentsURL.appendingPathComponent(FlutterDownloadTask.directory)
+      do
+      {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories:  true)
+      } catch {
+        //os_log("Failed to create directory %@", log: log, type: .error, directory.path)
+        return
+      }
+      let filePath = directory.appendingPathComponent(FlutterDownloadTask.filename)
+      if FileManager.default.fileExists(atPath: filePath.path) {
+        try? FileManager.default.removeItem(at: filePath)
+      }
+      do {
+        try FileManager.default.moveItem(at: location, to: filePath)
+      } catch {
+        //os_log("Failed to move file from %@ to %@: %@", log: log, type: .error, location.path, filePath.path, error.localizedDescription)
+        return
+      }
+      success = DownloadTaskStatus.complete
+    } catch {
+      //os_log("File download error for taskId %@ and file %@: %@", log: log, type: .error, FlutterDownloadTask.taskId, FlutterDownloadTask.filename, error.localizedDescription)
+    }*/
   }
 }
