@@ -1,3 +1,7 @@
+## 1.10.1+2
+
+- Minor fix to `publish` GitHub Action (#801)
+
 ## 1.10.1+1
 
 - Fix generation of link to release notes on GitHub Releases (#799)
