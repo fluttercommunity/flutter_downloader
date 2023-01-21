@@ -62,31 +62,36 @@ public class SwiftFlutterDownloaderPlugin: NSObject, FlutterPlugin, URLSessionDe
     }
   }
 
+  private func updateProgress(urlHash: String, progress: Int64) {
+    if self.progress[urlHash] != progress {
+      self.progress[urlHash] = progress
+      backChannel[urlHash]?.invokeMethod("updateProgress", arguments: progress)
+      print("Update progress \(Double(progress) / 10.0)%")
+    }
+  }
+
+  private func updateStatus(urlHash: String, status: String) {
+    backChannel[urlHash]?.invokeMethod("updateStatus", arguments: status)
+    print("Update status: \(status)")
+  }
+
   public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
     if totalBytesExpectedToWrite == NSURLSessionTransferSizeUnknown {return}
 
     let urlHash = downloadTask.taskDescription!
-      
-    //print("callback url \(urlHash)")
 
     if downloadSize[urlHash] == nil {
-        // TODO update size
-        print("TODO update file size")
-        backChannel[urlHash]?.invokeMethod("updateSize", arguments: totalBytesExpectedToWrite)
-        downloadSize[urlHash] = totalBytesExpectedToWrite
-        progress[urlHash] = 0
+      backChannel[urlHash]?.invokeMethod("updateSize", arguments: totalBytesExpectedToWrite)
+      downloadSize[urlHash] = totalBytesExpectedToWrite
+      progress[urlHash] = 0
     }
 
-    let permille = (totalBytesWritten * 1000) / totalBytesExpectedToWrite;
+    let permill = (totalBytesWritten * 1000) / totalBytesExpectedToWrite
 
-    if progress[urlHash]! != permille {
-      progress[urlHash] = permille
-        backChannel[urlHash]?.invokeMethod("updateProgress", arguments: permille)
-        print("Update progress \(Double(permille) / 10.0)%")
-    }
+    updateProgress(urlHash: urlHash, progress: permill)
 
-    if permille == 1000 {
-      print("done")
+    if permill == 1000 {
+      updateStatus(urlHash: urlHash, status: "complete")
     }
   }
 
@@ -94,21 +99,16 @@ public class SwiftFlutterDownloaderPlugin: NSObject, FlutterPlugin, URLSessionDe
   ///
   /// If successful, (over)write file to final destination per FlutterDownloadTask info
   public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-      print("foobar")
     let urlHash = downloadTask.taskDescription!
 
     guard let response = downloadTask.response as? HTTPURLResponse
     else {
       //os_log("Could not find task associated with native id %d, or did not get HttpResponse", log: log,  type: .info, downloadTask.taskIdentifier)
       return}
-    if response.statusCode == 404 {
-      print("status: notFound")
-      return
+    if response.statusCode == 200 || response.statusCode == 206 {
+      updateStatus(urlHash: urlHash, status: "complete")
+    } else {
+      updateStatus(urlHash: urlHash, status: "failed")
     }
-    if !(200...206).contains(response.statusCode)   {
-      print("status: failed")
-      return
-    }
-      print("status: done")
   }
 }
