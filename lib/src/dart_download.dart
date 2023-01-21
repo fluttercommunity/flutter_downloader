@@ -222,7 +222,7 @@ class DartDownload extends Download {
   /// Cancel the download when running or paused
   @override
   Future<void> cancel() async {
-    _httpClient?.close(force: true);
+    await pause();
     await delete();
     _status = DownloadStatus.canceled;
     notifyListeners();

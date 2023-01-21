@@ -94,15 +94,6 @@ class PlatformDownload extends DartDownload {
   }
 
   @override
-  Future<void> cancel() async {
-    if (Platform.isAndroid || Platform.isIOS) {
-      await _methodChannel.invokeMethod<void>('cancel', urlHash);
-    } else {
-      await super.cancel();
-    }
-  }
-
-  @override
   Future<void> pause() async {
     if (Platform.isAndroid || Platform.isIOS) {
       await _methodChannel.invokeMethod<void>('pause', urlHash);
