@@ -43,11 +43,11 @@ class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
     }
 
     override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
+        Log.v(TAG, "Android received call ${call.method}")
         when (call.method) {
             "resume" -> resume(call, result)
             "pause" -> pause(call, result)
             "getCacheDir" -> result.success(tempPath)
-            //"setUserAgent" -> updateUserAgent(call, result)
             else -> result.notImplemented()
         }
     }

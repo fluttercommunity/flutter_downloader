@@ -88,12 +88,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 } else if (item.download!.status == DownloadStatus.paused ||
                     item.download?.status == DownloadStatus.canceled ||
                     item.download?.status == DownloadStatus.failed) {
+                  print('Should resume at dart...');
                   await item.download?.resume();
                 } else if (item.download?.status == DownloadStatus.complete ||
                     item.download?.status == DownloadStatus.canceled) {
+                  print('Should delete at dart...');
                   await item.download?.delete();
                 } else if (item.download?.status == DownloadStatus.running) {
-                  item.download?.pause();
+                  print('Should pause at dart...');
+                  await item.download?.pause();
                 }
               },
               onCancel: (download) async {
