@@ -4,9 +4,6 @@
     package="com.github.fluttercommunity.flutterdownloader">
 
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!--uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" /-->
 
     <application
         android:name="${applicationName}"
@@ -37,33 +34,8 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
-
-        <!-- Begin FlutterDownloader customization -->
-        <!-- disable default Initializer -->
-        <provider
-            android:name="androidx.startup.InitializationProvider"
-            android:authorities="${applicationId}.androidx-startup"
-            android:exported="false"
-            tools:node="merge">
-            <meta-data
-                android:name="androidx.work.WorkManagerInitializer"
-                android:value="androidx.startup"
-                tools:node="remove" />
-        </provider>
-
-        <!-- declare customized Initializer -->
-        <provider
-            android:name="vn.hunghd.flutterdownloader.FlutterDownloaderInitializer"
-            android:authorities="${applicationId}.flutter-downloader-init"
-            android:exported="false">
-            <meta-data
-                android:name="vn.hunghd.flutterdownloader.MAX_CONCURRENT_TASKS"
-                android:value="5" />
-        </provider>
-        <!-- End FlutterDownloader customization -->
-
         <meta-data
-            android:name="vn.hunghd.flutterdownloader.NOTIFICATION_ICON"
+            android:name="com.github.fluttercommunity.flutterdownloader.NOTIFICATION_ICON"
             android:resource="@drawable/ic_stat_flutter" />
 
     </application>

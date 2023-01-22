@@ -52,7 +52,6 @@ class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
         }
     }
 
-
     /**
      * Resume or start the download
      *
