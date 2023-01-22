@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "vn.hunghd.downloader" "\0"
-            VALUE "FileDescription", "flutter_downloader_example" "\0"
+            VALUE "CompanyName", "Flutter Community" "\0"
+            VALUE "FileDescription", "flutter_downloader Example App" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "flutter_downloader_example" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2022 vn.hunghd.downloader. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2022 Flutter Community. All rights reserved." "\0"
             VALUE "OriginalFilename", "flutter_downloader_example.exe" "\0"
             VALUE "ProductName", "flutter_downloader_example" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

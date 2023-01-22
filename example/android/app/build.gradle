@@ -27,11 +27,10 @@ apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 android {
     compileSdkVersion 33
 
-    namespace 'vn.hunghd.example'
+    namespace 'com.github.fluttercommunity.flutterdownloader.example'
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId "vn.hunghd.example"
+        applicationId "com.github.fluttercommunity.flutterdownloader.example"
         minSdkVersion 19
         targetSdkVersion 33
         versionCode flutterVersionCode.toInteger()
