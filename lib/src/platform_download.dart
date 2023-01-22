@@ -95,6 +95,7 @@ class PlatformDownload extends DartDownload {
 
   @override
   Future<void> pause() async {
+    print('paused called on PlatformDownload');
     if (Platform.isAndroid || Platform.isIOS) {
       await _methodChannel.invokeMethod<void>('pause', urlHash);
     } else {
@@ -104,6 +105,7 @@ class PlatformDownload extends DartDownload {
 
   @override
   Future<void> resume() async {
+    print('should resume on dart side...');
     if (Platform.isAndroid || Platform.isIOS) {
       await _methodChannel.invokeMethod<void>('resume', urlHash);
     } else {

@@ -116,7 +116,7 @@ class FlutterDownloaderLegacy {
   }) async {
     for (final download in await _singleton.getDownloads()) {
       if ((download as DartDownload).urlHash == taskId) {
-        download.pause();
+        await download.pause();
         return download.urlHash;
       }
     }

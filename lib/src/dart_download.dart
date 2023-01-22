@@ -216,6 +216,7 @@ class DartDownload extends Download {
   /// Pauses the download when running.
   @override
   Future<void> pause() async {
+    print('paused called on DartDownload');
     _httpClient?.close(force: true);
   }
 
