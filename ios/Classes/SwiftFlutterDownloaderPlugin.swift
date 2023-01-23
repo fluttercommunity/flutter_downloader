@@ -3,15 +3,14 @@ import UIKit
 import BackgroundTasks
 
 private class Download: NSObject, URLSessionDelegate, URLSessionDownloadDelegate {
-  var finalSize: Int64?
-  var progress: Int64 = 0
-  var backChannel: FlutterMethodChannel
-  //var task: URLSessionDataTask?
-  var url: String?
-  var headers = [String:String]()
-  let urlHash: String
-  var resumeData: Data?
-  var task: URLSessionDownloadTask?
+  private var finalSize: Int64?
+  private var progress: Int64 = 0
+  private var backChannel: FlutterMethodChannel
+  private var url: String?
+  private var headers = [String:String]()
+  private let urlHash: String
+  private var resumeData: Data?
+  private var task: URLSessionDownloadTask?
   
   init(urlHash : String, with binaryMessenger : FlutterBinaryMessenger) throws {
     backChannel = FlutterMethodChannel(name: "fluttercommunity/flutter_downloader/\(urlHash)", binaryMessenger: binaryMessenger)
@@ -71,6 +70,8 @@ private class Download: NSObject, URLSessionDelegate, URLSessionDownloadDelegate
 
     // now start the task
     task?.resume()
+    
+    self.updateStatus(status: "running")
   }
   
   func pause() {
@@ -89,9 +90,7 @@ private class Download: NSObject, URLSessionDelegate, URLSessionDownloadDelegate
   
   private func updateProgress(progress: Int64) {
     backChannel.invokeMethod("updateProgress", arguments: progress)
-    if progress % 100 == 0 {
-      print("Update progress \(Double(progress) / 10.0)%")
-    }
+    //print("Update progress \(Double(progress) / 10.0)%")
   }
   
   private func updateStatus(status: String) {
@@ -102,8 +101,6 @@ private class Download: NSObject, URLSessionDelegate, URLSessionDownloadDelegate
   public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
     if totalBytesExpectedToWrite == NSURLSessionTransferSizeUnknown {return}
     
-    let urlHash = downloadTask.taskDescription!
-    
     if finalSize == nil {
       backChannel.invokeMethod("updateSize", arguments: totalBytesExpectedToWrite)
       finalSize = totalBytesExpectedToWrite
@@ -111,6 +108,7 @@ private class Download: NSObject, URLSessionDelegate, URLSessionDownloadDelegate
     
     let permill = (totalBytesWritten * 1000) / totalBytesExpectedToWrite
     
+    // TODO prevent again double updates
     updateProgress(progress: permill)
     
     if permill == 1000 {
@@ -165,7 +163,6 @@ public class SwiftFlutterDownloaderPlugin: NSObject, FlutterPlugin {
   }
   
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    //os_log("Method call %@", log: log, type: .debug, call.method)
     switch call.method {
     case "getCacheDir":
       getCacheDir(call: call, result: result)
@@ -187,15 +184,17 @@ public class SwiftFlutterDownloaderPlugin: NSObject, FlutterPlugin {
     let urlHash = call.arguments as! String
     
     print("Resume download with hash \(urlHash)...")
-    do {
-      let download = try Download(urlHash: urlHash, with: SwiftFlutterDownloaderPlugin.binaryMessenger!)
-      downloads[urlHash] = download
-      download.resume()
-    } catch {
-      // TODO handle errors...
-      //updateStatus(urlHash: urlHash, status: "failed")
+    if downloads[urlHash] == nil {
+      do {
+        let download = try Download(urlHash: urlHash, with: SwiftFlutterDownloaderPlugin.binaryMessenger!)
+        downloads[urlHash] = download
+      } catch {
+        // TODO handle errors...
+        //updateStatus(urlHash: urlHash, status: "failed")
+      }
     }
-    
+    downloads[urlHash]?.resume()
+
     result(nil)
   }
   
