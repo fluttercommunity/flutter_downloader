@@ -4,7 +4,7 @@ enum DownloadStatus {
   running,
 
   /// The download has completed successfully.
-  complete,
+  completed,
 
   /// The download has failed.
   failed,

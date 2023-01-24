@@ -90,7 +90,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     item.download?.status == DownloadStatus.failed) {
                   print('Should resume at dart...');
                   await item.download?.resume();
-                } else if (item.download?.status == DownloadStatus.complete ||
+                } else if (item.download?.status == DownloadStatus.completed ||
                     item.download?.status == DownloadStatus.canceled) {
                   print('Should delete at dart...');
                   await item.download?.delete();

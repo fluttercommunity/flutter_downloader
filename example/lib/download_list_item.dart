@@ -54,7 +54,7 @@ class DownloadListItem extends StatelessWidget {
           ),
         ],
       );
-    } else if (holder.download?.status == DownloadStatus.complete) {
+    } else if (holder.download?.status == DownloadStatus.completed) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.end,
@@ -104,7 +104,7 @@ class DownloadListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: data.download?.status == DownloadStatus.complete
+      onTap: data.download?.status == DownloadStatus.completed
           ? () {
               onTap(data.download!);
             }

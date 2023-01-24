@@ -47,6 +47,7 @@ class PlatformDownload extends DartDownload {
       target: target,
     );
     if (download.metadataFile.existsSync()) {
+      /// Parse meta file
       var parseHeaders = false;
       for (final row in await download.metadataFile.readAsLines()) {
         if (row == 'headers:') {

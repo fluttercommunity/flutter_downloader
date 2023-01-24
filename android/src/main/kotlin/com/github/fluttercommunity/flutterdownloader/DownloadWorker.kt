@@ -25,11 +25,10 @@ class DownloadWorker(
     applicationContext: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(applicationContext, workerParams) {
-
     companion object {
         const val TAG = "DownloadWorker"
     }
-
+/*
     private val charsetPattern = Pattern.compile("(?i)\\bcharset=\\s*\"?([^\\s;\"]*)")
     private val filenameStarPattern = Pattern.compile("(?i)\\bfilename\\*=([^']+)'([^']*)'\"?([^\"]+)\"?")
     private val filenamePattern = Pattern.compile("(?i)\\bfilename=\"?([^\"]+)\"?")
@@ -63,34 +62,36 @@ class DownloadWorker(
             charset ?: "ISO-8859-1"
         )
     }
-
+*/
     override suspend fun doWork(): Result {
-        val manager = DownloadManager.readConfig(requireNotNull(inputData.getString("urlHash")))
-        //Log.i(TAG, "Starting download ${manager.url}...")
-        val status = FlutterDownloaderPlugin.getProgressChannel(manager.id)
+        val urlHash = requireNotNull(inputData.getString("urlHash"))
+        val download = KotlinDownload(urlHash)
         withContext(Dispatchers.IO) {
             try {
-                var url = manager.url
-                Uri.parse(url.toString()).lastPathSegment
+                var url = download.url
+                // Check for redirects
                 var httpConnection = url.openConnection() as HttpURLConnection
-                httpConnection.addHeaders(manager.headers)
+                httpConnection.addHeaders(download.headers)
                 httpConnection.requestMethod = "HEAD"
                 var responseCode = httpConnection.responseCode
                 var redirects = 0
                 while (responseCode in 301..307 && redirects < 5) {
                     redirects++
                     url = URL(httpConnection.getHeaderField("Location"))
-                    httpConnection.addHeaders(manager.headers)
+                    httpConnection.addHeaders(download.headers)
                     Log.v(TAG, "Redirecting to $url")
                     httpConnection = url.openConnection() as HttpURLConnection
                     httpConnection.requestMethod = "HEAD"
                     responseCode = httpConnection.responseCode
                 }
-                if (responseCode == 200) {
+                if (responseCode == 200) { //  || responseCode == 206
+                    withContext(Dispatchers.Main) {
+                        download.status = DownloadStatus.running
+                    }
                     val contentLength = httpConnection.getHeaderField("content-length").toLongOrNull()
                     contentLength?.let {
                         withContext(Dispatchers.Main) {
-                            status?.invokeMethod("updateSize", contentLength)
+                            download.finalSize = contentLength
                         }
                     }
                     var bytesReceivedTotal = 0L
@@ -98,7 +99,7 @@ class DownloadWorker(
                     httpConnection.getHeaderField("content-disposition")
                     try {
                         BufferedInputStream(url.openStream()).use { `in` ->
-                            FileOutputStream(manager.cacheFile).use { fileOutputStream ->
+                            FileOutputStream(download.cacheFile).use { fileOutputStream ->
                                 val dataBuffer = ByteArray(8096)
                                 var bytesRead: Int
                                 while (`in`.read(dataBuffer, 0, 8096).also { bytesRead = it } != -1) {
@@ -112,7 +113,7 @@ class DownloadWorker(
                                         if(progress != lastProgress) {
                                             lastProgress = progress
                                             withContext(Dispatchers.Main) {
-                                                status?.invokeMethod("updateProgress", progress)
+                                                download.progress = progress
                                             }
                                             //println("Update: ${progress / 10.0}%")
                                         }
@@ -139,52 +140,40 @@ class DownloadWorker(
                                 tempFile.delete()
                             }*/
                         } else {
-                            Log.v(TAG, "Canceled task for ${manager.id}")
+                            Log.v(TAG, "Canceled task for ${download.urlHash}")
+                            withContext(Dispatchers.Main) {
+                                download.status = DownloadStatus.paused
+                            }
                             return@withContext Result.failure()
                         }
-                        Log.i(
-                            TAG,
-                            "Successfully downloaded taskId ${manager.id} to $ filePath"
-                        )
+                        Log.i(TAG, "Successfully downloaded taskId ${download.urlHash}")
+                        withContext(Dispatchers.Main) {
+                            download.status = DownloadStatus.completed
+                        }
                         return@withContext Result.success()
                     } catch (e: Exception) {
                         when (e) {
-                            is FileSystemException -> Log.w(
-                                TAG,
-                                "Filesystem exception downloading from ${manager.url} to $ filePath: ${e.message}"
-                            )
-                            is SocketException -> Log.i(
-                                TAG,
-                                "Socket exception downloading from ${manager.url} to $ filePath: ${e.message}"
-                            )
+                            is FileSystemException ->
+                                Log.e(TAG, "Filesystem exception downloading ${download.urlHash}", e)
+                            is SocketException ->
+                                Log.e(TAG, "Socket exception downloading ${download.urlHash}", e)
                             is CancellationException -> {
-                                Log.v(TAG, "Job cancelled: ${manager.url} to $ filePath: ${e.message}")
+                                Log.v(TAG, "Job ${download.urlHash} cancelled: ${e.message}")
                                 return@withContext Result.failure()
                             }
-                            else -> Log.w(
-                                TAG,
-                                "Error downloading from ${manager.url} to $ filePath: ${e.message}"
-                            )
+                            else -> Log.e(TAG, "Error downloading from ${download.url}", e)
                         }
                     }
                     return@withContext Result.failure()
                 } else {
-                    Log.i(
-                        TAG,
-                        "Response code $responseCode for download from  ${manager.url} to $ filePath"
-                    )
-                    //return if (responseCode == 404) {
-                    //    DownloadTaskStatus.notFound
-                    //} else {
-                    //    DownloadTaskStatus.failed
-                    //}
+                    Log.i(TAG, "Response code $responseCode for download ${download.urlHash}")
+                    withContext(Dispatchers.Main) {
+                        download.status = DownloadStatus.failed
+                    }
                     return@withContext Result.failure()
                 }
             } catch (e: Exception) {
-                Log.w(
-                    TAG,
-                    "Error downloading from ${manager.url} to $ {downloadTask.filename}: $e"
-                )
+                Log.e(TAG, "Error downloading from ${download.url}", e)
                 return@withContext Result.failure()
             }
         }

@@ -26,7 +26,7 @@ class DartDownload extends Download {
     metadataFile = File('$baseDir/$urlHash.meta');
   }
 
-  /// For internal use only
+  /// The urlHash used as internal id of the Download
   late final String urlHash;
   final String _url;
   final DownloadTarget _target;
@@ -185,7 +185,7 @@ class DartDownload extends Download {
         handleDone: (sink) async {
           print('Saved $saved bytes to cache file ${cacheFile.absolute}');
           if (!hasError) {
-            _status = DownloadStatus.complete;
+            _status = DownloadStatus.completed;
           }
           notifyListeners();
           await outStream?.flush();

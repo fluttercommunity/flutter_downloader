@@ -127,7 +127,7 @@ class FlutterDownloader extends ChangeNotifier
   /// Continue all paused downloads.
   Future<void> continueAllDownloads() async {
     for (final download in await getDownloads()) {
-      if (download.status != DownloadStatus.complete ||
+      if (download.status != DownloadStatus.completed ||
           download.status != DownloadStatus.canceled) {
         unawaited(download.resume());
       }

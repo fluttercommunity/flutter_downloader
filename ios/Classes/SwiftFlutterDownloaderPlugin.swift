@@ -2,9 +2,19 @@ import Flutter
 import UIKit
 import BackgroundTasks
 
-private class Download: NSObject, URLSessionDelegate, URLSessionDownloadDelegate {
+private enum DownloadStatus {
+  case running
+  case completed
+  case failed
+  case canceled
+  case paused
+}
+
+private class SwiftDownload: NSObject, URLSessionDelegate, URLSessionDownloadDelegate {
+  /// The cache file of the (partial) download
   private var finalSize: Int64?
   private var progress: Int64 = 0
+  private var lastProgress: Int64 = -1
   private var backChannel: FlutterMethodChannel
   private var url: String?
   private var headers = [String:String]()
@@ -15,34 +25,32 @@ private class Download: NSObject, URLSessionDelegate, URLSessionDownloadDelegate
   init(urlHash : String, with binaryMessenger : FlutterBinaryMessenger) throws {
     backChannel = FlutterMethodChannel(name: "fluttercommunity/flutter_downloader/\(urlHash)", binaryMessenger: binaryMessenger)
     self.urlHash = urlHash
-    
+
+    /// Parse meta file
+    var parseHeaders = false
     let metaFile = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("\(urlHash).meta")
     let rawData = try String(contentsOf: metaFile, encoding: .utf8)
-    //print("Meta-File:")
-    //print(rawData)
     let lines = rawData.components(separatedBy:"\n")
-    var parseHeaders = false
     for line in lines {
       if line == "headers:" {
         parseHeaders = true
       } else {
-        let parts = line.components(separatedBy:"=")
-        let key = parts.first!
-        let value = parts.last!
-        //print("'\(key)'='\(value)\'")/*
+        let parts = line.split(separator: "=", maxSplits: 2)
+        let key = String(parts.first!)
+        let value = String(parts.last!)
         if parseHeaders {
           headers[key] = value
         } else if key == "url" && !value.isEmpty {
           url = value
-          // I think those fields are not relevant for iOS:
-          //} else if key == "filename" && !value.isEmpty {
-          //  filename = value
-          //} else if key == "etag" && !value.isEmpty {
-          // etag = value
-          //} else if key == "resumable" && !value.isEmpty {
-          //  resumable = value == "true";
-          //} else if key == "size" && !value.isEmpty {
-          //  finalSize = int.parse(value);
+        // I think those fields are not relevant for iOS:
+        //} else if key == "filename" && !value.isEmpty {
+        //  filename = value
+        //} else if key == "etag" && !value.isEmpty {
+        // etag = value
+        //} else if key == "resumable" && !value.isEmpty {
+        //  resumable = value == "true";
+        //} else if key == "size" && !value.isEmpty {
+        //  finalSize = int.parse(value);
         }
       }
     }
@@ -71,7 +79,7 @@ private class Download: NSObject, URLSessionDelegate, URLSessionDownloadDelegate
     // now start the task
     task?.resume()
     
-    self.updateStatus(status: "running")
+    self.updateStatus(status: .running)
   }
   
   func pause() {
@@ -79,23 +87,24 @@ private class Download: NSObject, URLSessionDelegate, URLSessionDownloadDelegate
     task?.cancel{ resumeDataOrNil in
       guard let resumeData = resumeDataOrNil else {
         print("failed to pause?")
-        self.updateStatus(status: "canceled")
+        self.updateStatus(status: .canceled)
         return
       }
       self.resumeData = resumeData
       print("can continue!?")
-      self.updateStatus(status: "paused")
+      self.updateStatus(status: .paused)
     }
   }
   
   private func updateProgress(progress: Int64) {
-    backChannel.invokeMethod("updateProgress", arguments: progress)
-    //print("Update progress \(Double(progress) / 10.0)%")
+    if lastProgress != progress {
+      lastProgress = progress
+      backChannel.invokeMethod("updateProgress", arguments: progress)
+    }
   }
   
-  private func updateStatus(status: String) {
-    backChannel.invokeMethod("updateStatus", arguments: status)
-    print("Update status: \(status)")
+  private func updateStatus(status: DownloadStatus) {
+    backChannel.invokeMethod("updateStatus", arguments: "\(status)")
   }
   
   public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
@@ -108,28 +117,21 @@ private class Download: NSObject, URLSessionDelegate, URLSessionDownloadDelegate
     
     let permill = (totalBytesWritten * 1000) / totalBytesExpectedToWrite
     
-    // TODO prevent again double updates
     updateProgress(progress: permill)
     
     if permill == 1000 {
-      updateStatus(status: "complete")
+      updateStatus(status: .completed)
     }
   }
   
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-    guard let error = error else {
-      //print("err1")
-      //self.updateStatus(status: "failed")
-      return
-    }
+    guard let error = error else {return}
     let userInfo = (error as NSError).userInfo
     if let resumeData = userInfo[NSURLSessionDownloadTaskResumeData] as? Data {
-      print("can continue!?")
       self.resumeData = resumeData
-      self.updateStatus(status: "paused")
+      self.updateStatus(status: .paused)
     } else {
-      print("err2")
-      self.updateStatus(status: "failed")
+      self.updateStatus(status: .failed)
     }
   }
   
@@ -137,22 +139,20 @@ private class Download: NSObject, URLSessionDelegate, URLSessionDownloadDelegate
   ///
   /// If successful, (over)write file to final destination per FlutterDownloadTask info
   public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-    let urlHash = downloadTask.taskDescription!
-    
     guard let response = downloadTask.response as? HTTPURLResponse
     else {
       print("Did not get HttpResponse")
       return}
     if response.statusCode == 200 || response.statusCode == 206 {
-      updateStatus(status: "complete")
+      updateStatus(status: .completed)
     } else {
-      updateStatus(status: "failed")
+      updateStatus(status: .failed)
     }
   }
 }
 
 public class SwiftFlutterDownloaderPlugin: NSObject, FlutterPlugin {
-  private var downloads = [String:Download]()
+  private var downloads = [String:SwiftDownload]()
   private static var binaryMessenger : FlutterBinaryMessenger?;
   
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -186,11 +186,10 @@ public class SwiftFlutterDownloaderPlugin: NSObject, FlutterPlugin {
     print("Resume download with hash \(urlHash)...")
     if downloads[urlHash] == nil {
       do {
-        let download = try Download(urlHash: urlHash, with: SwiftFlutterDownloaderPlugin.binaryMessenger!)
+        let download = try SwiftDownload(urlHash: urlHash, with: SwiftFlutterDownloaderPlugin.binaryMessenger!)
         downloads[urlHash] = download
       } catch {
-        // TODO handle errors...
-        //updateStatus(urlHash: urlHash, status: "failed")
+        updateStatus(urlHash: urlHash, status: .failed)
       }
     }
     downloads[urlHash]?.resume()
