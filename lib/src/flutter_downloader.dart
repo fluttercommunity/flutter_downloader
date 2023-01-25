@@ -91,7 +91,7 @@ class FlutterDownloader extends ChangeNotifier
   Future<Download?> _loadMetaData(String url) async {
     final baseDir = await PlatformDownload.getLocalDir();
     final urlHash = sha1.convert(utf8.encode(url)).toString();
-    final file = File('$baseDir/$urlHash.meta');
+    final file = File('${baseDir.path}/$urlHash.meta');
     if (file.existsSync()) {
       return PlatformDownload.create(
         url: url,

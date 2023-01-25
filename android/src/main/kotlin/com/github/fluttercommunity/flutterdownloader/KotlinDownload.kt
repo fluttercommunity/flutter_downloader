@@ -14,7 +14,7 @@ internal class KotlinDownload(
     val urlHash: String
 ) {
     /// The cache file of the (partial) download
-    val cacheFile = File(FlutterDownloaderPlugin.tempDir, "$urlHash.cache")
+    val cacheFile = File(FlutterDownloaderPlugin.tempDir, "$urlHash.part")
 
     /// The request headers
     val headers = mutableMapOf<String, String>()

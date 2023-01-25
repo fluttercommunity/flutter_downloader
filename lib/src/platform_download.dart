@@ -70,8 +70,13 @@ class PlatformDownload extends DartDownload {
         }
       }
       if (download.finalSize != null) {
-        download.progress =
-            (await download.cacheFile.length() * 1000) ~/ download.finalSize!;
+        if (download.cacheFile.existsSync()) {
+          final cacheFileSize = await download.cacheFile.length();
+          download.progress = (cacheFileSize * 1000) ~/ download.finalSize!;
+          if (cacheFileSize == download.finalSize) {
+            download.status = DownloadStatus.completed;
+          }
+        }
       }
     } else {
       await download.updateMetaData();
@@ -86,6 +91,7 @@ class PlatformDownload extends DartDownload {
         break;
       case 'updateSize':
         finalSize = call.arguments as int;
+        await updateMetaData();
         break;
       case 'updateStatus':
         status = DownloadStatus.values
