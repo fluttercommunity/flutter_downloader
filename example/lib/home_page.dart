@@ -27,7 +27,6 @@ class MyHomePage extends StatefulWidget with WidgetsBindingObserver {
 class _MyHomePageState extends State<MyHomePage> {
   List<ItemHolder> _items = [];
   late bool _loading;
-  late bool _permissionReady;
   late String _localPath;
 
   @override
@@ -35,7 +34,6 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
 
     _loading = true;
-    _permissionReady = Platform.isWindows;
 
     _prepare();
   }
@@ -120,75 +118,9 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _buildNoPermissionWarning() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              'Grant storage permission to continue',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.blueGrey, fontSize: 18),
-            ),
-          ),
-          const SizedBox(height: 32),
-          TextButton(
-            onPressed: _retryRequestPermission,
-            child: const Text(
-              'Retry',
-              style: TextStyle(
-                color: Colors.blue,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Future<void> _retryRequestPermission() async {
-    final hasGranted = await _checkPermission();
-
-    if (hasGranted) {
-      await _prepareSaveDir();
-    }
-
-    setState(() {
-      _permissionReady = hasGranted;
-    });
-  }
-
   Future<bool> _openDownloadedFile(Download download) async {
     return false;
     //return FlutterDownloader.open(taskId: task.taskId!);
-  }
-
-  Future<bool> _checkPermission() async {
-    if (Platform.isIOS || Platform.isWindows) {
-      return true;
-    }
-
-    final deviceInfo = DeviceInfoPlugin();
-    final androidInfo = await deviceInfo.androidInfo;
-    if (widget.platform == TargetPlatform.android &&
-        androidInfo.version.sdkInt <= 28) {
-      final status = await Permission.storage.status;
-      if (status != PermissionStatus.granted) {
-        final result = await Permission.storage.request();
-        if (result == PermissionStatus.granted) {
-          return true;
-        }
-      } else {
-        return true;
-      }
-    } else {
-      return true;
-    }
-    return false;
   }
 
   Future<void> _prepare() async {
@@ -208,11 +140,6 @@ class _MyHomePageState extends State<MyHomePage> {
           items.firstWhereOrNull((item) => item.metaInfo?.url == download.url);
       item?.download = download;
     }
-    //for(final item in _items) {
-    //  if(item.metaInfo != null && item.download != null) {
-    //    item.download = widget.downloader.
-    //  }
-    //}
 
     setState(() {
       _items = items;
