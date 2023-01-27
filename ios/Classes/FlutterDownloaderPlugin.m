@@ -23,6 +23,7 @@
 #define KEY_OPEN_FILE_FROM_NOTIFICATION @"open_file_from_notification"
 #define KEY_QUERY @"query"
 #define KEY_TIME_CREATED @"time_created"
+#define KEY_ALLOW_CELLULAR @"allow_cellular"
 
 #define NULL_VALUE @"<null>"
 
@@ -52,6 +53,7 @@ static FlutterPluginRegistrantCallback registerPlugins = nil;
 static BOOL initialized = NO;
 static BOOL debug = YES;
 static NSURLSession *_session = nil;
+static NSURLSession *_wifiOnlySession = nil;
 static FlutterEngine *_headlessRunner = nil;
 static int64_t _callbackHandle = 0;
 static int _step = 10;
@@ -92,7 +94,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         if (debug) {
             NSLog(@"database path: %@", dbPath);
         }
-        databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
+        databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", nil);
         _dbManager = [[DBManager alloc] initWithDatabaseFilePath:dbPath];
         
         if (_runningTaskById == nil) {
@@ -110,13 +112,22 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             if (debug) {
                 NSLog(@"MAXIMUM_CONCURRENT_TASKS = %@", maxConcurrentTasks);
             }
+
+            NSString *wifiIdentifier = [NSString stringWithFormat:@"%@.download.background.session.wifi", NSBundle.mainBundle.bundleIdentifier];
+            NSURLSessionConfiguration *wifiSessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:wifiIdentifier];
+            wifiSessionConfiguration.HTTPMaximumConnectionsPerHost = [maxConcurrentTasks intValue];
+            wifiSessionConfiguration.allowsCellularAccess = NO;
+            _wifiOnlySession = [NSURLSession sessionWithConfiguration:wifiSessionConfiguration delegate:self delegateQueue:nil];
+
             // session identifier needs to be the same for background download and resume to work
             NSString *identifier = [NSString stringWithFormat:@"%@.download.background.session", NSBundle.mainBundle.bundleIdentifier];
             NSURLSessionConfiguration *sessionConfiguration = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:identifier];
             sessionConfiguration.HTTPMaximumConnectionsPerHost = [maxConcurrentTasks intValue];
             _session = [NSURLSession sessionWithConfiguration:sessionConfiguration delegate:self delegateQueue:nil];
+
             if (debug) {
                 NSLog(@"init NSURLSession with id: %@", [[_session configuration] identifier]);
+                NSLog(@"init wifi-only NSURLSession with id: %@", [[_wifiOnlySession configuration] identifier]);
             }
         }
 
@@ -155,11 +166,11 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     return _mainChannel;
 }
 
-- (NSURLSession*)currentSession {
-    return _session;
+- (NSURLSession*)currentSession: (bool) allowCellular {
+    return allowCellular ? _session : _wifiOnlySession;
 }
 
-- (NSURLSessionDownloadTask*)downloadTaskWithURL: (NSURL*) url fileName: (NSString*) fileName andSavedDir: (NSString*) savedDir andHeaders: (NSString*) headers
+- (NSURLSessionDownloadTask*)downloadTaskWithURL: (NSURL*) url fileName: (NSString*) fileName andSavedDir: (NSString*) savedDir andHeaders: (NSString*) headers allowCellular: (bool) allowCellular
 {
     NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:url];
     if (headers != nil && [headers length] > 0) {
@@ -175,7 +186,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             [request setValue:value forHTTPHeaderField:key];
         }
     }
-    NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithRequest:request];
+    NSURLSessionDownloadTask *task = [[self currentSession:allowCellular ] downloadTaskWithRequest:request];
     // store task id in taskDescription
     task.taskDescription = [self createTaskId];
     [task resume];
@@ -193,15 +204,17 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     return task.taskDescription;
 }
 
-- (NSString*)identifierForTask:(NSURLSessionTask*) task ofSession:(NSURLSession *)session
-{
-    return task.taskDescription;
-}
-
 - (void)updateRunningTaskById:(NSString*)taskId progress:(int)progress status:(int)status resumable:(BOOL)resumable {
     _runningTaskById[taskId][KEY_PROGRESS] = @(progress);
     _runningTaskById[taskId][KEY_STATUS] = @(status);
     _runningTaskById[taskId][KEY_RESUMABLE] = @(resumable);
+}
+
+- (void) applyToTask: (void (NS_SWIFT_SENDABLE ^)(NSArray<NSURLSessionDataTask *> *dataTasks, NSArray<NSURLSessionUploadTask *> *uploadTasks, NSArray<NSURLSessionDownloadTask *> *downloadTasks))handler {
+    // apply handler to tasks from wifi-only session
+    [[self currentSession:false] getTasksWithCompletionHandler:handler];
+    // apply to regular session tasks
+    [[self currentSession:true] getTasksWithCompletionHandler:handler];
 }
 
 - (void)pauseTaskWithId: (NSString*)taskId
@@ -210,13 +223,13 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         NSLog(@"pause task with id: %@", taskId);
     }
     __typeof__(self) __weak weakSelf = self;
-    [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
+    [ self applyToTask:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
         for (NSURLSessionDownloadTask *download in downloads) {
             NSURLSessionTaskState state = download.state;
             NSString *taskIdValue = [weakSelf identifierForTask:download];
             if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
                 NSDictionary *task = [weakSelf loadTaskWithId:taskIdValue];
-                
+
                 int progress = 0;
                 if (download.countOfBytesExpectedToReceive > 0) {
                     int64_t bytesReceived = download.countOfBytesReceived;
@@ -226,7 +239,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
                     NSNumber *progressNumOfTask = task[@"progress"];
                     progress = progressNumOfTask.intValue;
                 }
-                
+
                 [download cancelByProducingResumeData:^(NSData * _Nullable resumeData) {
                     // Save partial downloaded data to a file
                     NSFileManager *fileManager = [NSFileManager defaultManager];
@@ -261,7 +274,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         NSLog(@"cancel task with id: %@", taskId);
     }
     __typeof__(self) __weak weakSelf = self;
-    [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
+    [self applyToTask:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
         for (NSURLSessionDownloadTask *download in downloads) {
             NSURLSessionTaskState state = download.state;
             NSString *taskIdValue = [self identifierForTask:download];
@@ -279,7 +292,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 
 - (void)cancelAllTasks {
     __typeof__(self) __weak weakSelf = self;
-    [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
+    [self applyToTask:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
         for (NSURLSessionDownloadTask *download in downloads) {
             NSURLSessionTaskState state = download.state;
             if (state == NSURLSessionTaskStateRunning) {
@@ -588,7 +601,9 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         int showNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"show_notification"]] intValue];
         int openFileFromNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"open_file_from_notification"]] intValue];
         long long timeCreated = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"time_created"]] longLongValue];
-        return [NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, headers, KEY_HEADERS, savedDir, KEY_SAVED_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, [NSNumber numberWithBool:(showNotification == 1)], KEY_SHOW_NOTIFICATION, [NSNumber numberWithBool:(openFileFromNotification == 1)], KEY_OPEN_FILE_FROM_NOTIFICATION, @(timeCreated), KEY_TIME_CREATED, nil];
+        int allowCellular = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"allow_cellular"]] intValue];
+
+        return [NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, headers, KEY_HEADERS, savedDir, KEY_SAVED_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, [NSNumber numberWithBool:(showNotification == 1)], KEY_SHOW_NOTIFICATION, [NSNumber numberWithBool:(openFileFromNotification == 1)], KEY_OPEN_FILE_FROM_NOTIFICATION, @(timeCreated), KEY_TIME_CREATED, [NSNumber numberWithBool:(allowCellular == 1)], KEY_ALLOW_CELLULAR, nil];
     } @catch(NSException *exception) {
         NSLog(@"invalid task data: %@", exception);
         return [NSDictionary dictionary];
@@ -640,22 +655,26 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     NSString *headers = call.arguments[KEY_HEADERS];
     NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
     NSNumber *openFileFromNotification = call.arguments[KEY_OPEN_FILE_FROM_NOTIFICATION];
+    bool allowCellular = [call.arguments[KEY_ALLOW_CELLULAR] boolValue];
 
-    NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
+    NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers allowCellular:allowCellular];
 
     NSString *taskId = [self identifierForTask:task];
 
-    [_runningTaskById setObject: [NSMutableDictionary dictionaryWithObjectsAndKeys:
-                                  urlString, KEY_URL,
-                                  fileName, KEY_FILE_NAME,
-                                  savedDir, KEY_SAVED_DIR,
-                                  headers, KEY_HEADERS,
-                                  showNotification, KEY_SHOW_NOTIFICATION,
-                                  openFileFromNotification, KEY_OPEN_FILE_FROM_NOTIFICATION,
-                                  @(NO), KEY_RESUMABLE,
-                                  @(STATUS_ENQUEUED), KEY_STATUS,
-                                  @(0), KEY_PROGRESS, nil]
-                         forKey:taskId];
+    NSMutableDictionary *taskDict = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+            urlString, KEY_URL,
+            fileName, KEY_FILE_NAME,
+            savedDir, KEY_SAVED_DIR,
+            headers, KEY_HEADERS,
+            showNotification, KEY_SHOW_NOTIFICATION,
+            openFileFromNotification, KEY_OPEN_FILE_FROM_NOTIFICATION,
+            @(NO), KEY_RESUMABLE,
+            @(STATUS_ENQUEUED), KEY_STATUS,
+            @(0), KEY_PROGRESS,
+            [NSNumber numberWithBool:allowCellular], KEY_ALLOW_CELLULAR,
+                    nil];
+
+    _runningTaskById[taskId] = taskDict;
 
     __typeof__(self) __weak weakSelf = self;
     
@@ -715,7 +734,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             NSData *resumeData = [NSData dataWithContentsOfURL:partialFileURL];
 
             if (resumeData != nil) {
-                NSURLSessionDownloadTask *task = [[self currentSession] downloadTaskWithResumeData:resumeData];
+                NSURLSessionDownloadTask *task = [[self currentSession:(bool) taskDict[KEY_ALLOW_CELLULAR]] downloadTaskWithResumeData:resumeData];
                 NSString *newTaskId = [self createTaskId];
                 task.taskDescription = newTaskId;
                 [task resume];
@@ -761,8 +780,9 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             NSString *savedDir = taskDict[KEY_SAVED_DIR];
             NSString *fileName = taskDict[KEY_FILE_NAME];
             NSString *headers = taskDict[KEY_HEADERS];
+            bool allowCellular = [taskDict[KEY_ALLOW_CELLULAR] boolValue];
 
-            NSURLSessionDownloadTask *newTask = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
+            NSURLSessionDownloadTask *newTask = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers allowCellular: allowCellular];
             NSString *newTaskId = [self identifierForTask:newTask];
 
             // update memory-cache
@@ -818,7 +838,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     if (taskDict != nil) {
         NSNumber* status = taskDict[KEY_STATUS];
         if ([status intValue] == STATUS_ENQUEUED || [status intValue] == STATUS_RUNNING) {
-            [[self currentSession] getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
+            [self applyToTask:^(NSArray<NSURLSessionDataTask *> *data, NSArray<NSURLSessionUploadTask *> *uploads, NSArray<NSURLSessionDownloadTask *> *downloads) {
                 for (NSURLSessionDownloadTask *download in downloads) {
                     NSURLSessionTaskState state = download.state;
                     NSString *taskIdValue = [weakSelf identifierForTask:download];
@@ -953,7 +973,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     bool isSuccess = (httpStatusCode >= 200 && httpStatusCode < 300);
     
     if (isSuccess) {
-        NSString *taskId = [self identifierForTask:downloadTask ofSession:session];
+        NSString *taskId = [self identifierForTask:downloadTask];
         NSDictionary *task = [self loadTaskWithId:taskId];
         NSURL *destinationURL = [self fileUrlOf:taskId taskInfo:task downloadTask:downloadTask];
         
@@ -1004,7 +1024,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         if (debug) {
             NSLog(@"Download completed with error: %@", error != nil ? [error localizedDescription] : @(httpStatusCode));
         }
-        NSString *taskId = [self identifierForTask:task ofSession:session];
+        NSString *taskId = [self identifierForTask:task];
         NSDictionary *taskInfo = [self loadTaskWithId:taskId];
         NSNumber *resumable = taskInfo[KEY_RESUMABLE];
         if (![resumable boolValue]) {
@@ -1030,7 +1050,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         NSLog(@"URLSessionDidFinishEventsForBackgroundURLSession:");
     }
     // Check if all download tasks have been finished.
-    [[self currentSession] getTasksWithCompletionHandler:^(NSArray *dataTasks, NSArray *uploadTasks, NSArray *downloadTasks) {
+    [self applyToTask:^(NSArray *dataTasks, NSArray *uploadTasks, NSArray *downloadTasks) {
         if ([downloadTasks count] == 0) {
             if (debug) {
                 NSLog(@"all download tasks have been finished");

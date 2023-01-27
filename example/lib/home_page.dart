@@ -28,6 +28,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late bool _showContent;
   late bool _permissionReady;
   late bool _saveInPublicStorage;
+  late bool _allowCellular;
   late String _localPath;
   final ReceivePort _port = ReceivePort();
 
@@ -42,6 +43,7 @@ class _MyHomePageState extends State<MyHomePage> {
     _showContent = false;
     _permissionReady = false;
     _saveInPublicStorage = false;
+    _allowCellular = true;
 
     _prepare();
   }
@@ -98,8 +100,7 @@ class _MyHomePageState extends State<MyHomePage> {
       'task ($id) is in status ($status) and process ($progress)',
     );
 
-    IsolateNameServer.lookupPortByName('downloader_send_port')
-        ?.send([id, status, progress]);
+    IsolateNameServer.lookupPortByName('downloader_send_port')?.send([id, status, progress]);
   }
 
   Widget _buildDownloadList() {
@@ -117,13 +118,23 @@ class _MyHomePageState extends State<MyHomePage> {
             const Text('Save in public storage'),
           ],
         ),
+        Row(
+          children: [
+            Checkbox(
+              value: _allowCellular,
+              onChanged: (newValue) {
+                setState(() => _allowCellular = newValue ?? true);
+              },
+            ),
+            const Text('Allow download via cellular data'),
+          ],
+        ),
         ..._items.map(
           (item) {
             final task = item.task;
             if (task == null) {
               return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Text(
                   item.name!,
                   style: const TextStyle(
@@ -154,8 +165,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   _pauseDownload(task);
                 } else if (task.status == DownloadTaskStatus.paused) {
                   _resumeDownload(task);
-                } else if (task.status == DownloadTaskStatus.complete ||
-                    task.status == DownloadTaskStatus.canceled) {
+                } else if (task.status == DownloadTaskStatus.complete || task.status == DownloadTaskStatus.canceled) {
                   _delete(task);
                 } else if (task.status == DownloadTaskStatus.failed) {
                   _retryDownload(task);
@@ -217,6 +227,7 @@ class _MyHomePageState extends State<MyHomePage> {
       headers: {'auth': 'test_for_sql_encoding'},
       savedDir: _localPath,
       saveInPublicStorage: _saveInPublicStorage,
+      allowCellular: _allowCellular,
     );
   }
 
@@ -300,8 +311,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     _tasks!.addAll(
-      DownloadItems.images
-          .map((image) => TaskInfo(name: image.name, link: image.url)),
+      DownloadItems.images.map((image) => TaskInfo(name: image.name, link: image.url)),
     );
 
     _items.add(ItemHolder(name: 'Images'));
@@ -311,8 +321,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     _tasks!.addAll(
-      DownloadItems.videos
-          .map((video) => TaskInfo(name: video.name, link: video.url)),
+      DownloadItems.videos.map((video) => TaskInfo(name: video.name, link: video.url)),
     );
 
     _items.add(ItemHolder(name: 'Videos'));
@@ -322,8 +331,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     _tasks!.addAll(
-      DownloadItems.apks
-          .map((video) => TaskInfo(name: video.name, link: video.url)),
+      DownloadItems.apks.map((video) => TaskInfo(name: video.name, link: video.url)),
     );
 
     _items.add(ItemHolder(name: 'APKs'));
@@ -374,8 +382,7 @@ class _MyHomePageState extends State<MyHomePage> {
         externalStorageDirPath = directory?.path;
       }
     } else if (Platform.isIOS) {
-      externalStorageDirPath =
-          (await getApplicationDocumentsDirectory()).absolute.path;
+      externalStorageDirPath = (await getApplicationDocumentsDirectory()).absolute.path;
     }
     return externalStorageDirPath;
   }
@@ -412,9 +419,7 @@ class _MyHomePageState extends State<MyHomePage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          return _permissionReady
-              ? _buildDownloadList()
-              : _buildNoPermissionWarning();
+          return _permissionReady ? _buildDownloadList() : _buildNoPermissionWarning();
         },
       ),
     );
