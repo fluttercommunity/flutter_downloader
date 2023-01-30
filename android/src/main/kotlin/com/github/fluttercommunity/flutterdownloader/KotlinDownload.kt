@@ -10,7 +10,7 @@ import java.net.URL
  * implementation. Some details will differ since that are different programming languages.
  */
 internal class KotlinDownload(
-    /// The urlHash used as internal id of the Download
+    /// The URL hashed with {algorithm}. It's used as internal, unique identifer of this download
     val urlHash: String
 ) {
     /// The cache file of the (partial) download

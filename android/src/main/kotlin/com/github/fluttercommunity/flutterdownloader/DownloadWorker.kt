@@ -17,9 +17,9 @@ import java.util.regex.Pattern
 import kotlin.coroutines.cancellation.CancellationException
 
 /***
- * A simple worker that will post your input back to your Flutter application.
+ * A simple worker that posts the input its given back to the Flutter application.
  *
- * It will block the background thread until a value of either true or false is received back from Flutter code.
+ * It blocks the background thread until a value of either true or false is received back from Flutter code.
  */
 class DownloadWorker(
     applicationContext: Context,

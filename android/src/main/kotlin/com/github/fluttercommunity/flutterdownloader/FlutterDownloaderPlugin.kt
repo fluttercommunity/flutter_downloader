@@ -48,7 +48,7 @@ class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
     }
 
     /**
-     * Resume or start the download
+     * Resumes the existing download, or starts a new download.
      *
      * Returns true if successful, but will emit a status update that the background task is running
      */
@@ -79,9 +79,9 @@ class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
     }
 
     /**
-     * Pause a download by canceling the worker.
+     * Pauses the download identified by @param urlHash by canceling the worker.
      *
-     * Returns the number of tasks canceled which should be always 1.
+     * Returns the number of tasks canceled. This number should be always 1.
      */
     private fun pause(call: MethodCall, result: Result) {
         val urlHash = call.arguments as String
