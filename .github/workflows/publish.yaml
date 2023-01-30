@@ -37,8 +37,8 @@ jobs:
       - name: Set version data
         run: |
           tag=${{ github.ref_name }}
-          echo "RELEASE_NOTES=$(link_changelog $tag)" >> $GITHUB_ENV
-          echo "IS_PRERELEASE=$(is_prerelease $tag)" >> $GITHUB_ENV
+          echo "RELEASE_NOTES=$(link_changelog flutter_downloader $tag)" >> $GITHUB_ENV
+          echo "IS_PRERELEASE=$(is_prerelease flutter_downloader $tag)" >> $GITHUB_ENV
 
       - name: Publish
         run: dart pub publish -f

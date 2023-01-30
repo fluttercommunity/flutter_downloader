@@ -274,7 +274,6 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         var downloadedBytes: Long = 0
         var responseCode: Int
         var times: Int
-        var actualTimeout = timeout
         visited = HashMap()
         try {
             val task = taskDao?.loadTask(id.toString())
@@ -306,8 +305,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                     resourceUrl.openConnection() as HttpsURLConnection
                 }
                 log("Open connection to $url")
-                httpConn.connectTimeout = actualTimeout
-                httpConn.readTimeout = actualTimeout
+                httpConn.connectTimeout = timeout
+                httpConn.readTimeout = timeout
                 httpConn.instanceFollowRedirects = false // Make the logic below easier to detect redirections
                 httpConn.setRequestProperty("User-Agent", "Mozilla/5.0...")
 
@@ -421,10 +420,10 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                         )
                     }
                 }
-                val task = taskDao?.loadTask(id.toString())
-                val progress = if (isStopped && task!!.resumable) lastProgress else 100
+                val loadedTask = taskDao?.loadTask(id.toString())
+                val progress = if (isStopped && loadedTask!!.resumable) lastProgress else 100
                 val status =
-                    if (isStopped) if (task!!.resumable) DownloadStatus.PAUSED else DownloadStatus.CANCELED else DownloadStatus.COMPLETE
+                    if (isStopped) if (loadedTask!!.resumable) DownloadStatus.PAUSED else DownloadStatus.CANCELED else DownloadStatus.COMPLETE
                 val storage: Int = ContextCompat.checkSelfPermission(
                     applicationContext,
                     Manifest.permission.WRITE_EXTERNAL_STORAGE
@@ -462,9 +461,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                 updateNotification(context, displayName ?: actualFilename, status, progress, pendingIntent, true)
                 log(if (isStopped) "Download canceled" else "File downloaded")
             } else {
-                val task = taskDao!!.loadTask(id.toString())
+                val loadedTask = taskDao!!.loadTask(id.toString())
                 val status =
-                    if (isStopped) if (task!!.resumable) DownloadStatus.PAUSED else DownloadStatus.CANCELED else DownloadStatus.FAILED
+                    if (isStopped) if (loadedTask!!.resumable) DownloadStatus.PAUSED else DownloadStatus.CANCELED else DownloadStatus.FAILED
                 val notificationTitle: String? = displayName ?: actualFilename
                 taskDao!!.updateTask(id.toString(), status, lastProgress)
                 updateNotification(context, notificationTitle ?: fileURL, status, -1, null, true)

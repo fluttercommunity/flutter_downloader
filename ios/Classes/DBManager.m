@@ -97,7 +97,13 @@
     
     
     // Open the database.
-    BOOL openDatabaseResult = sqlite3_open([databasePath UTF8String], &sqlite3Database);
+    int openDatabaseResult = sqlite3_open([databasePath UTF8String], &sqlite3Database);
+    if(openDatabaseResult != SQLITE_OK) {
+        if(debug) {
+            NSLog(@"error opening the database with error no.: %d", openDatabaseResult);
+        }
+        return;
+    }
     if(openDatabaseResult == SQLITE_OK) {
         if (debug) {
             NSLog(@"open DB successfully");
@@ -107,7 +113,7 @@
         sqlite3_stmt *compiledStatement;
 
         // Load all data from database to memory.
-        BOOL prepareStatementResult = sqlite3_prepare_v2(sqlite3Database, query, -1, &compiledStatement, NULL);
+        int prepareStatementResult = sqlite3_prepare_v2(sqlite3Database, query, -1, &compiledStatement, NULL);
         if(prepareStatementResult == SQLITE_OK) {
             // Check if the query is non-executable.
             if (!queryExecutable){
