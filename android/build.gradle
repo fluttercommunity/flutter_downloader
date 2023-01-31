@@ -2,7 +2,7 @@ group 'com.github.fluttercommunity.flutterdownloader'
 version '1.0-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.7.10'
+    ext.kotlin_version = '1.8.0'
     repositories {
         google()
         mavenCentral()
@@ -11,6 +11,7 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:7.1.3'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "org.jetbrains.kotlin:kotlin-serialization:$kotlin_version"
     }
 }
 
@@ -23,6 +24,7 @@ rootProject.allprojects {
 
 apply plugin: 'com.android.library'
 apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'kotlinx-serialization'
 
 android {
     compileSdkVersion 31
@@ -49,4 +51,6 @@ dependencies {
     implementation 'androidx.annotation:annotation:1.4.0'
     implementation 'androidx.core:core:1.9.0'
     implementation 'androidx.fragment:fragment:1.5.2'
+    implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.0-RC"
+    testImplementation 'junit:junit:4.12'
 }

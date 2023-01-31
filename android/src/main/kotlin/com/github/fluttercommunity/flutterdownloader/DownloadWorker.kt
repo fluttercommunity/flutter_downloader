@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
@@ -14,8 +15,10 @@ import java.net.URL
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * A [CoroutineWorker] that downloads a file in the background and reports status updates using method channel in the
- * [AndroidDownload] class.
+ * The DownloadWorker is a [CoroutineWorker] that downloads a file in the background and reports status updates using
+ * [MethodChannel] in the [AndroidDownload] class.
+ *
+ * The required input of the DownloadWorker is the field `urlHash` with the sha1 of the download url.
  */
 class DownloadWorker(
     applicationContext: Context,
@@ -28,28 +31,19 @@ class DownloadWorker(
     private val urlHash by lazy { requireNotNull(inputData.getString("urlHash")) }
     private val download by lazy { AndroidDownload(urlHash) }
 
-    /** Update the download's status on main thread */
-    private suspend fun updateStatus(status: DownloadStatus) = withContext(Dispatchers.Main) {
-        download.status = status
-    }
-
-    /** Update the download's final size on main thread */
-    private suspend fun updateFinalSize(size: Long) = withContext(Dispatchers.Main) {
-        download.finalSize = size
-    }
-
     // The actual download work
     override suspend fun doWork(): Result {
         var canRecoverError = true
         withContext(Dispatchers.IO) {
             try {
+                // TODO just use the url of the metadata when the redirect part is done on the dart side
                 val (finalUrl, httpConnection) = download.url.followRedirects(limit = 5)
                 if (httpConnection.responseCode == 200) {
-                    updateStatus(DownloadStatus.running)
+                    download.updateStatus(DownloadStatus.running)
 
                     val contentLength = httpConnection.getHeaderField("content-length").toLongOrNull()
                     if (contentLength != null) {
-                        updateFinalSize(contentLength)
+                        download.updateFinalSize(contentLength)
                     }
 
                     try {
@@ -58,28 +52,25 @@ class DownloadWorker(
                             throw CancellationException()
                         }
                         moveDownloadToItsTarget()
-                        Log.i(TAG, "Successfully downloaded ${download.urlHash}")
-                        updateStatus(DownloadStatus.completed)
+                        Log.i(TAG, "Successfully downloaded $urlHash")
+                        download.updateStatus(DownloadStatus.completed)
                         return@withContext Result.success()
                     } catch (e: FileSystemException) {
-                        Log.e(TAG, "Filesystem exception downloading ${download.urlHash}", e)
+                        Log.e(TAG, "Filesystem exception downloading $urlHash", e)
                     } catch (e: SocketException) {
-                        Log.e(TAG, "Socket exception downloading ${download.urlHash}", e)
+                        Log.e(TAG, "Socket exception downloading $urlHash", e)
                     } catch (e: CancellationException) {
-                        Log.v(TAG, "Job ${download.urlHash} cancelled")
+                        Log.v(TAG, "Job $urlHash cancelled")
                     }
                 } else {
-                    Log.e(
-                        TAG,
-                        "Unexpected response code ${httpConnection.responseCode} for download ${download.urlHash}"
-                    )
+                    Log.e(TAG, "Unexpected response code ${httpConnection.responseCode} for download $urlHash")
                     canRecoverError = false
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error downloading ${download.urlHash}", e)
+                Log.e(TAG, "Error downloading $urlHash", e)
             }
         }
-        updateStatus(if (canRecoverError) DownloadStatus.paused else DownloadStatus.failed)
+        download.updateStatus(if (canRecoverError) DownloadStatus.paused else DownloadStatus.failed)
         return Result.failure()
     }
 
@@ -103,9 +94,7 @@ class DownloadWorker(
                         val progress = bytesReceivedTotal * 1000 / last
                         if (progress != lastProgress) {
                             lastProgress = progress
-                            withContext(Dispatchers.Main) {
-                                download.progress = progress
-                            }
+                            download.updateProgress(progress)
                             //println("Update: ${progress / 10.0}%")
                         }
                     }
@@ -137,7 +126,7 @@ class DownloadWorker(
     // TODO move this and the commented out part to the dart side this is required for all platforms
     private fun URL.followRedirects(limit: Int): Pair<URL, HttpURLConnection> {
         var httpConnection = openConnection() as HttpURLConnection
-        httpConnection.addHeaders(download.headers)
+        httpConnection.addHeaders(download.metadata.headers)
         httpConnection.requestMethod = "HEAD"
         var responseCode = httpConnection.responseCode
         var redirects = 0
@@ -146,7 +135,7 @@ class DownloadWorker(
             redirects++
             url = URL(httpConnection.getHeaderField("Location"))
             httpConnection = url.openConnection() as HttpURLConnection
-            httpConnection.addHeaders(download.headers)
+            httpConnection.addHeaders(download.metadata.headers)
             Log.v(TAG, "Redirecting to $url")
             httpConnection = url.openConnection() as HttpURLConnection
             httpConnection.requestMethod = "HEAD"
