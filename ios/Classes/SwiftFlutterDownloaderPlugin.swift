@@ -10,7 +10,7 @@ private enum DownloadStatus {
   case paused
 }
 
-private class SwiftDownload: NSObject, URLSessionDelegate, URLSessionDownloadDelegate {
+private class IosDownload: NSObject, URLSessionDelegate, URLSessionDownloadDelegate {
   /// The cache file of the (partial) download
   private var finalSize: Int64?
   private var progress: Int64 = 0
@@ -152,7 +152,7 @@ private class SwiftDownload: NSObject, URLSessionDelegate, URLSessionDownloadDel
 }
 
 public class SwiftFlutterDownloaderPlugin: NSObject, FlutterPlugin {
-  private var downloads = [String:SwiftDownload]()
+  private var downloads = [String:IosDownload]()
   private static var binaryMessenger : FlutterBinaryMessenger?;
   
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -186,10 +186,10 @@ public class SwiftFlutterDownloaderPlugin: NSObject, FlutterPlugin {
     print("Resume download with hash \(urlHash)...")
     if downloads[urlHash] == nil {
       do {
-        let download = try SwiftDownload(urlHash: urlHash, with: SwiftFlutterDownloaderPlugin.binaryMessenger!)
+        let download = try IosDownload(urlHash: urlHash, with: SwiftFlutterDownloaderPlugin.binaryMessenger!)
         downloads[urlHash] = download
       } catch {
-        updateStatus(urlHash: urlHash, status: .failed)
+        //self.updateStatus(status: DownloadStatus.failed)
       }
     }
     downloads[urlHash]?.resume()

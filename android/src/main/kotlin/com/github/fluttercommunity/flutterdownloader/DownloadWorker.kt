@@ -1,22 +1,19 @@
 package com.github.fluttercommunity.flutterdownloader
 
 import android.content.Context
-import android.net.Uri
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.SocketException
 import java.net.URL
-import java.net.URLDecoder
-import java.util.*
-import java.util.regex.Pattern
 import kotlin.coroutines.cancellation.CancellationException
 
-/***
+/**
  * A simple worker that posts the input its given back to the Flutter application.
  *
  * It blocks the background thread until a value of either true or false is received back from Flutter code.
@@ -26,9 +23,14 @@ class DownloadWorker(
     workerParams: WorkerParameters
 ) : CoroutineWorker(applicationContext, workerParams) {
     companion object {
-        const val TAG = "DownloadWorker"
+        private const val TAG = "DownloadWorker"
     }
-/*
+
+    private val urlHash by lazy { requireNotNull(inputData.getString("urlHash")) }
+    private val download by lazy { AndroidDownload(urlHash) }
+
+/* TODO move this to the dart side this is required for all platforms
+
     private val charsetPattern = Pattern.compile("(?i)\\bcharset=\\s*\"?([^\\s;\"]*)")
     private val filenameStarPattern = Pattern.compile("(?i)\\bfilename\\*=([^']+)'([^']*)'\"?([^\"]+)\"?")
     private val filenamePattern = Pattern.compile("(?i)\\bfilename=\"?([^\"]+)\"?")
@@ -63,121 +65,128 @@ class DownloadWorker(
         )
     }
 */
+
     override suspend fun doWork(): Result {
-        val urlHash = requireNotNull(inputData.getString("urlHash"))
-        val download = KotlinDownload(urlHash)
+        var canRecoverError = true
         withContext(Dispatchers.IO) {
             try {
-                var url = download.url
-                // Check for redirects
-                var httpConnection = url.openConnection() as HttpURLConnection
-                httpConnection.addHeaders(download.headers)
-                httpConnection.requestMethod = "HEAD"
-                var responseCode = httpConnection.responseCode
-                var redirects = 0
-                while (responseCode in 301..307 && redirects < 5) {
-                    redirects++
-                    url = URL(httpConnection.getHeaderField("Location"))
-                    httpConnection.addHeaders(download.headers)
-                    Log.v(TAG, "Redirecting to $url")
-                    httpConnection = url.openConnection() as HttpURLConnection
-                    httpConnection.requestMethod = "HEAD"
-                    responseCode = httpConnection.responseCode
-                }
-                if (responseCode == 200) { //  || responseCode == 206
+                val (finalUrl, httpConnection) = download.url.followRedirects(limit = 5)
+                if (httpConnection.responseCode == 200) {
                     withContext(Dispatchers.Main) {
                         download.status = DownloadStatus.running
                     }
-                    val contentLength = httpConnection.getHeaderField("content-length").toLongOrNull()
-                    contentLength?.let {
+                    val contentLength = httpConnection.contentLengthOrNull()?.also { contentLength ->
                         withContext(Dispatchers.Main) {
                             download.finalSize = contentLength
                         }
                     }
-                    var bytesReceivedTotal = 0L
-                    var lastProgress = 0L
-                    httpConnection.getHeaderField("content-disposition")
+
                     try {
-                        BufferedInputStream(url.openStream()).use { `in` ->
-                            FileOutputStream(download.cacheFile).use { fileOutputStream ->
-                                val dataBuffer = ByteArray(8096)
-                                var bytesRead: Int
-                                while (`in`.read(dataBuffer, 0, 8096).also { bytesRead = it } != -1) {
-                                    if (isStopped) {
-                                        break
-                                    }
-                                    fileOutputStream.write(dataBuffer, 0, bytesRead)
-                                    bytesReceivedTotal += bytesRead
-                                    contentLength?.let {
-                                        val progress = bytesReceivedTotal * 1000 / contentLength
-                                        if(progress != lastProgress) {
-                                            lastProgress = progress
-                                            withContext(Dispatchers.Main) {
-                                                download.progress = progress
-                                            }
-                                            //println("Update: ${progress / 10.0}%")
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        finalUrl.downloadRange(0, contentLength)
                         if (!isStopped) {
-                            // TODO move to final position
-                            /*
-                            val destFile = File(filePath)
-                            dir = destFile.parentFile
-                            if (!dir.exists()) {
-                                dir.mkdirs()
-                            }
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                Files.move(
-                                    tempFile.toPath(),
-                                    destFile.toPath(),
-                                    StandardCopyOption.REPLACE_EXISTING
-                                )
-                            } else {
-                                tempFile.copyTo(destFile, overwrite = true)
-                                tempFile.delete()
-                            }*/
-                        } else {
-                            Log.v(TAG, "Canceled task for ${download.urlHash}")
+                            moveDownloadToItsTarget()
+                            Log.i(TAG, "Successfully downloaded ${download.urlHash}")
                             withContext(Dispatchers.Main) {
-                                download.status = DownloadStatus.paused
+                                download.status = DownloadStatus.completed
                             }
-                            return@withContext Result.failure()
+                            return@withContext Result.success()
+                        } else {
+                            throw CancellationException()
                         }
-                        Log.i(TAG, "Successfully downloaded taskId ${download.urlHash}")
-                        withContext(Dispatchers.Main) {
-                            download.status = DownloadStatus.completed
-                        }
-                        return@withContext Result.success()
-                    } catch (e: Exception) {
-                        when (e) {
-                            is FileSystemException ->
-                                Log.e(TAG, "Filesystem exception downloading ${download.urlHash}", e)
-                            is SocketException ->
-                                Log.e(TAG, "Socket exception downloading ${download.urlHash}", e)
-                            is CancellationException -> {
-                                Log.v(TAG, "Job ${download.urlHash} cancelled: ${e.message}")
-                                return@withContext Result.failure()
-                            }
-                            else -> Log.e(TAG, "Error downloading from ${download.url}", e)
-                        }
+                    } catch (e: FileSystemException) {
+                        Log.e(TAG, "Filesystem exception downloading ${download.urlHash}", e)
+                    } catch (e: SocketException) {
+                        Log.e(TAG, "Socket exception downloading ${download.urlHash}", e)
+                    } catch (e: CancellationException) {
+                        Log.v(TAG, "Job ${download.urlHash} cancelled")
                     }
-                    return@withContext Result.failure()
                 } else {
-                    Log.i(TAG, "Response code $responseCode for download ${download.urlHash}")
-                    withContext(Dispatchers.Main) {
-                        download.status = DownloadStatus.failed
-                    }
-                    return@withContext Result.failure()
+                    Log.e(TAG, "Unexpected response code ${httpConnection.responseCode} for download ${download.urlHash}")
+                    canRecoverError = false
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error downloading from ${download.url}", e)
-                return@withContext Result.failure()
             }
         }
-        return Result.success()
+        withContext(Dispatchers.Main) {
+            download.status = if(canRecoverError) DownloadStatus.paused else DownloadStatus.failed
+        }
+        return Result.failure()
+    }
+
+    // TODO move this to dart
+    private fun URL.followRedirects(limit: Int): Pair<URL, HttpURLConnection> {
+        var httpConnection = openConnection() as HttpURLConnection
+        httpConnection.addHeaders(download.headers)
+        httpConnection.requestMethod = "HEAD"
+        var responseCode = httpConnection.responseCode
+        var redirects = 0
+        var url = this
+        while (responseCode in 301..307 && redirects < limit) {
+            redirects++
+            url = URL(httpConnection.getHeaderField("Location"))
+            httpConnection = url.openConnection() as HttpURLConnection
+            httpConnection.addHeaders(download.headers)
+            Log.v(TAG, "Redirecting to $url")
+            httpConnection = url.openConnection() as HttpURLConnection
+            httpConnection.requestMethod = "HEAD"
+            responseCode = httpConnection.responseCode
+        }
+        return url to httpConnection
+    }
+
+    private suspend fun URL.downloadRange(first: Long, last: Long?) = withContext(Dispatchers.IO) {
+        var bytesReceivedTotal = first
+        var lastProgress = 0L
+        // TODO apply range requests
+        val responseStream = openConnection().getInputStream()
+        BufferedInputStream(responseStream).use { inputStream ->
+            FileOutputStream(download.cacheFile).use { fileOutputStream ->
+                val dataBuffer = ByteArray(8096)
+                var bytesRead: Int
+                while (inputStream.read(dataBuffer, 0, 8096).also { bytesRead = it } != -1) {
+                    if (isStopped) {
+                        break
+                    }
+                    fileOutputStream.write(dataBuffer, 0, bytesRead)
+                    bytesReceivedTotal += bytesRead
+                    last?.let {
+                        val progress = bytesReceivedTotal * 1000 / last
+                        if (progress != lastProgress) {
+                            lastProgress = progress
+                            withContext(Dispatchers.Main) {
+                                download.progress = progress
+                            }
+                            //println("Update: ${progress / 10.0}%")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun HttpURLConnection.contentLengthOrNull() =
+        getHeaderField("content-length").toLongOrNull()
+
+
+    private fun moveDownloadToItsTarget() {
+        // TODO move to final position
+        /*
+        val destFile = File(filePath)
+        dir = destFile.parentFile
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Files.move(
+                tempFile.toPath(),
+                destFile.toPath(),
+                StandardCopyOption.REPLACE_EXISTING
+            )
+        } else {
+            tempFile.copyTo(destFile, overwrite = true)
+            tempFile.delete()
+        }*/
     }
 }
 

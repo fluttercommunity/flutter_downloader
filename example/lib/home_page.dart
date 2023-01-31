@@ -1,14 +1,10 @@
 import 'dart:io';
 
-import 'package:android_path_provider/android_path_provider.dart';
 import 'package:collection/collection.dart';
-import 'package:device_info/device_info.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_downloader_example/data.dart';
 import 'package:flutter_downloader_example/download_list_item.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:windows_taskbar/windows_taskbar.dart';
 
 class MyHomePage extends StatefulWidget with WidgetsBindingObserver {
@@ -27,7 +23,6 @@ class MyHomePage extends StatefulWidget with WidgetsBindingObserver {
 class _MyHomePageState extends State<MyHomePage> {
   List<ItemHolder> _items = [];
   late bool _loading;
-  late String _localPath;
 
   @override
   void initState() {
@@ -147,7 +142,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<void> _prepareSaveDir() async {
+  /*Future<void> _prepareSaveDir() async {
     _localPath = (await _findLocalPath())!;
     final savedDir = Directory(_localPath);
     final hasExisted = savedDir.existsSync();
@@ -172,7 +167,7 @@ class _MyHomePageState extends State<MyHomePage> {
       externalStorageDirPath = (await getDownloadsDirectory())?.path;
     }
     return externalStorageDirPath;
-  }
+  }*/
 
   @override
   Widget build(BuildContext context) {

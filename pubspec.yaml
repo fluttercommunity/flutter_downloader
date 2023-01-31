@@ -1,6 +1,6 @@
 name: flutter_downloader
-description: A plugin for creating and managing download tasks. Supports iOS and Android.
-version: 1.8.3
+description: A plugin for creating and managing download tasks on Android, iOS, Windows, Linux and MacOS.
+version: 2.0.0-dev0
 homepage: https://github.com/fluttercommunity/flutter_downloader
 maintainer: Bartek Pacia (@bartekpacia)
 

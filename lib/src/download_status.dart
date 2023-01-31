@@ -1,3 +1,5 @@
+import 'package:flutter_downloader/flutter_downloader.dart';
+
 /// Defines a set of possible states a [Download] can be in.
 enum DownloadStatus {
   /// The download is in progress.

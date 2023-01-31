@@ -22,6 +22,7 @@ class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
         private lateinit var tempPath: String
         private var dartUserAgent: String? = null
     }
+
     private var channel: MethodChannel? = null
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
@@ -69,7 +70,7 @@ class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
         val operation = workManager.enqueue(request)
         try {
             operation.result.get()
-            Log.v(TAG,"done?")
+            Log.v(TAG, "done?")
         } catch (e: Throwable) {
             Log.w(TAG, "Unable to start background request for download $urlHash in operation: $operation")
             result.success(false)
@@ -94,8 +95,8 @@ class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
             counter++
         }
         Log.v(TAG, "Paused $counter worker for $urlHash")
-        if(counter > 0) {
-            KotlinDownload(urlHash).status = DownloadStatus.paused
+        if (counter > 0) {
+            AndroidDownload(urlHash).status = DownloadStatus.paused
         }
         result.success(counter)
     }
