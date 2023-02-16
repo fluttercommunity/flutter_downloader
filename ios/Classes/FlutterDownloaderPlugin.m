@@ -216,16 +216,9 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             NSString *taskIdValue = [weakSelf identifierForTask:download];
             if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
                 NSDictionary *task = [weakSelf loadTaskWithId:taskIdValue];
-                
-                int progress = 0;
-                if (download.countOfBytesExpectedToReceive > 0) {
-                    int64_t bytesReceived = download.countOfBytesReceived;
-                    int64_t bytesExpectedToReceive = download.countOfBytesExpectedToReceive;
-                    progress = round(bytesReceived * 100 / (double)bytesExpectedToReceive);
-                } else {
-                    NSNumber *progressNumOfTask = task[@"progress"];
-                    progress = progressNumOfTask.intValue;
-                }
+              
+                NSNumber *progressNumOfTask = task[@"progress"];
+                int progress = progressNumOfTask.intValue;
                 
                 [download cancelByProducingResumeData:^(NSData * _Nullable resumeData) {
                     // Save partial downloaded data to a file
