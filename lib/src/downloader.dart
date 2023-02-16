@@ -51,8 +51,6 @@ class FlutterDownloader {
 
     _debug = debug;
 
-    WidgetsFlutterBinding.ensureInitialized();
-
     final callback = PluginUtilities.getCallbackHandle(callbackDispatcher)!;
     await _channel.invokeMethod<void>('initialize', <dynamic>[
       callback.toRawHandle(),
