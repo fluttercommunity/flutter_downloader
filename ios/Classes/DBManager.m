@@ -27,7 +27,20 @@
 -(instancetype)initWithDatabaseFilePath:(NSString *)dbFilePath{
     self = [super init];
     if (self) {
-        self.appDirectory = [NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES) firstObject];
+        // Get application support directory.
+        // Create the directory if it does not already exist.
+        NSError *error;
+        NSURL *appDirectoryUrl = [[NSFileManager defaultManager] URLForDirectory:NSApplicationSupportDirectory
+                                                                        inDomain:NSUserDomainMask
+                                                               appropriateForURL:nil
+                                                                          create:YES
+                                                                           error:&error];
+        self.appDirectory = appDirectoryUrl.path;
+        if (debug) {
+            if (error) {
+                NSLog(@"Get application support directory error: %@", error);
+            }
+        }
 
         // Keep the database filepath
         self.databaseFilePath = dbFilePath;
