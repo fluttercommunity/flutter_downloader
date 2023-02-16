@@ -1,3 +1,14 @@
+## 1.10.2
+
+- Correctly read the error/success codes (#766)
+- Fix `allowCellular` error in iOS for `loadTasksWithRawQuery()` (#803)
+- Fix example app crashing (#805)
+- fix: apply tasks progress instead of computed progress on pause (#818)
+- Fix create application support directory if it doesn't already exist (#815)
+- Remove automatic call to `WidgetsFlutterBinding.ensureInitialized()` in
+  `FlutterDownloader.initialize()` (#816)
+- Fix send message by `int` on port (#817)
+
 ## 1.10.1+2
 
 - Minor fix to `publish` GitHub Action (#801)
