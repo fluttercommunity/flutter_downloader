@@ -1,12 +1,14 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
-import 'package:flutter_downloader/src/dart_download.dart';
+import 'package:flutter_downloader/src/desktop_platform_download.dart';
+import 'package:flutter_downloader/src/download_metadata.dart';
 
 /// A platform specific [Download] which invokes the method channel and make the
 /// download native if the platform has this requirement.
-class PlatformDownload extends DartDownload {
+class PlatformDownload extends DesktopPlatformDownload {
   /// Create a platform specific [Download].
   PlatformDownload({
     required super.baseDir,
@@ -24,6 +26,7 @@ class PlatformDownload extends DartDownload {
   late final MethodChannel? _backChannel;
   static const _methodChannel = MethodChannel(_channelId);
 
+  /// Return the local cache directory.
   static Future<Directory> getLocalDir() async {
     if (Platform.isAndroid || Platform.isIOS) {
       final path = await _methodChannel.invokeMethod<String>('getCacheDir');
@@ -47,28 +50,16 @@ class PlatformDownload extends DartDownload {
       target: target,
     );
     if (download.metadataFile.existsSync()) {
-      /// Parse meta file
-      var parseHeaders = false;
-      for (final row in await download.metadataFile.readAsLines()) {
-        if (row == 'headers:') {
-          parseHeaders = true;
-        } else {
-          final delimiter = row.indexOf('=');
-          final key = row.substring(0, delimiter);
-          final value = row.substring(delimiter + 1);
-          if (parseHeaders) {
-            download.headers[key] = value;
-          } else if (key == 'filename' && value.isNotEmpty) {
-            download.filename = value;
-          } else if (key == 'etag' && value.isNotEmpty) {
-            download.etag = value;
-          } else if (key == 'resumable' && value.isNotEmpty) {
-            download.resumable = value == 'true';
-          } else if (key == 'size' && value.isNotEmpty) {
-            download.finalSize = int.parse(value);
-          }
-        }
-      }
+      print('Reading ${download.metadataFile}');
+      final data = await download.metadataFile.readAsString();
+      final json = jsonDecode(data) as Map<String, dynamic>;
+      final metadata = DownloadMetadata.fromJson(json);
+      download
+        ..headers.addAll(metadata.headers)
+        ..filename = metadata.filename
+        ..etag = metadata.etag
+        ..finalSize = metadata.size;
+      //..resumable = metadata
       if (download.finalSize != null) {
         if (download.cacheFile.existsSync()) {
           final cacheFileSize = await download.cacheFile.length();

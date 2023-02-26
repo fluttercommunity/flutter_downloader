@@ -5,16 +5,17 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:flutter_downloader/src/download_metadata.dart';
 
 /// Factory interface
 typedef CustomHttpClientFactory = HttpClient Function();
 
 // ignore_for_file: use_if_null_to_convert_nulls_to_bools
 /// The current download status/progress
-class DartDownload extends Download {
-  /// Create a new DartDownload
+class DesktopPlatformDownload extends Download {
+  /// Create a new DesktopPlatformDownload, with a [baseDir] to
   @protected
-  DartDownload({
+  DesktopPlatformDownload({
     required String baseDir,
     required this.headers,
     required String url,
@@ -26,7 +27,7 @@ class DartDownload extends Download {
     metadataFile = File('$baseDir/$urlHash.meta');
   }
 
-  /// The urlHash used as internal id of the Download
+  /// The sha1 hash of the url used as internal id of the Download
   late final String urlHash;
   final String _url;
   final DownloadTarget _target;
@@ -99,26 +100,17 @@ class DartDownload extends Download {
   @protected
   Future<void> updateMetaData() async {
     final writer = metadataFile.openWrite();
+    final meta = jsonEncode(
+      DownloadMetadata(
+        url: _url,
+        etag: etag?.isNotEmpty == true ? etag : null,
+        headers: headers,
+        size: finalSize,
+        target: _target,
+      ).toJson(),
+    );
     try {
-      writer
-        ..write('url=$_url\n')
-        ..write('target=${_target.name}\n');
-      if (filename?.isNotEmpty == true) {
-        writer.write('filename=$filename\n');
-      }
-      if (etag?.isNotEmpty == true) {
-        writer.write('etag=$etag\n');
-      }
-      if (finalSize != null && finalSize! > 0) {
-        writer.write('size=$finalSize\n');
-      }
-      if (resumable != null) {
-        writer.write('resumable=$resumable\n');
-      }
-      writer.write('headers:');
-      headers.forEach((key, value) {
-        writer.write('\n$key=$value');
-      });
+      writer.write(meta);
     } finally {
       await writer.close();
     }

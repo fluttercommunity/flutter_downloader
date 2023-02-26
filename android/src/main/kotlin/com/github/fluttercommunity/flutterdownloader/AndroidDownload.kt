@@ -51,7 +51,7 @@ internal class AndroidDownload(
     suspend fun updateStatus(newStatus: DownloadStatus) = withContext(Dispatchers.Main) {
         status = newStatus
 
-        backChannel.invokeMethod("updateStatus", newStatus)
+        backChannel.invokeMethod("updateStatus", newStatus.name)
     }
 
     /** Update the download's final size on main thread */

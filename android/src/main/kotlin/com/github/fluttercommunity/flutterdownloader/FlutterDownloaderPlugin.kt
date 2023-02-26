@@ -96,7 +96,7 @@ class FlutterDownloaderPlugin : FlutterPlugin, MethodCallHandler {
         }
         Log.v(TAG, "Paused $counter worker for $urlHash")
         if (counter > 0) {
-            AndroidDownload(urlHash).status = DownloadStatus.paused
+            getBackChannel(urlHash).invokeMethod("updateStatus", DownloadStatus.paused.name)
         }
         result.success(counter)
     }

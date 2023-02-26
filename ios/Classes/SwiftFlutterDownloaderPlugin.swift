@@ -31,28 +31,12 @@ private class IosDownload: NSObject, URLSessionDelegate, URLSessionDownloadDeleg
     let metaFile = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("\(urlHash).meta")
     let rawData = try String(contentsOf: metaFile, encoding: .utf8)
     let lines = rawData.components(separatedBy:"\n")
-    for line in lines {
-      if line == "headers:" {
-        parseHeaders = true
-      } else {
-        let parts = line.split(separator: "=", maxSplits: 2)
-        let key = String(parts.first!)
-        let value = String(parts.last!)
-        if parseHeaders {
-          headers[key] = value
-        } else if key == "url" && !value.isEmpty {
-          url = value
-        // I think those fields are not relevant for iOS:
-        //} else if key == "filename" && !value.isEmpty {
-        //  filename = value
-        //} else if key == "etag" && !value.isEmpty {
-        // etag = value
-        //} else if key == "resumable" && !value.isEmpty {
-        //  resumable = value == "true";
-        //} else if key == "size" && !value.isEmpty {
-        //  finalSize = int.parse(value);
-        }
-      }
+    let decoder = JSONDecoder()
+    do {
+      let metadata = try decoder.decode(DownloadMetadata.self, from: metaFile.dataRepresentation)
+      url = metadata.url
+    } catch let err {
+        print("Error: \(err)")
     }
   }
   
@@ -204,4 +188,29 @@ public class SwiftFlutterDownloaderPlugin: NSObject, FlutterPlugin {
     
     result(nil)
   }
+}
+
+struct DownloadMetadata: Codable {
+  // The url to download
+  var url: String
+
+  // The filename which should be used for the filesystem
+  var filename: String?
+
+  // The [ETag](https://developer.mozilla.org/docs/Web/HTTP/Headers/ETag), if given, to resume the download
+  var etag: String?
+
+  // The target of the download
+  //var target: DownloadTarget
+
+  // The final file size of the file to download
+  var size: Int?
+
+  // The request headers
+  //var headers: Map<String, String>
+
+  //required init(from decoder:Decoder) throws {
+  //  let values = try decoder.container(keyedBy: CodingKeys.self)
+  //  indexPath = try values.decode([Int].self, forKey: .indexPath)
+  //  locationInText = try values.decode(Int.self, forKey: .locationInText)
 }

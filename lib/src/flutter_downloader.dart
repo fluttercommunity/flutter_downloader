@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
-import 'package:flutter_downloader/src/dart_download.dart';
+import 'package:flutter_downloader/src/desktop_platform_download.dart';
 import 'package:flutter_downloader/src/platform_download.dart';
 
 part 'legacy_api.dart';
