@@ -109,14 +109,9 @@ class FlutterDownloader extends ChangeNotifier
       //print('checking File: ${file.path}');
       if (file.path.endsWith('.meta')) {
         print('Found meta file ${file.path}');
-        final lines = await File(file.path).readAsLines();
-        for (final line in lines) {
-          if (line.startsWith('url=')) {
-            final download = await _loadMetaData(line.substring(4));
-            if (download != null) {
-              downloads.add(download);
-            }
-          }
+        final download = await PlatformDownload.fromFile(File(file.path));
+        if (download != null) {
+          downloads.add(download);
         }
       }
     }

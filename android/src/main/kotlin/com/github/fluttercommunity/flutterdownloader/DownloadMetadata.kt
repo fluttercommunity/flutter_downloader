@@ -13,8 +13,10 @@ data class DownloadMetadata(
     val etag: String?,
     /** The target of the download */
     val target: DownloadTarget,
-    /** The final file size of the file to download */
-    val size: Long?,
+    /** The file size of the file to download */
+    val contentLength: Long?,
     /** The request headers */
     val headers: Map<String, String>,
+    /** `true` when the server supported ranges requests */
+    val isResumable: Boolean,
 )

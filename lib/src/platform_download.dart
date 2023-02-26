@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_downloader/src/desktop_platform_download.dart';
@@ -12,13 +13,19 @@ class PlatformDownload extends DesktopPlatformDownload {
   /// Create a platform specific [Download].
   PlatformDownload({
     required super.baseDir,
-    required super.headers,
-    required super.url,
-    required super.target,
+    required super.metadata,
+    required super.id,
+    required int cacheFileSize,
   }) {
     if (Platform.isAndroid || Platform.isIOS) {
-      _backChannel = MethodChannel('$_channelId/$urlHash');
+      _backChannel = MethodChannel('$_channelId/$id');
       _backChannel!.setMethodCallHandler(_handlePlatformEvent);
+    }
+    if (metadata.contentLength != null) {
+      progress = (cacheFileSize * 1000) ~/ metadata.contentLength!;
+      if (progress == 1000) {
+        status = DownloadStatus.completed;
+      }
     }
   }
 
@@ -32,7 +39,36 @@ class PlatformDownload extends DesktopPlatformDownload {
       final path = await _methodChannel.invokeMethod<String>('getCacheDir');
       return Directory(path!);
     } else {
-      return Directory('.');
+      return Directory.current;
+    }
+  }
+
+  /// Create a new PlatformDownload from its saved metadata.
+  static Future<PlatformDownload> fromDirectory(
+    String baseDir,
+    String id,
+  ) async =>
+      PlatformDownload(
+        baseDir: baseDir,
+        id: id,
+        metadata: await DownloadMetadata.fromFile(File('$baseDir/$id.meta')),
+        cacheFileSize: File('$baseDir/$id.cache').lengthSync(),
+      );
+
+  /// Create a new PlatformDownload from its saved metadata.
+  static Future<PlatformDownload?> fromFile(File metadataFile) async {
+    if (metadataFile.existsSync()) {
+      final metadata = await DownloadMetadata.fromFile(metadataFile);
+      final id = sha1.convert(utf8.encode(metadata.url)).toString();
+      final cacheFile = File('${metadataFile.parent.path}/$id.part');
+      return PlatformDownload(
+        baseDir: metadataFile.parent.path,
+        id: id,
+        metadata: metadata,
+        cacheFileSize: cacheFile.existsSync() ? cacheFile.lengthSync() : 0,
+      );
+    } else {
+      return null;
     }
   }
 
@@ -42,37 +78,25 @@ class PlatformDownload extends DesktopPlatformDownload {
     Map<String, String> headers = const {},
     DownloadTarget target = DownloadTarget.internal,
   }) async {
-    final baseDir = await PlatformDownload.getLocalDir();
-    final download = PlatformDownload(
-      baseDir: baseDir.absolute.path,
-      headers: Map<String, String>.from(headers),
-      url: url,
-      target: target,
-    );
-    if (download.metadataFile.existsSync()) {
-      print('Reading ${download.metadataFile}');
-      final data = await download.metadataFile.readAsString();
-      final json = jsonDecode(data) as Map<String, dynamic>;
-      final metadata = DownloadMetadata.fromJson(json);
-      download
-        ..headers.addAll(metadata.headers)
-        ..filename = metadata.filename
-        ..etag = metadata.etag
-        ..finalSize = metadata.size;
-      //..resumable = metadata
-      if (download.finalSize != null) {
-        if (download.cacheFile.existsSync()) {
-          final cacheFileSize = await download.cacheFile.length();
-          download.progress = (cacheFileSize * 1000) ~/ download.finalSize!;
-          if (cacheFileSize == download.finalSize) {
-            download.status = DownloadStatus.completed;
-          }
-        }
-      }
+    final baseDir = (await PlatformDownload.getLocalDir()).path;
+    final id = sha1.convert(utf8.encode(url)).toString();
+    final metadataFile = File('$baseDir/$id.meta');
+    final cacheFile = File('$baseDir/$id.part');
+    final DownloadMetadata metadata;
+
+    if (metadataFile.existsSync()) {
+      metadata = await DownloadMetadata.fromFile(metadataFile);
     } else {
-      await download.updateMetaData();
+      metadata = DownloadMetadata(url: url, target: target, headers: headers);
+      await metadata.writeTo(metadataFile);
     }
-    return download;
+
+    return PlatformDownload(
+      baseDir: baseDir,
+      id: id,
+      metadata: metadata,
+      cacheFileSize: cacheFile.existsSync() ? cacheFile.lengthSync() : 0,
+    );
   }
 
   Future<void> _handlePlatformEvent(MethodCall call) async {
@@ -81,7 +105,7 @@ class PlatformDownload extends DesktopPlatformDownload {
         progress = call.arguments as int;
         break;
       case 'updateSize':
-        finalSize = call.arguments as int;
+        metadata.contentLength = call.arguments as int;
         await updateMetaData();
         break;
       case 'updateStatus':
@@ -95,7 +119,7 @@ class PlatformDownload extends DesktopPlatformDownload {
   Future<void> pause() async {
     print('paused called on PlatformDownload');
     if (Platform.isAndroid || Platform.isIOS) {
-      await _methodChannel.invokeMethod<void>('pause', urlHash);
+      await _methodChannel.invokeMethod<void>('pause', id);
     } else {
       await super.pause();
     }
@@ -105,7 +129,7 @@ class PlatformDownload extends DesktopPlatformDownload {
   Future<void> resume() async {
     print('should resume on dart side...');
     if (Platform.isAndroid || Platform.isIOS) {
-      await _methodChannel.invokeMethod<void>('resume', urlHash);
+      await _methodChannel.invokeMethod<void>('resume', id);
     } else {
       await super.resume();
     }

@@ -43,7 +43,7 @@ class FlutterDownloaderLegacy {
   }) async {
     final download =
         await _singleton.startDownload(url, additionalHeaders: headers);
-    return (download as DesktopPlatformDownload).urlHash;
+    return (download as DesktopPlatformDownload).id;
   }
 
   /// Return all downloads in the legacy DownloadTask format when the download
@@ -55,7 +55,7 @@ class FlutterDownloaderLegacy {
     return downloads
         .map(
           (download) => DownloadTask(
-            taskId: (download as DesktopPlatformDownload).urlHash,
+            taskId: (download as DesktopPlatformDownload).id,
             status: DownloadTaskStatus.undefined,
             // TODO add migration
             progress: download.progress ~/ 10,
@@ -80,7 +80,7 @@ class FlutterDownloaderLegacy {
   @Deprecated('The Download.cancel() instead')
   static Future<void> cancel({required String taskId}) async {
     for (final download in await _singleton.getDownloads()) {
-      if ((download as DesktopPlatformDownload).urlHash == taskId) {
+      if ((download as DesktopPlatformDownload).id == taskId) {
         await download.cancel();
         break;
       }
@@ -100,7 +100,7 @@ class FlutterDownloaderLegacy {
   @Deprecated('Use Download.pause() instead')
   static Future<void> pause({required String taskId}) async {
     for (final download in await _singleton.getDownloads()) {
-      if ((download as DesktopPlatformDownload).urlHash == taskId) {
+      if ((download as DesktopPlatformDownload).id == taskId) {
         await download.cancel();
         break;
       }
@@ -115,9 +115,9 @@ class FlutterDownloaderLegacy {
     bool requiresStorageNotLow = true,
   }) async {
     for (final download in await _singleton.getDownloads()) {
-      if ((download as DesktopPlatformDownload).urlHash == taskId) {
+      if ((download as DesktopPlatformDownload).id == taskId) {
         await download.pause();
-        return download.urlHash;
+        return download.id;
       }
     }
     return null;
@@ -131,9 +131,9 @@ class FlutterDownloaderLegacy {
     bool requiresStorageNotLow = true,
   }) async {
     for (final download in await _singleton.getDownloads()) {
-      if ((download as DesktopPlatformDownload).urlHash == taskId) {
+      if ((download as DesktopPlatformDownload).id == taskId) {
         await download.resume();
-        return download.urlHash;
+        return download.id;
       }
     }
     return null;
@@ -147,7 +147,7 @@ class FlutterDownloaderLegacy {
     bool shouldDeleteContent = false,
   }) async {
     for (final download in await _singleton.getDownloads()) {
-      if ((download as DesktopPlatformDownload).urlHash == taskId) {
+      if ((download as DesktopPlatformDownload).id == taskId) {
         await download.delete();
         break;
       }

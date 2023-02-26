@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_downloader/src/download_metadata.dart';
@@ -13,53 +12,39 @@ typedef CustomHttpClientFactory = HttpClient Function();
 // ignore_for_file: use_if_null_to_convert_nulls_to_bools
 /// The current download status/progress
 class DesktopPlatformDownload extends Download {
-  /// Create a new DesktopPlatformDownload, with a [baseDir] to
+  /// Create a new DesktopPlatformDownload from a [baseDir], an [id] and its [metadata].
   @protected
   DesktopPlatformDownload({
     required String baseDir,
-    required this.headers,
-    required String url,
-    required DownloadTarget target,
-  })  : _url = url,
-        _target = target {
-    urlHash = sha1.convert(utf8.encode(url)).toString();
-    cacheFile = File('$baseDir/$urlHash.part');
-    metadataFile = File('$baseDir/$urlHash.meta');
-  }
+    required this.id,
+    required this.metadata,
+  })  : _metadataFile = File('$baseDir/$id.meta'),
+        cacheFile = File('$baseDir/$id.part');
+
+  /// Create a new DesktopPlatformDownload from its saved metadata.
+  static Future<DesktopPlatformDownload> fromDirectory(
+    String baseDir,
+    String id,
+  ) async =>
+      DesktopPlatformDownload(
+        baseDir: baseDir,
+        id: id,
+        metadata: await DownloadMetadata.fromFile(File('$baseDir/$id.meta')),
+      );
 
   /// The sha1 hash of the url used as internal id of the Download
-  late final String urlHash;
-  final String _url;
-  final DownloadTarget _target;
+  final String id;
   HttpClient? _httpClient;
 
-  /// The request headers
+  /// The metadata of the download
   @protected
-  final Map<String, String> headers;
+  late final DownloadMetadata metadata;
+
+  final File _metadataFile;
 
   /// The cache file of the (partial) download
   @protected
-  late final File cacheFile;
-
-  /// The persisted meta data file
-  @protected
-  late final File metadataFile;
-
-  /// The filename which should be used for the filesystem
-  @protected
-  String? filename;
-
-  /// The etag if given to resume the download
-  @protected
-  String? etag;
-
-  /// True when the server supports resuming
-  @protected
-  bool? resumable;
-
-  /// The file size of the file to download
-  @protected
-  int? finalSize;
+  final File cacheFile;
 
   static HttpClient _createHttpClient() {
     return FlutterDownloader.customHttpClientFactory?.call() ?? HttpClient()
@@ -68,7 +53,7 @@ class DesktopPlatformDownload extends Download {
 
   /// The url of the download
   @override
-  String get url => _url;
+  String get url => metadata.url;
 
   DownloadStatus _status = DownloadStatus.paused;
   int _progress = 0;
@@ -98,41 +83,30 @@ class DesktopPlatformDownload extends Download {
 
   /// Persist meta data
   @protected
-  Future<void> updateMetaData() async {
-    final writer = metadataFile.openWrite();
-    final meta = jsonEncode(
-      DownloadMetadata(
-        url: _url,
-        etag: etag?.isNotEmpty == true ? etag : null,
-        headers: headers,
-        size: finalSize,
-        target: _target,
-      ).toJson(),
-    );
-    try {
-      writer.write(meta);
-    } finally {
-      await writer.close();
-    }
-  }
+  Future<void> updateMetaData() => metadata.writeTo(_metadataFile);
 
   /// Continue the download, does nothing when status is running.
   @override
   Future<void> resume() async {
     status = DownloadStatus.running;
     _httpClient = _createHttpClient();
-    final request = await _httpClient!.getUrl(Uri.parse(_url));
-    headers.forEach((key, value) {
+    final request = await _httpClient!.getUrl(Uri.parse(url));
+    metadata.headers.forEach((key, value) {
       request.headers.add(key, value);
     });
     //print('Cachefile: ${_cacheFile.absolute.path}');
     var saved = 0;
-    if (resumable == true && finalSize != null && cacheFile.existsSync()) {
+    if (metadata.isResumable == true &&
+        metadata.contentLength != null &&
+        cacheFile.existsSync()) {
       final alreadyDownloaded = await cacheFile.length();
-      if (etag != null) {
-        request.headers.add('If-Match', etag!);
+      if (metadata.etag != null) {
+        request.headers.add('If-Match', metadata.etag!);
       }
-      request.headers.add('Range', 'bytes=$alreadyDownloaded-$finalSize');
+      request.headers.add(
+        'Range',
+        'bytes=$alreadyDownloaded-${metadata.contentLength}',
+      );
       saved = alreadyDownloaded;
     }
     IOSink? outStream;
@@ -144,15 +118,15 @@ class DesktopPlatformDownload extends Download {
         response.headers.forEach((name, values) async {
           //print('- $name: $values');
           if (name == 'etag') {
-            etag = values.first;
+            metadata.etag = values.first;
             //print('has etag');
             await updateMetaData();
           } else if (name == 'accept-ranges') {
             //print('can be continued!');
-            resumable = true;
+            metadata.isResumable = true;
           } else if (name == 'content-length') {
             //print('${values.first} to download');
-            finalSize = int.parse(values.first);
+            metadata.contentLength = int.parse(values.first);
           }
         });
       }
@@ -170,8 +144,8 @@ class DesktopPlatformDownload extends Download {
         handleData: (data, sink) {
           sink.add(data);
           saved += data.length;
-          if (finalSize != null) {
-            progress = (saved * 1000) ~/ finalSize!;
+          if (metadata.contentLength != null) {
+            progress = (saved * 1000) ~/ metadata.contentLength!;
           }
         },
         handleDone: (sink) async {
@@ -191,16 +165,18 @@ class DesktopPlatformDownload extends Download {
           await outStream?.close();
           outStream = null;
           hasError = true;
-          _status =
-              resumable == true ? DownloadStatus.paused : DownloadStatus.failed;
+          _status = metadata.isResumable == true
+              ? DownloadStatus.paused
+              : DownloadStatus.failed;
           notifyListeners();
         },
       );
       await response.transform(counter).pipe(outStream!);
     } on HttpException catch (e, trace) {
       //print('### error: $e');
-      _status =
-          resumable == true ? DownloadStatus.paused : DownloadStatus.failed;
+      _status = metadata.isResumable == true
+          ? DownloadStatus.paused
+          : DownloadStatus.failed;
       notifyListeners();
     }
   }
@@ -230,7 +206,7 @@ class DesktopPlatformDownload extends Download {
         await pause();
       }
       await cacheFile.delete();
-      await metadataFile.delete();
+      await _metadataFile.delete();
     } catch (_) {
       success = false;
     }
