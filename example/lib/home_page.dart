@@ -90,7 +90,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @pragma('vm:entry-point')
   static void downloadCallback(
     String id,
-    DownloadTaskStatus status,
+    int status,
     int progress,
   ) {
     print(
@@ -99,7 +99,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
 
     IsolateNameServer.lookupPortByName('downloader_send_port')
-        ?.send([id, status.value, progress]);
+        ?.send([id, status, progress]);
   }
 
   Widget _buildDownloadList() {
