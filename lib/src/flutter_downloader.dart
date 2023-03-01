@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_downloader/src/desktop_platform_download.dart';
@@ -86,18 +84,6 @@ class FlutterDownloader extends ChangeNotifier
     );
     unawaited(download.resume());
     return download;
-  }
-
-  Future<Download?> _loadMetaData(String url) async {
-    final baseDir = await PlatformDownload.getLocalDir();
-    final urlHash = sha1.convert(utf8.encode(url)).toString();
-    final file = File('${baseDir.path}/$urlHash.meta');
-    if (file.existsSync()) {
-      return PlatformDownload.create(
-        url: url,
-      );
-    }
-    return null;
   }
 
   /// Returns all known downloads.

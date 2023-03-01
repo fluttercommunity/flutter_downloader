@@ -12,36 +12,34 @@ private enum DownloadStatus {
 
 private class IosDownload: NSObject, URLSessionDelegate, URLSessionDownloadDelegate {
   /// The cache file of the (partial) download
-  private var finalSize: Int64?
+  private var contentLength: Int64?
   private var progress: Int64 = 0
   private var lastProgress: Int64 = -1
   private var backChannel: FlutterMethodChannel
   private var url: String?
   private var headers = [String:String]()
-  private let urlHash: String
+  private let id: String
   private var resumeData: Data?
   private var task: URLSessionDownloadTask?
   
-  init(urlHash : String, with binaryMessenger : FlutterBinaryMessenger) throws {
-    backChannel = FlutterMethodChannel(name: "fluttercommunity/flutter_downloader/\(urlHash)", binaryMessenger: binaryMessenger)
-    self.urlHash = urlHash
+  init(id : String, with binaryMessenger : FlutterBinaryMessenger) throws {
+    backChannel = FlutterMethodChannel(name: "fluttercommunity/flutter_downloader/\(id)", binaryMessenger: binaryMessenger)
+    self.id = id
 
     /// Parse meta file
-    var parseHeaders = false
-    let metaFile = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("\(urlHash).meta")
-    let rawData = try String(contentsOf: metaFile, encoding: .utf8)
-    let lines = rawData.components(separatedBy:"\n")
-    let decoder = JSONDecoder()
-    do {
-      let metadata = try decoder.decode(DownloadMetadata.self, from: metaFile.dataRepresentation)
-      url = metadata.url
-    } catch let err {
-        print("Error: \(err)")
+    let metaFile = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("\(id).meta")
+    let partFile = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("\(id).part")
+    let metaData = try Data(contentsOf: metaFile, options: .mappedIfSafe)
+    let metaJson = try JSONSerialization.jsonObject(with: metaData, options: .mutableLeaves)
+    if let metaDict = metaJson as? Dictionary<String, AnyObject>, let metaUrl = metaDict["url"] as? String, let headers = metaDict["headers"] as? Dictionary<String, String> {
+      url = metaUrl
+      print("UA: \(headers["User-Agent"])")
     }
+      resumeData = try Data(contentsOf: partFile, options: .mappedIfSafe)
   }
   
   func resume() {
-    let config = URLSessionConfiguration.background(withIdentifier: urlHash)
+    let config = URLSessionConfiguration.background(withIdentifier: id)
     //config.timeoutIntervalForResource = Downloader.resourceTimeout
     let urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
     
@@ -58,7 +56,7 @@ private class IosDownload: NSObject, URLSessionDelegate, URLSessionDownloadDeleg
       print("Resume download...")
       task = urlSession.downloadTask(withResumeData: resumeData!)
     }
-    task?.taskDescription = urlHash
+    task?.taskDescription = id
 
     // now start the task
     task?.resume()
@@ -70,13 +68,19 @@ private class IosDownload: NSObject, URLSessionDelegate, URLSessionDownloadDeleg
     print("asked to pause")
     task?.cancel{ resumeDataOrNil in
       guard let resumeData = resumeDataOrNil else {
-        print("failed to pause?")
+        print("failed to pause")
         self.updateStatus(status: .canceled)
         return
       }
       self.resumeData = resumeData
-      print("can continue!?")
-      self.updateStatus(status: .paused)
+      let partFile = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("\(self.id).part")
+      do {
+        try resumeData.write(to: partFile)
+        self.updateStatus(status: .paused)
+      } catch {
+        print("Could not safe progress")
+        self.updateStatus(status: .canceled)
+      }
     }
   }
   
@@ -94,9 +98,9 @@ private class IosDownload: NSObject, URLSessionDelegate, URLSessionDownloadDeleg
   public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
     if totalBytesExpectedToWrite == NSURLSessionTransferSizeUnknown {return}
     
-    if finalSize == nil {
+    if contentLength == nil {
       backChannel.invokeMethod("updateSize", arguments: totalBytesExpectedToWrite)
-      finalSize = totalBytesExpectedToWrite
+      contentLength = totalBytesExpectedToWrite
     }
     
     let permill = (totalBytesWritten * 1000) / totalBytesExpectedToWrite
@@ -129,6 +133,7 @@ private class IosDownload: NSObject, URLSessionDelegate, URLSessionDownloadDeleg
       return}
     if response.statusCode == 200 || response.statusCode == 206 {
       updateStatus(status: .completed)
+        print("Written to \(location)")
     } else {
       updateStatus(status: .failed)
     }
@@ -165,26 +170,26 @@ public class SwiftFlutterDownloaderPlugin: NSObject, FlutterPlugin {
   }
   
   private func resume(call: FlutterMethodCall, result: @escaping FlutterResult) {
-    let urlHash = call.arguments as! String
+    let id = call.arguments as! String
     
-    print("Resume download with hash \(urlHash)...")
-    if downloads[urlHash] == nil {
+    print("Resume download with id \(id)...")
+    if downloads[id] == nil {
       do {
-        let download = try IosDownload(urlHash: urlHash, with: SwiftFlutterDownloaderPlugin.binaryMessenger!)
-        downloads[urlHash] = download
+        let download = try IosDownload(id: id, with: SwiftFlutterDownloaderPlugin.binaryMessenger!)
+        downloads[id] = download
       } catch {
         //self.updateStatus(status: DownloadStatus.failed)
       }
     }
-    downloads[urlHash]?.resume()
+    downloads[id]?.resume()
 
     result(nil)
   }
   
   private func pause(call: FlutterMethodCall, result: @escaping FlutterResult) {
-    let urlHash = call.arguments as! String
-    print("Pause download with hash \(urlHash)...")
-    downloads[urlHash]?.pause()
+    let id = call.arguments as! String
+    print("Pause download with id \(id)...")
+    downloads[id]?.pause()
     
     result(nil)
   }
@@ -195,19 +200,19 @@ struct DownloadMetadata: Codable {
   var url: String
 
   // The filename which should be used for the filesystem
-  var filename: String?
+  //var filename: String?
 
   // The [ETag](https://developer.mozilla.org/docs/Web/HTTP/Headers/ETag), if given, to resume the download
-  var etag: String?
+  //var etag: String?
 
   // The target of the download
   //var target: DownloadTarget
 
   // The final file size of the file to download
-  var size: Int?
+  //var contentLength: Int?
 
   // The request headers
-  //var headers: Map<String, String>
+  //var headers: Dictionary<String, String>
 
   //required init(from decoder:Decoder) throws {
   //  let values = try decoder.container(keyedBy: CodingKeys.self)
