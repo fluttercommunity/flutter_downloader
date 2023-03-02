@@ -39,11 +39,6 @@
     NSMutableArray *_eventQueue;
 }
 
-@property(nonatomic, strong) dispatch_queue_t databaseQueue;
-
-/// The flag ensures that the database task avoids be marked as other status after be marked as canceled in the termination.
-@property(nonatomic, assign, getter=isDatabaseQueueTerminated) BOOL databaseQueueTerminated;
-
 @end
 
 @implementation FlutterDownloaderPlugin
@@ -56,9 +51,8 @@ static FlutterEngine *_headlessRunner = nil;
 static int64_t _callbackHandle = 0;
 static int _step = 10;
 static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = nil;
-
-
-@synthesize databaseQueue;
+static NSThread *databaseThread;
+static BOOL isDatabaseThreadStarted = NO;
 
 - (instancetype)init:(NSObject<FlutterPluginRegistrar> *)registrar;
 {
@@ -92,7 +86,6 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         if (debug) {
             NSLog(@"database path: %@", dbPath);
         }
-        databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
         _dbManager = [[DBManager alloc] initWithDatabaseFilePath:dbPath];
         
         if (_runningTaskById == nil) {
@@ -239,7 +232,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_PAUSED) andProgress:@(progress)];
 
-                [weakSelf executeInDatabaseQueueForTask:^{
+                [weakSelf executeOnDatabaseThreadForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_PAUSED progress:progress resumable:YES];
                 }];
                 return;
@@ -261,7 +254,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
                 [download cancel];
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                [weakSelf executeInDatabaseQueueForTask:^{
+                [weakSelf executeOnDatabaseThreadForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_CANCELED progress:-1];
                 }];
                 return;
@@ -279,7 +272,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
                 [download cancel];
                 NSString *taskId = [self identifierForTask:download];
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                [weakSelf executeInDatabaseQueueForTask:^{
+                [weakSelf executeOnDatabaseThreadForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_CANCELED progress:-1];
                 }];
             }
@@ -297,12 +290,56 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     }
 }
 
-- (void)executeInDatabaseQueueForTask:(void (^)(void))task {
-    __typeof__(self) __weak weakSelf = self;
-    dispatch_sync(databaseQueue, ^{
-        if (weakSelf.isDatabaseQueueTerminated) return;
-        if (task) task();
-    });
++ (void)databaseThread:(id)unused { @autoreleasepool {
+    [[NSThread currentThread] setName:@"vn.hunghd.flutter_downloader"];
+    
+    [NSTimer scheduledTimerWithTimeInterval:[[NSDate distantFuture] timeIntervalSinceNow]
+                                     target:self
+                                   selector:@selector(ignore:)
+                                   userInfo:nil
+                                    repeats:YES];
+    
+    NSThread *currentThread = [NSThread currentThread];
+    NSRunLoop *currentRunLoop = [NSRunLoop currentRunLoop];
+    
+    BOOL isCancelled = [currentThread isCancelled];
+    
+    while (!isCancelled && [currentRunLoop runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]]) {
+        isCancelled = [currentThread isCancelled];
+    }
+    
+}
+    
+}
+
++ (void)ignore:(id)_ { }
+
++ (void)startDatabaseThreadIfNeeded {
+    if (isDatabaseThreadStarted) {
+        return;
+    }
+    
+    isDatabaseThreadStarted = true;
+    
+    databaseThread = [[NSThread alloc] initWithTarget:self
+                                             selector:@selector(databaseThread:)
+                                               object:nil];
+    [databaseThread start];
+}
+
+- (void)executeOnDatabaseThreadForTask:(void (^)(void))task {
+    [self.class startDatabaseThreadIfNeeded];
+    
+    [self performSelector:@selector(executeOnDatabaseThreadToCallbackForTask:)
+                 onThread:databaseThread
+               withObject:task
+            waitUntilDone:YES];
+}
+
+- (void)executeOnDatabaseThreadToCallbackForTask:(void (^)(void))task {
+    if (task) {
+        task();
+    }
 }
 
 - (BOOL)openDocumentWithURL:(NSURL*)url {
@@ -360,7 +397,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 
         // update DB
         __typeof__(self) __weak weakSelf = self;
-        [self executeInDatabaseQueueForTask:^{
+        [self executeOnDatabaseThreadForTask:^{
             [weakSelf updateTask:taskId filename:filename];
         }];
 
@@ -652,7 +689,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 
     __typeof__(self) __weak weakSelf = self;
     
-    [self executeInDatabaseQueueForTask:^{
+    [self executeOnDatabaseThreadForTask:^{
         [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:shortSavedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
     }];
     result(taskId);
@@ -661,7 +698,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 
 - (void)loadTasksMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     __typeof__(self) __weak weakSelf = self;
-    [self executeInDatabaseQueueForTask:^{
+    [self executeOnDatabaseThreadForTask:^{
         NSArray* tasks = [weakSelf loadAllTasks];
         result(tasks);
     }];
@@ -670,7 +707,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 - (void)loadTasksWithRawQueryMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString *query = call.arguments[KEY_QUERY];
     __typeof__(self) __weak weakSelf = self;
-    [self executeInDatabaseQueueForTask:^{
+    [self executeOnDatabaseThreadForTask:^{
         NSArray* tasks = [weakSelf loadTasksWithRawQuery:query];
         result(tasks);
     }];
@@ -723,7 +760,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
                 result(newTaskId);
 
                 __typeof__(self) __weak weakSelf = self;
-                [self executeInDatabaseQueueForTask:^{
+                [self executeOnDatabaseThreadForTask:^{
                     [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_RUNNING resumable:NO];
                     NSDictionary *task = [weakSelf loadTaskWithId:newTaskId];
                     NSNumber *progress = task[KEY_PROGRESS];
@@ -767,7 +804,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             [_runningTaskById removeObjectForKey:taskId];
 
             __typeof__(self) __weak weakSelf = self;
-            [self executeInDatabaseQueueForTask:^{
+            [self executeOnDatabaseThreadForTask:^{
                 [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_ENQUEUED resumable:NO];
             }];
             result(newTaskId);
@@ -818,7 +855,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
                     if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
                         [download cancel];
                         [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                        [weakSelf executeInDatabaseQueueForTask:^{
+                        [weakSelf executeOnDatabaseThreadForTask:^{
                             [weakSelf deleteTask:taskId];
                         }];
                         return;
@@ -827,7 +864,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             }];
         }
         
-        [self executeInDatabaseQueueForTask:^{
+        [self executeOnDatabaseThreadForTask:^{
             [weakSelf deleteTask:taskId];
         }];
         
@@ -925,7 +962,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             
             [self sendUpdateProgressForTaskId:taskId inStatus:status andProgress:@(progress)];
             __typeof__(self) __weak weakSelf = self;
-            [self executeInDatabaseQueueForTask:^{
+            [self executeOnDatabaseThreadForTask:^{
                 [weakSelf updateTask:taskId status:status.intValue progress:progress];
             }];
             _runningTaskById[taskId][KEY_PROGRESS] = @(progress);
@@ -966,7 +1003,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         __typeof__(self) __weak weakSelf = self;
         if (success) {
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_COMPLETE) andProgress:@100];
-            [self executeInDatabaseQueueForTask:^{
+            [self executeOnDatabaseThreadForTask:^{
                 [weakSelf updateTask:taskId status:STATUS_COMPLETE progress:100];
             }];
         } else {
@@ -974,7 +1011,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
                 NSLog(@"Unable to copy temp file. Error: %@", [error localizedDescription]);
             }
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_FAILED) andProgress:@(-1)];
-            [self executeInDatabaseQueueForTask:^{
+            [self executeOnDatabaseThreadForTask:^{
                 [weakSelf updateTask:taskId status:STATUS_FAILED progress:-1];
             }];
         }
@@ -1010,7 +1047,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             [_runningTaskById removeObjectForKey:taskId];
             [self sendUpdateProgressForTaskId:taskId inStatus:@(status) andProgress:@(-1)];
             __typeof__(self) __weak weakSelf = self;
-            [self executeInDatabaseQueueForTask:^{
+            [self executeOnDatabaseThreadForTask:^{
                 [weakSelf updateTask:taskId status:status progress:-1];
             }];
         }
