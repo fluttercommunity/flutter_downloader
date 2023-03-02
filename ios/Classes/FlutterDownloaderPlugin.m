@@ -39,11 +39,6 @@
     NSMutableArray *_eventQueue;
 }
 
-@property(nonatomic, strong) dispatch_queue_t databaseQueue;
-
-/// The flag ensures that the database task avoids be marked as other status after be marked as canceled in the termination.
-@property(nonatomic, assign, getter=isDatabaseQueueTerminated) BOOL databaseQueueTerminated;
-
 @end
 
 @implementation FlutterDownloaderPlugin
@@ -56,9 +51,8 @@ static FlutterEngine *_headlessRunner = nil;
 static int64_t _callbackHandle = 0;
 static int _step = 10;
 static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = nil;
-
-
-@synthesize databaseQueue;
+static dispatch_queue_t _databaseQueue;
+static void *_isOnDatabaseQueueKey;
 
 - (instancetype)init:(NSObject<FlutterPluginRegistrar> *)registrar;
 {
@@ -92,7 +86,15 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         if (debug) {
             NSLog(@"database path: %@", dbPath);
         }
-        databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
+        
+        if (_databaseQueue == nil) {
+            _databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
+            
+            _isOnDatabaseQueueKey = &_isOnDatabaseQueueKey;
+            void *nonNullUnusedPointer = (__bridge void *)(self.class);
+            dispatch_queue_set_specific(_databaseQueue, _isOnDatabaseQueueKey, nonNullUnusedPointer, NULL);
+        }
+        
         _dbManager = [[DBManager alloc] initWithDatabaseFilePath:dbPath];
         
         if (_runningTaskById == nil) {
@@ -298,9 +300,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 }
 
 - (void)executeInDatabaseQueueForTask:(void (^)(void))task {
-    __typeof__(self) __weak weakSelf = self;
-    dispatch_sync(databaseQueue, ^{
-        if (weakSelf.isDatabaseQueueTerminated) return;
+    dispatch_sync(_databaseQueue, ^{
         if (task) task();
     });
 }
@@ -539,7 +539,18 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         return [_runningTaskById objectForKey:taskId];
     } else {
         NSString *query = [NSString stringWithFormat:@"SELECT * FROM task WHERE task_id = \"%@\" ORDER BY id DESC LIMIT 1", taskId];
-        NSArray *records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query]];
+        
+        __block NSArray *records;
+        
+        if (dispatch_get_specific(_isOnDatabaseQueueKey)) {
+            records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query]];
+        } else {
+            __typeof__(_dbManager) __weak _weakDbManager = _dbManager;
+            [self executeInDatabaseQueueForTask:^{
+                records = [[NSArray alloc] initWithArray:[_weakDbManager loadDataFromDB:query]];
+            }];
+        }
+        
         if (debug) {
             NSLog(@"Load task successfully");
         }
