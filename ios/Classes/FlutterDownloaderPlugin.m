@@ -39,6 +39,11 @@
     NSMutableArray *_eventQueue;
 }
 
+@property(nonatomic, strong) dispatch_queue_t databaseQueue;
+
+/// The flag ensures that the database task avoids be marked as other status after be marked as canceled in the termination.
+@property(nonatomic, assign, getter=isDatabaseQueueTerminated) BOOL databaseQueueTerminated;
+
 @end
 
 @implementation FlutterDownloaderPlugin
@@ -51,8 +56,9 @@ static FlutterEngine *_headlessRunner = nil;
 static int64_t _callbackHandle = 0;
 static int _step = 10;
 static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = nil;
-static NSThread *databaseThread;
-static BOOL isDatabaseThreadStarted = NO;
+
+
+@synthesize databaseQueue;
 
 - (instancetype)init:(NSObject<FlutterPluginRegistrar> *)registrar;
 {
@@ -86,6 +92,7 @@ static BOOL isDatabaseThreadStarted = NO;
         if (debug) {
             NSLog(@"database path: %@", dbPath);
         }
+        databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
         _dbManager = [[DBManager alloc] initWithDatabaseFilePath:dbPath];
         
         if (_runningTaskById == nil) {
@@ -232,7 +239,7 @@ static BOOL isDatabaseThreadStarted = NO;
 
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_PAUSED) andProgress:@(progress)];
 
-                [weakSelf executeOnDatabaseThreadForTask:^{
+                [weakSelf executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_PAUSED progress:progress resumable:YES];
                 }];
                 return;
@@ -254,7 +261,7 @@ static BOOL isDatabaseThreadStarted = NO;
             if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
                 [download cancel];
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                [weakSelf executeOnDatabaseThreadForTask:^{
+                [weakSelf executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_CANCELED progress:-1];
                 }];
                 return;
@@ -272,7 +279,7 @@ static BOOL isDatabaseThreadStarted = NO;
                 [download cancel];
                 NSString *taskId = [self identifierForTask:download];
                 [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                [weakSelf executeOnDatabaseThreadForTask:^{
+                [weakSelf executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId status:STATUS_CANCELED progress:-1];
                 }];
             }
@@ -290,56 +297,12 @@ static BOOL isDatabaseThreadStarted = NO;
     }
 }
 
-+ (void)databaseThread:(id)unused { @autoreleasepool {
-    [[NSThread currentThread] setName:@"vn.hunghd.flutter_downloader"];
-    
-    [NSTimer scheduledTimerWithTimeInterval:[[NSDate distantFuture] timeIntervalSinceNow]
-                                     target:self
-                                   selector:@selector(ignore:)
-                                   userInfo:nil
-                                    repeats:YES];
-    
-    NSThread *currentThread = [NSThread currentThread];
-    NSRunLoop *currentRunLoop = [NSRunLoop currentRunLoop];
-    
-    BOOL isCancelled = [currentThread isCancelled];
-    
-    while (!isCancelled && [currentRunLoop runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]]) {
-        isCancelled = [currentThread isCancelled];
-    }
-    
-}
-    
-}
-
-+ (void)ignore:(id)_ { }
-
-+ (void)startDatabaseThreadIfNeeded {
-    if (isDatabaseThreadStarted) {
-        return;
-    }
-    
-    isDatabaseThreadStarted = true;
-    
-    databaseThread = [[NSThread alloc] initWithTarget:self
-                                             selector:@selector(databaseThread:)
-                                               object:nil];
-    [databaseThread start];
-}
-
-- (void)executeOnDatabaseThreadForTask:(void (^)(void))task {
-    [self.class startDatabaseThreadIfNeeded];
-    
-    [self performSelector:@selector(executeOnDatabaseThreadToCallbackForTask:)
-                 onThread:databaseThread
-               withObject:task
-            waitUntilDone:YES];
-}
-
-- (void)executeOnDatabaseThreadToCallbackForTask:(void (^)(void))task {
-    if (task) {
-        task();
-    }
+- (void)executeInDatabaseQueueForTask:(void (^)(void))task {
+    __typeof__(self) __weak weakSelf = self;
+    dispatch_sync(databaseQueue, ^{
+        if (weakSelf.isDatabaseQueueTerminated) return;
+        if (task) task();
+    });
 }
 
 - (BOOL)openDocumentWithURL:(NSURL*)url {
@@ -397,7 +360,7 @@ static BOOL isDatabaseThreadStarted = NO;
 
         // update DB
         __typeof__(self) __weak weakSelf = self;
-        [self executeOnDatabaseThreadForTask:^{
+        [self executeInDatabaseQueueForTask:^{
             [weakSelf updateTask:taskId filename:filename];
         }];
 
@@ -689,7 +652,7 @@ static BOOL isDatabaseThreadStarted = NO;
 
     __typeof__(self) __weak weakSelf = self;
     
-    [self executeOnDatabaseThreadForTask:^{
+    [self executeInDatabaseQueueForTask:^{
         [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:shortSavedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
     }];
     result(taskId);
@@ -698,7 +661,7 @@ static BOOL isDatabaseThreadStarted = NO;
 
 - (void)loadTasksMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     __typeof__(self) __weak weakSelf = self;
-    [self executeOnDatabaseThreadForTask:^{
+    [self executeInDatabaseQueueForTask:^{
         NSArray* tasks = [weakSelf loadAllTasks];
         result(tasks);
     }];
@@ -707,7 +670,7 @@ static BOOL isDatabaseThreadStarted = NO;
 - (void)loadTasksWithRawQueryMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString *query = call.arguments[KEY_QUERY];
     __typeof__(self) __weak weakSelf = self;
-    [self executeOnDatabaseThreadForTask:^{
+    [self executeInDatabaseQueueForTask:^{
         NSArray* tasks = [weakSelf loadTasksWithRawQuery:query];
         result(tasks);
     }];
@@ -760,7 +723,7 @@ static BOOL isDatabaseThreadStarted = NO;
                 result(newTaskId);
 
                 __typeof__(self) __weak weakSelf = self;
-                [self executeOnDatabaseThreadForTask:^{
+                [self executeInDatabaseQueueForTask:^{
                     [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_RUNNING resumable:NO];
                     NSDictionary *task = [weakSelf loadTaskWithId:newTaskId];
                     NSNumber *progress = task[KEY_PROGRESS];
@@ -804,7 +767,7 @@ static BOOL isDatabaseThreadStarted = NO;
             [_runningTaskById removeObjectForKey:taskId];
 
             __typeof__(self) __weak weakSelf = self;
-            [self executeOnDatabaseThreadForTask:^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId newTaskId:newTaskId status:STATUS_ENQUEUED resumable:NO];
             }];
             result(newTaskId);
@@ -855,7 +818,7 @@ static BOOL isDatabaseThreadStarted = NO;
                     if ([taskId isEqualToString:taskIdValue] && (state == NSURLSessionTaskStateRunning)) {
                         [download cancel];
                         [weakSelf sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_CANCELED) andProgress:@(-1)];
-                        [weakSelf executeOnDatabaseThreadForTask:^{
+                        [weakSelf executeInDatabaseQueueForTask:^{
                             [weakSelf deleteTask:taskId];
                         }];
                         return;
@@ -864,7 +827,7 @@ static BOOL isDatabaseThreadStarted = NO;
             }];
         }
         
-        [self executeOnDatabaseThreadForTask:^{
+        [self executeInDatabaseQueueForTask:^{
             [weakSelf deleteTask:taskId];
         }];
         
@@ -962,7 +925,7 @@ static BOOL isDatabaseThreadStarted = NO;
             
             [self sendUpdateProgressForTaskId:taskId inStatus:status andProgress:@(progress)];
             __typeof__(self) __weak weakSelf = self;
-            [self executeOnDatabaseThreadForTask:^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId status:status.intValue progress:progress];
             }];
             _runningTaskById[taskId][KEY_PROGRESS] = @(progress);
@@ -1003,7 +966,7 @@ static BOOL isDatabaseThreadStarted = NO;
         __typeof__(self) __weak weakSelf = self;
         if (success) {
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_COMPLETE) andProgress:@100];
-            [self executeOnDatabaseThreadForTask:^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId status:STATUS_COMPLETE progress:100];
             }];
         } else {
@@ -1011,7 +974,7 @@ static BOOL isDatabaseThreadStarted = NO;
                 NSLog(@"Unable to copy temp file. Error: %@", [error localizedDescription]);
             }
             [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_FAILED) andProgress:@(-1)];
-            [self executeOnDatabaseThreadForTask:^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId status:STATUS_FAILED progress:-1];
             }];
         }
@@ -1047,7 +1010,7 @@ static BOOL isDatabaseThreadStarted = NO;
             [_runningTaskById removeObjectForKey:taskId];
             [self sendUpdateProgressForTaskId:taskId inStatus:@(status) andProgress:@(-1)];
             __typeof__(self) __weak weakSelf = self;
-            [self executeOnDatabaseThreadForTask:^{
+            [self executeInDatabaseQueueForTask:^{
                 [weakSelf updateTask:taskId status:status progress:-1];
             }];
         }
