@@ -139,7 +139,9 @@
                 }
             }
         } else {
-            NSLog(@"DB table %s column %s already exists", table, column);
+            if (debug) {
+                NSLog(@"DB table %s column %s already exists", table, column);
+            }
         }
     } else {
         if (debug) {
