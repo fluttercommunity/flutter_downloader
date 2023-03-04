@@ -32,56 +32,61 @@ class DownloadWorker(
     private val download by lazy { AndroidDownload(urlHash) }
 
     // The actual download work
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         var canRecoverError = true
-        withContext(Dispatchers.IO) {
-            try {
-                // TODO just use the url of the metadata when the redirect part is done on the dart side
-                val (finalUrl, httpConnection) = download.url.followRedirects(limit = 5)
-                if (httpConnection.responseCode == 200) {
-                    download.updateStatus(DownloadStatus.running)
+        try {
+            // TODO just use the url of the metadata when the redirect part is done on the dart side
+            val (finalUrl, httpConnection) = download.url.followRedirects(limit = 5)
+            if (httpConnection.responseCode == 200) {
+                download.updateStatus(DownloadStatus.running)
 
-                    val contentLength = httpConnection.getHeaderField("content-length").toLongOrNull()
-                    if (contentLength != null) {
-                        download.updateFinalSize(contentLength)
-                    }
-
-                    try {
-                        finalUrl.downloadRange(0, contentLength)
-                        if (isStopped) {
-                            throw CancellationException()
-                        }
-                        moveDownloadToItsTarget()
-                        Log.i(TAG, "Successfully downloaded $urlHash")
-                        download.updateStatus(DownloadStatus.completed)
-                        return@withContext Result.success()
-                    } catch (e: FileSystemException) {
-                        Log.e(TAG, "Filesystem exception downloading $urlHash", e)
-                    } catch (e: SocketException) {
-                        Log.e(TAG, "Socket exception downloading $urlHash", e)
-                    } catch (e: CancellationException) {
-                        Log.v(TAG, "Job $urlHash cancelled")
-                    }
-                } else {
-                    Log.e(TAG, "Unexpected response code ${httpConnection.responseCode} for download $urlHash")
-                    canRecoverError = false
+                val contentLength = httpConnection.getHeaderField("content-length").toLongOrNull()
+                if (contentLength != null) {
+                    download.updateContentLength(contentLength)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error downloading $urlHash", e)
+
+                try {
+                    finalUrl.downloadRange(download.cacheFile.length(), contentLength)
+                    if (isStopped) {
+                        throw CancellationException()
+                    }
+                    moveDownloadToItsTarget()
+                    Log.i(TAG, "Successfully downloaded $urlHash")
+                    download.updateStatus(DownloadStatus.completed)
+                    return@withContext Result.success()
+                } catch (e: FileSystemException) {
+                    Log.e(TAG, "Filesystem exception downloading $urlHash", e)
+                } catch (e: SocketException) {
+                    Log.e(TAG, "Socket exception downloading $urlHash", e)
+                } catch (e: CancellationException) {
+                    Log.v(TAG, "Job $urlHash cancelled")
+                }
+            } else {
+                Log.e(TAG, "Unexpected response code ${httpConnection.responseCode} for download $urlHash")
+                canRecoverError = false
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error downloading $urlHash", e)
         }
         download.updateStatus(if (canRecoverError) DownloadStatus.paused else DownloadStatus.failed)
-        return Result.failure()
+        Result.failure()
     }
 
     /** Extension function to download a range of a file to the cache file */
     private suspend fun URL.downloadRange(first: Long, last: Long?) = withContext(Dispatchers.IO) {
         var bytesReceivedTotal = first
         var lastProgress = 0L
-        // TODO apply range requests
-        val responseStream = openConnection().getInputStream()
+        val canResume = first > 0 && last != null
+        val responseStream = openConnection().also { request ->
+            if (canResume) {
+                request.setRequestProperty("Range", "bytes=$first-$last".also(::println))
+            }
+            download.metadata.etag?.let { etag ->
+                request.setRequestProperty("If-Match", etag)
+            }
+        }.getInputStream()
         BufferedInputStream(responseStream).use { inputStream ->
-            FileOutputStream(download.cacheFile).use { fileOutputStream ->
+            FileOutputStream(download.cacheFile, canResume).use { fileOutputStream ->
                 val dataBuffer = ByteArray(8096)
                 var bytesRead: Int
                 while (inputStream.read(dataBuffer, 0, 8096).also { bytesRead = it } != -1) {

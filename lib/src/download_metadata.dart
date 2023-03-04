@@ -13,8 +13,8 @@ part 'download_metadata.g.dart';
 /// [filename] which will be detected from the response headers. In order to
 /// resume the download a [etag] is recommended, see also
 /// [MDN](https://developer.mozilla.org/docs/Web/HTTP/Headers/ETag) for details.
-/// The [size] is required for calculating the progress and will be inferred
-/// from the response headers ether.
+/// The [contentLength] is required for calculating the progress and will be
+/// inferred from the response headers ether.
 @Freezed(
   fromJson: true,
   toJson: true,
@@ -25,8 +25,6 @@ part 'download_metadata.g.dart';
 // To update run `flutter pub run build_runner build`
 // The documentation at the params are added by freezed to the properties
 class DownloadMetadata with _$DownloadMetadata {
-  const DownloadMetadata._();
-
   /// Create new metadata with at least an [url] and a [target], the [headers]
   /// can be empty.
   factory DownloadMetadata({
@@ -56,6 +54,8 @@ class DownloadMetadata with _$DownloadMetadata {
   /// Deserialize DownloadMetadata from a [json] map.
   factory DownloadMetadata.fromJson(Map<String, dynamic> json) =>
       _$DownloadMetadataFromJson(json);
+
+  const DownloadMetadata._();
 
   /// Read the meta data from a [metadataFile].
   static Future<DownloadMetadata> fromFile(File metadataFile) async {

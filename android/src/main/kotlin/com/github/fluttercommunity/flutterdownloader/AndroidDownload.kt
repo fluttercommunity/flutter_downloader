@@ -1,6 +1,5 @@
 package com.github.fluttercommunity.flutterdownloader
 
-import androidx.annotation.UiThread
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -35,7 +34,7 @@ internal class AndroidDownload(
     val cacheFile = File(FlutterDownloaderPlugin.tempDir, "$urlHash.part")
 
     /** The final file size of the file to download */
-    var finalSize: Long? = null
+    var contentLength: Long? = null
         private set
 
     /** The progress of the download in permille [0..1000] */
@@ -55,8 +54,8 @@ internal class AndroidDownload(
     }
 
     /** Update the download's final size on main thread */
-    suspend fun updateFinalSize(newSize: Long) = withContext(Dispatchers.Main) {
-        finalSize = newSize
+    suspend fun updateContentLength(newSize: Long) = withContext(Dispatchers.Main) {
+        contentLength = newSize
 
         backChannel.invokeMethod("updateSize", newSize)
     }
