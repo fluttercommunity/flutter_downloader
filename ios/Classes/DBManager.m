@@ -89,6 +89,11 @@
     
     sqlite3 *sqlite3Database;
     NSString *databasePath = [self.appDirectory stringByAppendingPathComponent:self.databaseFilename];
+    
+    if (debug) {
+        NSLog(@"databasePath: %@", databasePath);
+    }
+    
     int openDatabaseResult = sqlite3_open([databasePath UTF8String], &sqlite3Database);
     
     if(openDatabaseResult != SQLITE_OK) {
