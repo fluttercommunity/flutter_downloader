@@ -402,7 +402,7 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
         }
     }
     
-    return @[absolutePath, @(kDefaultSearchPathDirectory)];
+    return @[@"", @(kDefaultSearchPathDirectory)];
 }
 
 - (NSString*)shortenSavedDirPath:(NSString*)absolutePath searchPathDirectory:(NSSearchPathDirectory)searchPathDirectory {
