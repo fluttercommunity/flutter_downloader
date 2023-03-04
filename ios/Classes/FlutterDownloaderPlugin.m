@@ -58,7 +58,7 @@ static int64_t _callbackHandle = 0;
 static int _step = 10;
 static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = nil;
 
-static NSSearchPathDirectory const _kDefaultSearchPathDirectory = NSDocumentDirectory;
+static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirectory;
 
 @synthesize databaseQueue;
 
@@ -317,7 +317,7 @@ static NSSearchPathDirectory const _kDefaultSearchPathDirectory = NSDocumentDire
     return @[@(NSCachesDirectory),
              @(NSApplicationSupportDirectory),
              @(NSLibraryDirectory),
-             @(_kDefaultSearchPathDirectory),
+             @(kDefaultSearchPathDirectory),
              @(NSDownloadsDirectory)];;
 }
 
@@ -402,7 +402,7 @@ static NSSearchPathDirectory const _kDefaultSearchPathDirectory = NSDocumentDire
         }
     }
     
-    return @[absolutePath, @(_kDefaultSearchPathDirectory)];
+    return @[absolutePath, @(kDefaultSearchPathDirectory)];
 }
 
 - (NSString*)shortenSavedDirPath:(NSString*)absolutePath searchPathDirectory:(NSSearchPathDirectory)searchPathDirectory {
@@ -433,7 +433,7 @@ static NSSearchPathDirectory const _kDefaultSearchPathDirectory = NSDocumentDire
 ///
 /// This function serves two purposes:
 ///
-/// 1. Add a field `search_dir` for determining common root directory such as the flowing directories
+/// 1. Add a database column `search_dir` for determining common root directory such as the flowing directories
 ///
 ///    - NSCachesDirectory
 ///    - NSApplicationSupportDirectory
@@ -441,13 +441,13 @@ static NSSearchPathDirectory const _kDefaultSearchPathDirectory = NSDocumentDire
 ///    - NSDocumentDirectory
 ///    - NSDownloadsDirectory
 ///
-///    Definition of common root directory on iOS refers to [path_provider](https://github.com/flutter/packages/blob/main/packages/path_provider/path_provider/lib/path_provider.dart).
+///    Definition of common root directory refers to [path_provider](https://github.com/flutter/packages/blob/main/packages/path_provider/path_provider/lib/path_provider.dart).
 ///
 /// 2.  Resolve historical compatibility issue
 - (void)addDatabaseColumnForMakingFileCouldStoreInAnyDirectory {
     [_dbManager addLazilyColumnForTable:"task"
                                  column:KEY_SEARCH_DIR.UTF8String
-                           defaultValue:[NSString stringWithFormat:@"%lu", _kDefaultSearchPathDirectory].UTF8String]; // _kDefaultSearchPathDirectory is [NSDocumentDirectory](9), this is compatible with historical FlutterDownlaoder versions.
+                           defaultValue:[NSString stringWithFormat:@"%lu", kDefaultSearchPathDirectory].UTF8String]; // kDefaultSearchPathDirectory is [NSDocumentDirectory](9), this is compatible with historical FlutterDownloader versions.
 }
 
 - (NSString*) escape:(NSString*) origin revert:(BOOL)revert

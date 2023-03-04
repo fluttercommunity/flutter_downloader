@@ -110,18 +110,18 @@
     sprintf(select, "%s%s", prefix, table);
     int prepareStatementResult = sqlite3_prepare_v2(sqlite3Database, (const char *)select, -1, &compiledStatement, NULL);
     if(prepareStatementResult == SQLITE_OK) {
-        int isExistColumn = -1;
+        int isExistTargetColumn = -1;
         int totalColumns = sqlite3_column_count(compiledStatement);
         for (int i = 0; i < totalColumns; i++) {
             char *dbDataAsChars = (char *)sqlite3_column_text(compiledStatement, i);
             dbDataAsChars = (char *)sqlite3_column_name(compiledStatement, i);
             if (strcmp(dbDataAsChars, column) == 0) {
-                isExistColumn = 0;
+                isExistTargetColumn = 0;
                 break;
             }
         }
         
-        if (isExistColumn == -1) {
+        if (isExistTargetColumn == -1) {
             const char *component = "alter table ";
             const char *component1 = " add column ";
             const char *component3 = " integer default ";
