@@ -85,6 +85,7 @@
 
 - (void)addLazilyColumnForTable:(const char *)table
                          column:(const char *)column
+                           type:(const char *)type
                    defaultValue:(const char *)defaultValue {
     
     sqlite3 *sqlite3Database;
@@ -127,11 +128,11 @@
         }
         
         if (isExistTargetColumn == -1) {
-            const char *component = "alter table ";
-            const char *component1 = " add column ";
-            const char *component3 = " integer default ";
-            char *insert = (char *)malloc(strlen(component) + strlen(table) + strlen(component1) + strlen(column) + strlen(component3)  + strlen(defaultValue) + 1);
-            sprintf(insert, "%s%s%s%s%s%s", component, table, component1, column, component3, defaultValue);
+            const char *component = "alter table";
+            const char *component1 = "add column";
+            const char *component2 = "default";
+            char *insert = (char *)malloc(strlen(component) + strlen(table) + strlen(component1) + strlen(column) + strlen(type) + strlen(column) + strlen(component2)  + strlen(defaultValue) + 6 + 1);
+            sprintf(insert, "%s %s %s %s %s %s %s", component, table, component1, column, type, component2, defaultValue);
             int execResult = sqlite3_exec(sqlite3Database, insert, NULL, NULL, NULL);
             if (execResult != SQLITE_OK) {
                 if (debug) {

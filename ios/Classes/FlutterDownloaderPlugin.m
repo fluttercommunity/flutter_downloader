@@ -447,6 +447,7 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
 - (void)addDatabaseColumnForMakingFileCouldSaveInAnyDirectory {
     [_dbManager addLazilyColumnForTable:"task"
                                  column:KEY_SEARCH_DIR.UTF8String
+                                   type:"integer"
                            defaultValue:[NSString stringWithFormat:@"%lu", kDefaultSearchPathDirectory].UTF8String]; // kDefaultSearchPathDirectory is [NSDocumentDirectory](9), this is compatible with historical FlutterDownloader versions.
 }
 
