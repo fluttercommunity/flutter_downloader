@@ -51,8 +51,8 @@ static FlutterEngine *_headlessRunner = nil;
 static int64_t _callbackHandle = 0;
 static int _step = 10;
 static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = nil;
-static dispatch_queue_t _databaseQueue;
-static void *_isOnDatabaseQueueKey;
+static dispatch_queue_t databaseQueue;
+static void *isOnDatabaseQueueKey;
 
 - (instancetype)init:(NSObject<FlutterPluginRegistrar> *)registrar;
 {
@@ -87,12 +87,12 @@ static void *_isOnDatabaseQueueKey;
             NSLog(@"database path: %@", dbPath);
         }
         
-        if (_databaseQueue == nil) {
-            _databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
+        if (databaseQueue == nil) {
+            databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
             
-            _isOnDatabaseQueueKey = &_isOnDatabaseQueueKey;
+            isOnDatabaseQueueKey = &isOnDatabaseQueueKey;
             void *nonNullUnusedPointer = (__bridge void *)(self.class);
-            dispatch_queue_set_specific(_databaseQueue, _isOnDatabaseQueueKey, nonNullUnusedPointer, NULL);
+            dispatch_queue_set_specific(databaseQueue, isOnDatabaseQueueKey, nonNullUnusedPointer, NULL);
         }
         
         _dbManager = [[DBManager alloc] initWithDatabaseFilePath:dbPath];
@@ -300,9 +300,13 @@ static void *_isOnDatabaseQueueKey;
 }
 
 - (void)executeInDatabaseQueueForTask:(void (^)(void))task {
-    dispatch_sync(_databaseQueue, ^{
+    if (dispatch_get_specific(isOnDatabaseQueueKey)) {
         if (task) task();
-    });
+    } else {
+        dispatch_sync(databaseQueue, ^{
+            if (task) task();
+        });
+    }
 }
 
 - (BOOL)openDocumentWithURL:(NSURL*)url {
@@ -542,14 +546,10 @@ static void *_isOnDatabaseQueueKey;
         
         __block NSArray *records;
         
-        if (dispatch_get_specific(_isOnDatabaseQueueKey)) {
-            records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query]];
-        } else {
-            __typeof__(_dbManager) __weak _weakDbManager = _dbManager;
-            [self executeInDatabaseQueueForTask:^{
-                records = [[NSArray alloc] initWithArray:[_weakDbManager loadDataFromDB:query]];
-            }];
-        }
+        __typeof__(_dbManager) __weak weakDbManager = _dbManager;
+        [self executeInDatabaseQueueForTask:^{
+            records = [[NSArray alloc] initWithArray:[weakDbManager loadDataFromDB:query]];
+        }];
         
         if (debug) {
             NSLog(@"Load task successfully");
