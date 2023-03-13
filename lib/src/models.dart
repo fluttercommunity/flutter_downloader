@@ -1,49 +1,51 @@
 /// Defines a set of possible states which a [DownloadTask] can be in.
 @pragma('vm:entry-point')
-class DownloadTaskStatus {
-  /// Creates a new [DownloadTaskStatus].
-  const DownloadTaskStatus(int value) : _value = value;
-
-  final int _value;
-
-  /// The underlying index of this status.
-  int get value => _value;
-
+enum DownloadTaskStatus {
   /// Status of the task is either unknown or corrupted.
-  static const undefined = DownloadTaskStatus(0);
+  undefined,
 
   /// The task is scheduled, but is not running yet.
-  static const enqueued = DownloadTaskStatus(1);
+  enqueued,
 
   /// The task is in progress.
-  static const running = DownloadTaskStatus(2);
+  running,
 
   /// The task has completed successfully.
-  static const complete = DownloadTaskStatus(3);
+  complete,
 
   /// The task has failed.
-  static const failed = DownloadTaskStatus(4);
+  failed,
 
   /// The task was canceled and cannot be resumed.
-  static const canceled = DownloadTaskStatus(5);
+  canceled,
 
-  /// The task was paused and can be resumed.
-  static const paused = DownloadTaskStatus(6);
+  /// The task was paused and can be resumed
+  paused;
 
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) {
-      return true;
+  /// Creates a new [DownloadTaskStatus] from an [int].
+  factory DownloadTaskStatus.fromInt(int value) {
+    switch (value) {
+      case 0:
+        return DownloadTaskStatus.undefined;
+      case 1:
+        return DownloadTaskStatus.enqueued;
+      case 2:
+        return DownloadTaskStatus.running;
+      case 3:
+        return DownloadTaskStatus.complete;
+      case 4:
+        return DownloadTaskStatus.failed;
+      case 5:
+        return DownloadTaskStatus.canceled;
+      case 6:
+        return DownloadTaskStatus.paused;
+      default:
+        throw ArgumentError('Invalid value: $value');
     }
-
-    return other is DownloadTaskStatus && other._value == _value;
   }
 
   @override
-  int get hashCode => _value.hashCode;
-
-  @override
-  String toString() => 'DownloadTaskStatus($_value)';
+  String toString() => name;
 }
 
 /// Encapsulates all information of a single download task.
