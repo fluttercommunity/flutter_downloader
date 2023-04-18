@@ -4,7 +4,6 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_downloader/src/exceptions.dart';
 
 import 'callback_dispatcher.dart';
@@ -148,10 +147,10 @@ class FlutterDownloader {
         );
       }
 
-      return result.map(
-        (dynamic item) {
-          // item as Map<String, dynamic>; // throws
+      final casted = _cast<Map<String, dynamic>>(result, '`loadTasks` returned invalid type');
 
+      return casted.map(
+        (item) {
           return DownloadTask(
             taskId: item['task_id'] as String,
             status: DownloadTaskStatus(item['status'] as int),
@@ -207,10 +206,10 @@ class FlutterDownloader {
           message: '`loadTasksWithRawQuery` returned null',
         );
       }
+      final casted =  _cast<Map<String, dynamic>>(result, '`loadTasksWithRawQuery` returned invalid type');
 
-      return result.map(
-        (dynamic item) {
-          // item as Map<String, dynamic>; // throws
+      return casted.map(
+        (item) {
 
           return DownloadTask(
             taskId: item['task_id'] as String,
@@ -443,6 +442,17 @@ class FlutterDownloader {
     if (_debug) {
       // ignore: avoid_print
       print(message);
+    }
+  }
+
+  /// throw FlutterDownloaderException with [errorMessage] in place of _CastError
+  static List<R> _cast<R>(List<dynamic> result, String errorMessage) {
+    try {
+      return result.cast<R>();
+    } catch (err) {
+      throw FlutterDownloaderException(
+        message: errorMessage,
+      );
     }
   }
 }

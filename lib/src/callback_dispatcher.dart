@@ -25,6 +25,11 @@ void callbackDispatcher() {
         print('fatal error: could not find callback');
         exit(1);
       }
+      if (callback is! Function(String p1, DownloadTaskStatus p2, int p3)) {
+        // ignore: avoid_print
+        print('fatal error: invalid callback');
+        exit(1);
+      }
 
       final id = args[1] as String;
       final status = args[2] as int;
