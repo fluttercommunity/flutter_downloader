@@ -405,13 +405,13 @@ class FlutterDownloader {
   ///
   ///static void downloadCallback(
   ///  String id,
-  ///  int status,
+  ///  DownloadTaskStatus status,
   ///  int progress,
   ///  ) {
   ///    final SendPort send = IsolateNameServer.lookupPortByName(
   ///    'downloader_send_port',
   ///  );
-  ///  send.send([id, status, progress]);
+  ///  send.send([id, status.value, progress]);
   ///}
   ///```
   static Future<void> registerCallback(
