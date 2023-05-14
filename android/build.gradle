@@ -30,6 +30,8 @@ rootProject.allprojects {
 android {
     compileSdk 32
 
+    namespace "vn.hunghd.flutterdownloader"
+
     sourceSets {
         main.java.srcDirs += "src/main/kotlin"
     }
