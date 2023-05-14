@@ -1,3 +1,7 @@
+## 1.10.3
+
+- Fix Android build failing when using Android Gradle Plugin v8 (#857)
+
 ## 1.10.2
 
 - Correctly read the error/success codes (#766)
