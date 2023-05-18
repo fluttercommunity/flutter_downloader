@@ -2,6 +2,7 @@
 
 - Fix Android build failing because of JVM and Kotlin target source
   compatibility (#862)
+- Set upper Dart version constraint to `<4.0.0` (#863)
 
 ## 1.10.3
 
