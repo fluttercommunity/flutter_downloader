@@ -1,3 +1,8 @@
+## 1.10.4
+
+- Fix Android build failing because of JVM and Kotlin target source
+  compatibility (#862)
+
 ## 1.10.3
 
 - Fix Android build failing when using Android Gradle Plugin v8 (#857)
