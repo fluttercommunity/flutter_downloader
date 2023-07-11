@@ -1,3 +1,8 @@
+## 1.10.5
+
+- Make the project compile when the app not doesn't have dependency on Kotlin
+  (#869)
+
 ## 1.10.4
 
 - Fix Android build failing because of JVM and Kotlin target source
