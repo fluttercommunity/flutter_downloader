@@ -43,9 +43,6 @@ enum DownloadTaskStatus {
         throw ArgumentError('Invalid value: $value');
     }
   }
-
-  @override
-  String toString() => name;
 }
 
 /// Encapsulates all information of a single download task.
