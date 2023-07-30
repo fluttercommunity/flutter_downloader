@@ -5,14 +5,19 @@ on:
     tags: ['v*']
 
 jobs:
-  main:
+  publish:
+    name: Publish on pub.dev
     runs-on: ubuntu-latest
 
+    permissions:
+      id-token: write
+      contents: write
+
     steps:
-      - name: Checkout
+      - name: Clone repository
         uses: actions/checkout@v3
 
-      # This action adds a token needed for pub.dev
+      # This step adds the auth token for pub.dev
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
@@ -24,35 +29,6 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install mobile-tools
-        uses: actions/checkout@v3
-        with:
-          repository: leancodepl/mobile-tools
-          path: mobile-tools
-
-      - name: Add mobile-tools to PATH
-        run: |
-          echo $GITHUB_WORKSPACE/mobile-tools/bin >> $GITHUB_PATH
-
-      - name: Download pub.dev credentials
-        env:
-          CREDENTIALS: ${{ secrets.PUB_DEV_CREDENTIALS }}
-        run: |
-          mkdir -p ~/.pub-cache
-          echo $CREDENTIALS > ~/.pub-cache/credentials.json
-
-      - name: Set version data
-        run: |
-          tag=${{ github.ref_name }}
-          echo "RELEASE_NOTES=$(link_changelog flutter_downloader $tag)" >> $GITHUB_ENV
-          echo "IS_PRERELEASE=$(is_prerelease flutter_downloader $tag)" >> $GITHUB_ENV
-
-      - name: Publish
-        run: dart pub publish --force
-
-      - name: Create release
-        uses: softprops/action-gh-release@v1
-        with:
-          name: ${{ github.ref_name }}
-          body: '[See changelog on pub.dev](${{ env.RELEASE_NOTES }})'
-          prerelease: ${{ env.IS_PRERELEASE }}
+      - name: Publish to pub.dev
+        id: pub_release
+        uses: leancodepl/mobile-tools/.github/actions/pub-release@pub-release-v1
