@@ -153,7 +153,7 @@ class FlutterDownloader {
         (dynamic item) {
           return DownloadTask(
             taskId: item['task_id'] as String,
-            status: DownloadTaskStatus(item['status'] as int),
+            status: DownloadTaskStatus.fromInt(item['status'] as int),
             progress: item['progress'] as int,
             url: item['url'] as String,
             filename: item['file_name'] as String?,
@@ -211,7 +211,7 @@ class FlutterDownloader {
         (dynamic item) {
           return DownloadTask(
             taskId: item['task_id'] as String,
-            status: DownloadTaskStatus(item['status'] as int),
+            status: DownloadTaskStatus.fromInt(item['status'] as int),
             progress: item['progress'] as int,
             url: item['url'] as String,
             filename: item['file_name'] as String?,
