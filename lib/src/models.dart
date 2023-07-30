@@ -89,4 +89,35 @@ class DownloadTask {
   @override
   String toString() =>
       'DownloadTask(taskId: $taskId, status: $status, progress: $progress, url: $url, filename: $filename, savedDir: $savedDir, timeCreated: $timeCreated, allowCellular: $allowCellular)';
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+
+    return other is DownloadTask &&
+        other.taskId == taskId &&
+        other.status == status &&
+        other.progress == progress &&
+        other.url == url &&
+        other.filename == filename &&
+        other.savedDir == savedDir &&
+        other.timeCreated == timeCreated &&
+        other.allowCellular == allowCellular;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      taskId,
+      status,
+      progress,
+      url,
+      filename,
+      savedDir,
+      timeCreated,
+      allowCellular,
+    );
+  }
 }

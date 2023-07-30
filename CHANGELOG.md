@@ -1,3 +1,7 @@
+## 1.10.7
+
+- Override `operator ==` and `hashCode` for `DownloadTask` (#875)
+
 ## 1.10.6
 
 - Fix `delete()` not working when file isn't saved to public storage (#871)
