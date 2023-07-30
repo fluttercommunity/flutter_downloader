@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_dynamic_calls
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -149,8 +151,6 @@ class FlutterDownloader {
 
       return result.map(
         (dynamic item) {
-          // item as Map<String, dynamic>; // throws
-
           return DownloadTask(
             taskId: item['task_id'] as String,
             status: DownloadTaskStatus(item['status'] as int),
@@ -209,8 +209,6 @@ class FlutterDownloader {
 
       return result.map(
         (dynamic item) {
-          // item as Map<String, dynamic>; // throws
-
           return DownloadTask(
             taskId: item['task_id'] as String,
             status: DownloadTaskStatus(item['status'] as int),
