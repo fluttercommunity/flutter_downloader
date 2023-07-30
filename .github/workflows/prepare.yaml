@@ -47,7 +47,7 @@ jobs:
 
       - name: flutter format (example app)
         working-directory: ./example
-        run: flutter format --set-exit-if-changed .
+        run: dart format --set-exit-if-changed .
 
       - name: flutter analyze (example app)
         working-directory: ./example
