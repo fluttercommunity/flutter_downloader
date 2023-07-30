@@ -91,7 +91,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         requiresStorageNotLow: Boolean,
         saveInPublicStorage: Boolean,
         timeout: Int,
-        allowCellular: Boolean,
+        allowCellular: Boolean
     ): WorkRequest {
         return OneTimeWorkRequest.Builder(DownloadWorker::class.java)
             .setConstraints(

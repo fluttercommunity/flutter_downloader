@@ -257,7 +257,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         filename: String?,
         headers: String,
         isResume: Boolean,
-        timeout: Int,
+        timeout: Int
     ) {
         var actualFilename = filename
         var url = fileURL
