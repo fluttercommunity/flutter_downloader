@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        flutter-version: ['3.0.x', '3.3.x', '3.7.x', '3.10.x']
+        flutter-version: ['3.10.x']
 
     steps:
       - name: Clone repository
@@ -47,7 +47,7 @@ jobs:
 
       - name: flutter format (example app)
         working-directory: ./example
-        run: flutter format --set-exit-if-changed .
+        run: dart format --set-exit-if-changed .
 
       - name: flutter analyze (example app)
         working-directory: ./example

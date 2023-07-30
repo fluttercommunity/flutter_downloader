@@ -12,9 +12,9 @@ class DownloadListItem extends StatelessWidget {
   });
 
   final ItemHolder? data;
-  final Function(TaskInfo?)? onTap;
-  final Function(TaskInfo)? onActionTap;
-  final Function(TaskInfo)? onCancel;
+  final void Function(TaskInfo?)? onTap;
+  final void Function(TaskInfo)? onActionTap;
+  final void Function(TaskInfo)? onCancel;
 
   Widget? _buildTrailing(TaskInfo task) {
     if (task.status == DownloadTaskStatus.undefined) {
