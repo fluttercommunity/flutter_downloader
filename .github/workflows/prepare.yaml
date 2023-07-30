@@ -23,7 +23,6 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ matrix.flutter-version }}
-          cache: true
 
       - name: flutter pub get
         run: flutter pub get
