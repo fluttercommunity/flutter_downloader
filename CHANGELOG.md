@@ -1,3 +1,10 @@
+## 1.10.6
+
+- Fix `delete()` not working when file isn't saved to public storage (#871)
+- Update CI workflows on GitHub Actions (#872)
+- Bump native Android dependencies and Gradle (#873)
+- Bump minimum Flutter version to 3.10 (#873)
+
 ## 1.10.5
 
 - Make the project compile when the app not doesn't have dependency on Kotlin
