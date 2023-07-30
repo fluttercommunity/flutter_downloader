@@ -1,3 +1,7 @@
+## 1.11.0
+
+- Convert `DownloadTaskStatus` into an `enum` (#835)
+
 ## 1.10.7
 
 - Override `operator ==` and `hashCode` for `DownloadTask` (#875)
