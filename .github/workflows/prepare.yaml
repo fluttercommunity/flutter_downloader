@@ -2,11 +2,7 @@ name: prepare
 
 on:
   workflow_dispatch:
-  push:
-    branches: [master]
-    # don't run this workflow on version tags
-    tags-ignore: ['v*']
-  pull_request_target:
+  pull_request:
     branches: [master]
 
 jobs:
