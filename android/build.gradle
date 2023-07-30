@@ -1,5 +1,5 @@
 buildscript {
-    ext.kotlin_version = "1.7.22"
+    ext.kotlin_version = "1.9.0"
     repositories {
         google()
         mavenCentral()
@@ -7,9 +7,9 @@ buildscript {
     }
 
     dependencies {
-        classpath "com.android.tools.build:gradle:7.2.2"
+        classpath "com.android.tools.build:gradle:7.4.2"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath "org.jlleitschuh.gradle:ktlint-gradle:11.0.0"
+        classpath "org.jlleitschuh.gradle:ktlint-gradle:11.5.0"
     }
 }
 
@@ -29,7 +29,7 @@ rootProject.allprojects {
 
 android {
     namespace "vn.hunghd.flutterdownloader"
-    compileSdk 32
+    compileSdk 33
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -46,7 +46,7 @@ android {
 
     defaultConfig {
         minSdk 19
-        targetSdk 32
+        targetSdk 33
     }
 }
 
