@@ -2,50 +2,34 @@ name: prepare
 
 on:
   workflow_dispatch:
-  push:
-    branches: [master]
-    # don't run this workflow on version tags
-    tags-ignore: ['v*']
-  pull_request_target:
+  pull_request:
     branches: [master]
 
 jobs:
   main:
-    name: Flutter ${{ matrix.channel }}${{ matrix.version }}
+    name: Flutter ${{ matrix.flutter-version }}
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - version: 3.0.0
-          - channel: stable
+        flutter-version: ['3.0.x', '3.3.x', '3.7.x', '3.10.x']
 
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
 
-      - name: Install Flutter
-        uses: subosito/flutter-action@v1
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
-          channel: ${{ matrix.channel }}
-          flutter-version: ${{ matrix.version }}
-
-      - name: Flutter version
-        run: flutter --version
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.FLUTTER_HOME }}/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: ${{ runner.os }}-pub-
+          flutter-version: ${{ matrix.flutter-version }}
+          cache: true
 
       - name: flutter pub get
         run: flutter pub get
 
-      - name: flutter format
-        run: flutter format --set-exit-if-changed .
+      - name: dart format
+        run: dart format --set-exit-if-changed .
 
       - name: flutter analyze
         run: flutter analyze --no-fatal-infos
@@ -53,7 +37,6 @@ jobs:
       - name: flutter test
         run: flutter test
 
-      # disabled because always fails for strange reasons
       - name: ktlint check
         working-directory: example/android
         run: ./gradlew flutter_downloader:ktlintCheck
