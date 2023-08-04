@@ -1,3 +1,7 @@
+## 1.11.1
+
+- Don't crash when `FlutterDownloader.registerCallback()` wasn't called (#879)
+
 ## 1.11.0
 
 - Convert `DownloadTaskStatus` into an `enum` (#835)
