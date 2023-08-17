@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
+import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
@@ -91,7 +92,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         requiresStorageNotLow: Boolean,
         saveInPublicStorage: Boolean,
         timeout: Int,
-        allowCellular: Boolean,
+        allowCellular: Boolean
     ): WorkRequest {
         return OneTimeWorkRequest.Builder(DownloadWorker::class.java)
             .setConstraints(
@@ -390,7 +391,14 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                 val saveFilePath = task.savedDir + File.separator + filename
                 val tempFile = File(saveFilePath)
                 if (tempFile.exists()) {
-                    deleteFileInMediaStore(tempFile)
+                    try {
+                        deleteFileInMediaStore(tempFile)
+                    } catch (e: SecurityException) {
+                        Log.d(
+                            "FlutterDownloader",
+                            "Failed to delete file in media store, will fall back to normal delete()"
+                        )
+                    }
                     tempFile.delete()
                 }
             }

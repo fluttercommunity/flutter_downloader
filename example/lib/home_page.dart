@@ -64,7 +64,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     _port.listen((dynamic data) {
       final taskId = (data as List<dynamic>)[0] as String;
-      final status = DownloadTaskStatus(data[1] as int);
+      final status = DownloadTaskStatus.fromInt(data[1] as int);
       final progress = data[2] as int;
 
       print(
@@ -90,7 +90,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @pragma('vm:entry-point')
   static void downloadCallback(
     String id,
-    DownloadTaskStatus status,
+    int status,
     int progress,
   ) {
     print(
@@ -99,7 +99,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
 
     IsolateNameServer.lookupPortByName('downloader_send_port')
-        ?.send([id, status.value, progress]);
+        ?.send([id, status, progress]);
   }
 
   Widget _buildDownloadList() {

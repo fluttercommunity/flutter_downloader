@@ -21,7 +21,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION,
         TaskEntry.COLUMN_NAME_TIME_CREATED,
         TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE,
-        TaskEntry.COLUMN_ALLOW_CELLULAR,
+        TaskEntry.COLUMN_ALLOW_CELLULAR
     )
 
     fun insertOrUpdateNewTask(

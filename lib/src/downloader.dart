@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_dynamic_calls
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -13,7 +15,7 @@ import 'models.dart';
 /// with [id] changes.
 typedef DownloadCallback = void Function(
   String id,
-  DownloadTaskStatus status,
+  int status,
   int progress,
 );
 
@@ -147,13 +149,14 @@ class FlutterDownloader {
         );
       }
 
-      final casted = _cast<Map<String, dynamic>>(result, '`loadTasks` returned invalid type');
+      final casted = _cast<Map<String, dynamic>>(
+          result, '`loadTasks` returned invalid type');
 
       return casted.map(
         (item) {
           return DownloadTask(
             taskId: item['task_id'] as String,
-            status: DownloadTaskStatus(item['status'] as int),
+            status: DownloadTaskStatus.fromInt(item['status'] as int),
             progress: item['progress'] as int,
             url: item['url'] as String,
             filename: item['file_name'] as String?,
@@ -206,14 +209,14 @@ class FlutterDownloader {
           message: '`loadTasksWithRawQuery` returned null',
         );
       }
-      final casted =  _cast<Map<String, dynamic>>(result, '`loadTasksWithRawQuery` returned invalid type');
+      final casted = _cast<Map<String, dynamic>>(
+          result, '`loadTasksWithRawQuery` returned invalid type');
 
       return casted.map(
         (item) {
-
           return DownloadTask(
             taskId: item['task_id'] as String,
-            status: DownloadTaskStatus(item['status'] as int),
+            status: DownloadTaskStatus.fromInt(item['status'] as int),
             progress: item['progress'] as int,
             url: item['url'] as String,
             filename: item['file_name'] as String?,
@@ -395,7 +398,7 @@ class FlutterDownloader {
   ///  IsolateNameServer.registerPortWithName(_port.sendPort, 'downloader_send_port');
   ///  _port.listen((dynamic data) {
   ///     String id = data[0];
-  ///     DownloadTaskStatus status = data[1];
+  ///     DownloadTaskStatus status = DownloadTaskStatus(data[1]);
   ///     int progress = data[2];
   ///     setState((){ });
   ///  });
@@ -405,7 +408,7 @@ class FlutterDownloader {
   ///
   ///static void downloadCallback(
   ///  String id,
-  ///  DownloadTaskStatus status,
+  ///  int status,
   ///  int progress,
   ///  ) {
   ///    final SendPort send = IsolateNameServer.lookupPortByName(

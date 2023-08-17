@@ -1,3 +1,37 @@
+## 1.11.1
+
+- Don't crash when `FlutterDownloader.registerCallback()` wasn't called (#879)
+
+## 1.11.0
+
+- Convert `DownloadTaskStatus` into an `enum` (#835)
+
+## 1.10.7
+
+- Override `operator ==` and `hashCode` for `DownloadTask` (#875)
+
+## 1.10.6
+
+- Fix `delete()` not working when file isn't saved to public storage (#871)
+- Update CI workflows on GitHub Actions (#872)
+- Bump native Android dependencies and Gradle (#873)
+- Bump minimum Flutter version to 3.10 (#873)
+
+## 1.10.5
+
+- Make the project compile when the app not doesn't have dependency on Kotlin
+  (#869)
+
+## 1.10.4
+
+- Fix Android build failing because of JVM and Kotlin target source
+  compatibility (#862)
+- Set upper Dart version constraint to `<4.0.0` (#863)
+
+## 1.10.3
+
+- Fix Android build failing when using Android Gradle Plugin v8 (#857)
+
 ## 1.10.2
 
 - Correctly read the error/success codes (#766)

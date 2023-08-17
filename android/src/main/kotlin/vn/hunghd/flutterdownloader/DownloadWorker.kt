@@ -257,7 +257,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         filename: String?,
         headers: String,
         isResume: Boolean,
-        timeout: Int,
+        timeout: Int
     ) {
         var actualFilename = filename
         var url = fileURL
@@ -300,7 +300,11 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                         resourceUrl.openConnection() as HttpURLConnection
                     }
                 } else {
-                    resourceUrl.openConnection() as HttpsURLConnection
+                    if (resourceUrl.protocol.lowercase(Locale.US) == "https") {
+                        resourceUrl.openConnection() as HttpsURLConnection
+                    } else {
+                        resourceUrl.openConnection() as HttpURLConnection
+                    }
                 }
                 log("Open connection to $url")
                 httpConn.connectTimeout = timeout
