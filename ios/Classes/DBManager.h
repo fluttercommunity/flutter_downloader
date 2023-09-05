@@ -19,8 +19,8 @@
 
 -(instancetype)initWithDatabaseFilePath:(NSString *)dbFilePath;
 
--(NSArray *)loadDataFromDB:(NSString *)query;
+-(NSArray *)loadDataFromDB:(NSString *)query withParameters:(NSArray *)parameters;
 
--(void)executeQuery:(NSString *)query;
+-(void)executeQuery:(NSString *)query withParameters:(NSArray *)parameters;
 
 @end
