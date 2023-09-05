@@ -334,41 +334,56 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     NSURL *savedDirURL = [NSURL fileURLWithPath:savedDir];
     return [savedDirURL URLByAppendingPathComponent:filename];
 }
-
 - (NSURL*)fileUrlOf:(NSString*)taskId taskInfo:(NSDictionary*)taskInfo downloadTask:(NSURLSessionDownloadTask*)downloadTask {
     NSString *filename = taskInfo[KEY_FILE_NAME];
     NSString *suggestedFilename = downloadTask.response.suggestedFilename;
     if (debug) {
         NSLog(@"SuggestedFileName: %@", suggestedFilename);
     }
-
-    // check filename, if it is empty then we try to extract it from http response or url path
-    if (filename == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: filename]) {
-        if (suggestedFilename) {
-            filename = suggestedFilename;
-        } else {
-            filename = downloadTask.currentRequest.URL.lastPathComponent;
-        }
-
-        NSMutableDictionary *mutableTask = [taskInfo mutableCopy];
-        [mutableTask setObject:filename forKey:KEY_FILE_NAME];
-
-        // update taskInfo
-        if ([_runningTaskById objectForKey:taskId]) {
-            _runningTaskById[taskId][KEY_FILE_NAME] = filename;
-        }
-
-        // update DB
-        __typeof__(self) __weak weakSelf = self;
-        [self executeInDatabaseQueueForTask:^{
-            [weakSelf updateTask:taskId filename:filename];
-        }];
-
-        return [self fileUrlFromDict:mutableTask];
+    // Check if suggestedFilename is nil or empty
+    if (!suggestedFilename || [suggestedFilename isEqualToString:@""]) {
+        // If suggestedFilename is empty, use the last path component of the URL as the filename
+        NSString *urlLastPathComponent = downloadTask.currentRequest.URL.lastPathComponent;
+        suggestedFilename = [self sanitizeFilename:urlLastPathComponent];
+    } else {
+        // Sanitize the suggestedFilename to remove unsafe characters
+        suggestedFilename = [self sanitizeFilename:suggestedFilename];
     }
 
-    return [self fileUrlFromDict:taskInfo];
+    // Update the taskInfo with the sanitized filename
+    NSMutableDictionary *mutableTaskInfo = [taskInfo mutableCopy];
+    mutableTaskInfo[KEY_FILE_NAME] = suggestedFilename;
+
+    // Update the taskInfo
+    if ([_runningTaskById objectForKey:taskId]) {
+        _runningTaskById[taskId][KEY_FILE_NAME] = suggestedFilename;
+    }
+
+    // update DB
+    __weak typeof(self) weakSelf = self;
+    [self executeInDatabaseQueueForTask:^{
+        [weakSelf updateTask:taskId filename:suggestedFilename];
+    }];
+
+    return [self fileUrlFromDict:mutableTaskInfo];
 }
+
+- (NSString *)sanitizeFilename:(NSString *)filename {
+    // Define a list of allowed characters for filenames
+    NSCharacterSet *allowedCharacters = [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."];
+
+    // Remove any characters that are not in the allowed set
+    NSString *sanitizedFilename = [[filename componentsSeparatedByCharactersInSet:[allowedCharacters invertedSet]] componentsJoinedByString:@""];
+    
+    // Ensure the sanitized filename is not empty
+    if (!sanitizedFilename || [sanitizedFilename isEqualToString:@""]) {
+        // Provide a default filename if the sanitized one is empty
+        sanitizedFilename = @"default_filename";
+    }
+
+    return sanitizedFilename;
+}
+
 
 - (NSString*)absoluteSavedDirPath:(NSString*)savedDir {
     return [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:savedDir];
@@ -599,7 +614,6 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         }
         if (records != nil && [records count] > 0) {
             NSArray *record = [records firstObject];
-             NSLog(@"Task found in load  tasks with id \n%@", record);
             NSDictionary *task = [self taskDictFromRecordArray:record];
             // Checking if the task is valid
             if (task.count == 0) {
@@ -1010,6 +1024,11 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         NSError *error;
         NSFileManager *fileManager = [NSFileManager defaultManager];
         
+        // Ensure the destination directory exists
+        NSURL *destinationDirectory = [destinationURL URLByDeletingLastPathComponent];
+        [fileManager createDirectoryAtURL:destinationDirectory withIntermediateDirectories:YES attributes:nil error:nil];
+        
+        // Remove the existing file if it exists
         if ([fileManager fileExistsAtPath:[destinationURL path]]) {
             [fileManager removeItemAtURL:destinationURL error:nil];
         }
@@ -1034,7 +1053,6 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             }];
         }
     }
-    
 }
 
 -(void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error
