@@ -429,7 +429,7 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
 
 # pragma mark - Database Accessing
 
-/// Before version 1.10.2, FlutterDownloader only allows file to be saved in [NSDocumentDirectory]. This limits the freedom of development.
+/// Before version 1.11.1, FlutterDownloader only allows file to be saved in [NSDocumentDirectory]. This limits the freedom of development.
 ///
 /// This function serves two purposes:
 ///
@@ -443,12 +443,12 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
 ///
 ///    Definition of common root directory refers to [path_provider](https://github.com/flutter/packages/blob/main/packages/path_provider/path_provider/lib/path_provider.dart).
 ///
-/// 2.  Resolve historical compatibility issue
+/// 2.  Resolve previous compatibility issue
 - (void)addDatabaseColumnForMakingFileCouldSaveInAnyDirectory {
     [_dbManager addLazilyColumnForTable:"task"
                                  column:KEY_SEARCH_DIR.UTF8String
                                    type:"integer"
-                           defaultValue:[NSString stringWithFormat:@"%lu", kDefaultSearchPathDirectory].UTF8String]; // kDefaultSearchPathDirectory is [NSDocumentDirectory](9), this is compatible with historical FlutterDownloader versions.
+                           defaultValue:[NSString stringWithFormat:@"%lu", kDefaultSearchPathDirectory].UTF8String]; // kDefaultSearchPathDirectory is [NSDocumentDirectory](9), this is compatible with previous FlutterDownloader versions.
 }
 
 - (NSString*) escape:(NSString*) origin revert:(BOOL)revert
