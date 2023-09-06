@@ -149,11 +149,8 @@ class FlutterDownloader {
         );
       }
 
-      final casted = _cast<Map<String, dynamic>>(
-          result, '`loadTasks` returned invalid type');
-
-      return casted.map(
-        (item) {
+      return result.map(
+        (dynamic item) {
           return DownloadTask(
             taskId: item['task_id'] as String,
             status: DownloadTaskStatus.fromInt(item['status'] as int),
@@ -209,11 +206,9 @@ class FlutterDownloader {
           message: '`loadTasksWithRawQuery` returned null',
         );
       }
-      final casted = _cast<Map<String, dynamic>>(
-          result, '`loadTasksWithRawQuery` returned invalid type');
 
-      return casted.map(
-        (item) {
+      return result.map(
+        (dynamic item) {
           return DownloadTask(
             taskId: item['task_id'] as String,
             status: DownloadTaskStatus.fromInt(item['status'] as int),
@@ -445,17 +440,6 @@ class FlutterDownloader {
     if (_debug) {
       // ignore: avoid_print
       print(message);
-    }
-  }
-
-  /// throw FlutterDownloaderException with [errorMessage] in place of _CastError
-  static List<R> _cast<R>(List<dynamic> result, String errorMessage) {
-    try {
-      return result.cast<R>();
-    } catch (err) {
-      throw FlutterDownloaderException(
-        message: errorMessage,
-      );
     }
   }
 }
