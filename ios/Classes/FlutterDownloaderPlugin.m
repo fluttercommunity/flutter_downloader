@@ -371,18 +371,33 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 - (NSString *)sanitizeFilename:(NSString *)filename {
     // Define a list of allowed characters for filenames
     NSCharacterSet *allowedCharacters = [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."];
-
-    // Remove any characters that are not in the allowed set
-    NSString *sanitizedFilename = [[filename componentsSeparatedByCharactersInSet:[allowedCharacters invertedSet]] componentsJoinedByString:@""];
+    
+    // Create a mutable string to build the sanitized filename
+    NSMutableString *sanitizedFilename = [NSMutableString string];
+    
+    // Iterate over each character in the original filename
+    for (NSUInteger i = 0; i < filename.length; i++) {
+        unichar character = [filename characterAtIndex:i];
+        
+        // Check if the character is in the allowed set
+        if ([allowedCharacters characterIsMember:character]) {
+            // Append the allowed character to the sanitized filename
+            [sanitizedFilename appendFormat:@"%C", character];
+        } else {
+            // Replace forbidden characters with an underscore
+            [sanitizedFilename appendString:@"_"];
+        }
+    }
     
     // Ensure the sanitized filename is not empty
     if (!sanitizedFilename || [sanitizedFilename isEqualToString:@""]) {
         // Provide a default filename if the sanitized one is empty
         sanitizedFilename = @"default_filename";
     }
-
+    
     return sanitizedFilename;
 }
+
 
 
 - (NSString*)absoluteSavedDirPath:(NSString*)savedDir {
