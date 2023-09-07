@@ -374,10 +374,35 @@ class _MyHomePageState extends State<MyHomePage> {
         externalStorageDirPath = directory?.path;
       }
     } else if (Platform.isIOS) {
-      externalStorageDirPath =
-          (await getApplicationDocumentsDirectory()).absolute.path;
+      // var dir = (await _dirsOnIOS)[0]; // temporary
+      // var dir = (await _dirsOnIOS)[1]; // applicationSupport
+      // var dir = (await _dirsOnIOS)[2]; // library
+      var dir = (await _dirsOnIOS)[3]; // applicationDocuments
+      // var dir = (await _dirsOnIOS)[4]; // downloads
+
+      dir ??= await getApplicationDocumentsDirectory();
+      externalStorageDirPath = dir.absolute.path;
     }
+
     return externalStorageDirPath;
+  }
+
+  Future<List<Directory?>> get _dirsOnIOS async {
+    final temporary = await getTemporaryDirectory();
+    final applicationSupport = await getApplicationSupportDirectory();
+    final library = await getLibraryDirectory();
+    final applicationDocuments = await getApplicationDocumentsDirectory();
+    final downloads = await getDownloadsDirectory();
+
+    final dirs = [
+      temporary,
+      applicationSupport,
+      library,
+      applicationDocuments,
+      downloads
+    ];
+
+    return dirs;
   }
 
   @override
