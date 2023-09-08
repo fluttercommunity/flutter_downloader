@@ -390,7 +390,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     }
     
     // Ensure the sanitized filename is not empty
-    if (!sanitizedFilename || [sanitizedFilename isEqualToString:@""]) {
+    if ([sanitizedFilename isEqualToString:@""]) {
         // Provide a default filename if the sanitized one is empty
         sanitizedFilename = @"default_filename";
     }
