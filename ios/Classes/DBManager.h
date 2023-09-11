@@ -19,13 +19,17 @@
 
 -(instancetype)initWithDatabaseFilePath:(NSString *)dbFilePath;
 
+<<<<<<< HEAD
 - (void)addLazilyColumnForTable:(const char *)table
                          column:(const char *)column
                            type:(const char *)type
                    defaultValue:(const char *)defaultValue;
 
 -(NSArray *)loadDataFromDB:(NSString *)query;
+=======
+-(NSArray *)loadDataFromDB:(NSString *)query withParameters:(NSArray *)parameters;
+>>>>>>> 1d19dbb (Security (#887))
 
--(void)executeQuery:(NSString *)query;
+-(void)executeQuery:(NSString *)query withParameters:(NSArray *)parameters;
 
 @end

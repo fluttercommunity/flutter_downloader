@@ -350,44 +350,79 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     NSURL *savedDirURL = [NSURL fileURLWithPath:savedDir];
     return [savedDirURL URLByAppendingPathComponent:filename];
 }
-
 - (NSURL*)fileUrlOf:(NSString*)taskId taskInfo:(NSDictionary*)taskInfo downloadTask:(NSURLSessionDownloadTask*)downloadTask {
     NSString *filename = taskInfo[KEY_FILE_NAME];
     NSString *suggestedFilename = downloadTask.response.suggestedFilename;
     if (debug) {
         NSLog(@"SuggestedFileName: %@", suggestedFilename);
     }
-
-    // check filename, if it is empty then we try to extract it from http response or url path
-    if (filename == (NSString*) [NSNull null] || [NULL_VALUE isEqualToString: filename]) {
-        if (suggestedFilename) {
-            filename = suggestedFilename;
-        } else {
-            filename = downloadTask.currentRequest.URL.lastPathComponent;
-        }
-
-        NSMutableDictionary *mutableTask = [taskInfo mutableCopy];
-        [mutableTask setObject:filename forKey:KEY_FILE_NAME];
-
-        // update taskInfo
-        if ([_runningTaskById objectForKey:taskId]) {
-            _runningTaskById[taskId][KEY_FILE_NAME] = filename;
-        }
-
-        // update DB
-        __typeof__(self) __weak weakSelf = self;
-        [self executeInDatabaseQueueForTask:^{
-            [weakSelf updateTask:taskId filename:filename];
-        }];
-
-        return [self fileUrlFromDict:mutableTask];
+    // Check if suggestedFilename is nil or empty
+    if (!suggestedFilename || [suggestedFilename isEqualToString:@""]) {
+        // If suggestedFilename is empty, use the last path component of the URL as the filename
+        NSString *urlLastPathComponent = downloadTask.currentRequest.URL.lastPathComponent;
+        suggestedFilename = [self sanitizeFilename:urlLastPathComponent];
+    } else {
+        // Sanitize the suggestedFilename to remove unsafe characters
+        suggestedFilename = [self sanitizeFilename:suggestedFilename];
     }
 
-    return [self fileUrlFromDict:taskInfo];
+    // Update the taskInfo with the sanitized filename
+    NSMutableDictionary *mutableTaskInfo = [taskInfo mutableCopy];
+    mutableTaskInfo[KEY_FILE_NAME] = suggestedFilename;
+
+    // Update the taskInfo
+    if ([_runningTaskById objectForKey:taskId]) {
+        _runningTaskById[taskId][KEY_FILE_NAME] = suggestedFilename;
+    }
+
+    // update DB
+    __weak typeof(self) weakSelf = self;
+    [self executeInDatabaseQueueForTask:^{
+        [weakSelf updateTask:taskId filename:suggestedFilename];
+    }];
+
+    return [self fileUrlFromDict:mutableTaskInfo];
 }
 
+<<<<<<< HEAD
 - (NSString*)absoluteSavedDirPathWithShortSavedDir:(NSString*)shortSavedDir searchPathDirectory:(NSSearchPathDirectory)searchPathDirectory {
     return [[NSSearchPathForDirectoriesInDomains(searchPathDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:shortSavedDir];
+=======
+- (NSString *)sanitizeFilename:(NSString *)filename {
+    // Define a list of allowed characters for filenames
+    NSCharacterSet *allowedCharacters = [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."];
+    
+    // Create a mutable string to build the sanitized filename
+    NSMutableString *sanitizedFilename = [NSMutableString string];
+    
+    // Iterate over each character in the original filename
+    for (NSUInteger i = 0; i < filename.length; i++) {
+        unichar character = [filename characterAtIndex:i];
+        
+        // Check if the character is in the allowed set
+        if ([allowedCharacters characterIsMember:character]) {
+            // Append the allowed character to the sanitized filename
+            [sanitizedFilename appendFormat:@"%C", character];
+        } else {
+            // Replace forbidden characters with an underscore
+            [sanitizedFilename appendString:@"_"];
+        }
+    }
+    
+    // Ensure the sanitized filename is not empty
+    if ([sanitizedFilename isEqualToString:@""]) {
+        // Provide a default filename if the sanitized one is empty
+        sanitizedFilename = @"default_filename";
+    }
+    
+    return sanitizedFilename;
+}
+
+
+
+- (NSString*)absoluteSavedDirPath:(NSString*)savedDir {
+    return [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:savedDir];
+>>>>>>> 1d19dbb (Security (#887))
 }
 
 - (NSArray *)shortenSavedDirPath:(NSString*)absolutePath {
@@ -462,11 +497,33 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     : [origin stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLQueryAllowedCharacterSet];
 }
 
+<<<<<<< HEAD
 - (void) addNewTask: (NSString*) taskId url: (NSString*) url status: (int) status progress: (int) progress filename: (NSString*) filename savedDir: (NSString*) savedDir searchDir:(NSSearchPathDirectory)searchDir headers: (NSString*) headers resumable: (BOOL) resumable showNotification: (BOOL) showNotification openFileFromNotification: (BOOL) openFileFromNotification
 {
     headers = [self escape:headers revert:false];
     NSString *query = [NSString stringWithFormat:@"INSERT INTO task (task_id,url,status,progress,file_name,saved_dir,search_dir,headers,resumable,show_notification,open_file_from_notification,time_created) VALUES (\"%@\",\"%@\",%d,%d,\"%@\",\"%@\",%lu,\"%@\",%d,%d,%d,%lld)", taskId, url, status, progress, filename, savedDir, searchDir, headers, resumable ? 1 : 0, showNotification ? 1 : 0, openFileFromNotification ? 1 : 0, [self currentTimeInMilliseconds]];
     [_dbManager executeQuery:query];
+=======
+- (void)addNewTask:(NSString *)taskId
+               url:(NSString *)url
+            status:(int)status
+           progress:(int)progress
+           filename:(NSString *)filename
+           savedDir:(NSString *)savedDir
+           headers:(NSString *)headers
+           resumable:(BOOL)resumable
+           showNotification:(BOOL)showNotification
+           openFileFromNotification:(BOOL)openFileFromNotification {
+
+    headers = [self escape:headers revert:NO];
+    
+    NSString *query = @"INSERT INTO task (task_id, url, status, progress, file_name, saved_dir, headers, resumable, show_notification, open_file_from_notification, time_created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    
+    NSArray *values = @[taskId, url, @(status), @(progress), filename, savedDir, headers, @(resumable ? 1:0), @(showNotification ? 1 : 0), @(openFileFromNotification ? 1: 0), @([self currentTimeInMilliseconds])];
+    
+    [_dbManager executeQuery:query withParameters:values];
+    
+>>>>>>> 1d19dbb (Security (#887))
     if (debug) {
         if (_dbManager.affectedRows != 0) {
             NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
@@ -478,8 +535,13 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
 
 - (void) updateTask: (NSString*) taskId status: (int) status progress: (int) progress
 {
-    NSString *query = [NSString stringWithFormat:@"UPDATE task SET status=%d, progress=%d WHERE task_id=\"%@\"", status, progress, taskId];
-    [_dbManager executeQuery:query];
+
+    NSString *query = @"UPDATE task SET status = ?, progress = ? WHERE task_id = ?";
+    
+    NSArray *values = @[@(status), @(progress), taskId];
+    
+    [_dbManager executeQuery:query withParameters:values];
+    
     if (debug) {
         if (_dbManager.affectedRows != 0) {
             NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
@@ -489,9 +551,16 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     }
 }
 
-- (void) updateTask: (NSString*) taskId filename: (NSString*) filename {
-    NSString *query = [NSString stringWithFormat:@"UPDATE task SET file_name=\"%@\" WHERE task_id=\"%@\"", filename, taskId];
-    [_dbManager executeQuery:query];
+
+
+- (void)updateTask:(NSString *)taskId filename:(NSString *)filename {
+    NSString *query = @"UPDATE task SET file_name = ? WHERE task_id = ?";
+    
+    // Create an array to hold the parameter values
+    NSArray *values = @[filename, taskId];
+    
+    [_dbManager executeQuery:query withParameters:values];
+    
     if (debug) {
         if (_dbManager.affectedRows != 0) {
             NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
@@ -501,9 +570,18 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     }
 }
 
-- (void) updateTask: (NSString*) taskId status: (int) status progress: (int) progress resumable: (BOOL) resumable {
-    NSString *query = [NSString stringWithFormat:@"UPDATE task SET status=%d, progress=%d, resumable=%d WHERE task_id=\"%@\"", status, progress, resumable ? 1 : 0, taskId];
-    [_dbManager executeQuery:query];
+
+- (void)updateTask:(NSString *)taskId
+             status:(int)status
+           progress:(int)progress
+          resumable:(BOOL)resumable {
+    
+    NSString *query = @"UPDATE task SET status = ?, progress = ?, resumable = ? WHERE task_id = ?";
+    
+    NSArray *values = @[@(status), @(progress), @(resumable ? 1 : 0), taskId];
+    
+    [_dbManager executeQuery:query withParameters:values];
+    
     if (debug) {
         if (_dbManager.affectedRows != 0) {
             NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
@@ -513,9 +591,17 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     }
 }
 
-- (void) updateTask: (NSString*) currentTaskId newTaskId: (NSString*) newTaskId status: (int) status resumable: (BOOL) resumable {
-    NSString *query = [NSString stringWithFormat:@"UPDATE task SET task_id=\"%@\", status=%d, resumable=%d, time_created=%lld WHERE task_id=\"%@\"", newTaskId, status, resumable ? 1 : 0, [self currentTimeInMilliseconds], currentTaskId];
-    [_dbManager executeQuery:query];
+- (void)updateTask:(NSString *)currentTaskId
+          newTaskId:(NSString *)newTaskId
+             status:(int)status
+          resumable:(BOOL)resumable {
+    
+    NSString *query = @"UPDATE task SET task_id = ?, status = ?, resumable = ?, time_created = ? WHERE task_id = ?";
+    
+    NSArray *values = @[newTaskId, @(status), @(resumable ? 1 : 0), @([self currentTimeInMilliseconds]), currentTaskId];
+    
+    [_dbManager executeQuery:query withParameters:values];
+    
     if (debug) {
         if (_dbManager.affectedRows != 0) {
             NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
@@ -525,11 +611,15 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     }
 }
 
-- (void) updateTask: (NSString*) taskId resumable: (BOOL) resumable
-{
-    NSString *query = [NSString stringWithFormat:@"UPDATE task SET resumable=%d WHERE task_id=\"%@\"", resumable ? 1 : 0, taskId];
-    [_dbManager executeQuery:query];
+- (void)updateTask:(NSString *)taskId resumable:(BOOL)resumable {
+    NSString *query = @"UPDATE task SET resumable = ? WHERE task_id = ?";
+    
+    NSArray *values = @[@(resumable ? 1 : 0), taskId];
+    
+    [_dbManager executeQuery:query withParameters:values];
+    
     if (debug) {
+        NSLog(@"Update \n%@\n\n%@",taskId,query);
         if (_dbManager.affectedRows != 0) {
             NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
         } else {
@@ -538,28 +628,35 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     }
 }
 
-- (void) deleteTask: (NSString*) taskId {
-    NSString *query = [NSString stringWithFormat:@"DELETE FROM task WHERE task_id=\"%@\"", taskId];
-    [_dbManager executeQuery:query];
+- (void)deleteTask:(NSString *)taskId {
+    NSString *query = @"DELETE FROM task WHERE task_id = ?";
+    
+    NSArray *values = @[taskId];
+    
+    [_dbManager executeQuery:query withParameters:values];
+    
     if (debug) {
+        NSLog(@"Delete \n%@\n\n%@",taskId,query);
         if (_dbManager.affectedRows != 0) {
             NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
         } else {
             NSLog(@"Could not execute the query.");
         }
+        
     }
 }
 
 - (NSArray*)loadAllTasks
 {
     NSString *query = @"SELECT * FROM task";
-    NSArray *records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query]];
+    NSArray *records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query withParameters:@[]]];
     if (debug) {
         NSLog(@"Load tasks successfully");
     }
     NSMutableArray *results = [NSMutableArray new];
     for(NSArray *record in records) {
         NSDictionary *task = [self taskDictFromRecordArray:record];
+         NSLog(@"Task found in load all tasks \n%@", task);
         if (debug) {
             NSLog(@"%@", task);
         }
@@ -570,7 +667,7 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
 
 - (NSArray*)loadTasksWithRawQuery: (NSString*)query
 {
-    NSArray *records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query]];
+    NSArray *records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query withParameters:@[]]];
     if (debug) {
         NSLog(@"Load tasks successfully");
     }
@@ -581,21 +678,21 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     return results;
 }
 
-- (NSDictionary*)loadTaskWithId:(NSString*)taskId
-{
-    // check task in memory-cache first
+- (NSDictionary *)loadTaskWithId:(NSString *)taskId {
+    // Check the task in memory-cache first
     if ([_runningTaskById objectForKey:taskId]) {
         return [_runningTaskById objectForKey:taskId];
     } else {
-        NSString *query = [NSString stringWithFormat:@"SELECT * FROM task WHERE task_id = \"%@\" ORDER BY id DESC LIMIT 1", taskId];
-        NSArray *records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query]];
+        NSString *query = @"SELECT * FROM task WHERE task_id = ? ORDER BY id DESC LIMIT 1";
+        NSArray *parameters = @[taskId];
+        NSArray *records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query  withParameters:parameters]];
         if (debug) {
             NSLog(@"Load task successfully");
         }
         if (records != nil && [records count] > 0) {
             NSArray *record = [records firstObject];
             NSDictionary *task = [self taskDictFromRecordArray:record];
-            // checking if task is valid
+            // Checking if the task is valid
             if (task.count == 0) {
                 return nil;
             }
@@ -1018,6 +1115,11 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
         NSError *error;
         NSFileManager *fileManager = [NSFileManager defaultManager];
         
+        // Ensure the destination directory exists
+        NSURL *destinationDirectory = [destinationURL URLByDeletingLastPathComponent];
+        [fileManager createDirectoryAtURL:destinationDirectory withIntermediateDirectories:YES attributes:nil error:nil];
+        
+        // Remove the existing file if it exists
         if ([fileManager fileExistsAtPath:[destinationURL path]]) {
             [fileManager removeItemAtURL:destinationURL error:nil];
         }
@@ -1042,7 +1144,6 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
             }];
         }
     }
-    
 }
 
 -(void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error
