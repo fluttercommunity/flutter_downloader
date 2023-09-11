@@ -83,7 +83,6 @@
     }
 }
 
-<<<<<<< HEAD
 - (void)addLazilyColumnForTable:(const char *)table
                          column:(const char *)column
                            type:(const char *)type
@@ -155,10 +154,9 @@
     sqlite3_close(sqlite3Database);
 }
 
--(void)runQuery:(const char *)query isQueryExecutable:(BOOL)queryExecutable{
-=======
+
 - (void)runQuery:(const char *)query withParameters:(NSArray *)parameters isQueryExecutable:(BOOL)queryExecutable {
->>>>>>> 1d19dbb (Security (#887))
+
     if (debug) {
         NSLog(@"execute query: %s", query);
     }

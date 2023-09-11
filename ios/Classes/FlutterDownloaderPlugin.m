@@ -384,10 +384,11 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     return [self fileUrlFromDict:mutableTaskInfo];
 }
 
-<<<<<<< HEAD
+
 - (NSString*)absoluteSavedDirPathWithShortSavedDir:(NSString*)shortSavedDir searchPathDirectory:(NSSearchPathDirectory)searchPathDirectory {
     return [[NSSearchPathForDirectoriesInDomains(searchPathDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:shortSavedDir];
-=======
+}
+
 - (NSString *)sanitizeFilename:(NSString *)filename {
     // Define a list of allowed characters for filenames
     NSCharacterSet *allowedCharacters = [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."];
@@ -418,12 +419,6 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     return sanitizedFilename;
 }
 
-
-
-- (NSString*)absoluteSavedDirPath:(NSString*)savedDir {
-    return [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:savedDir];
->>>>>>> 1d19dbb (Security (#887))
-}
 
 - (NSArray *)shortenSavedDirPath:(NSString*)absolutePath {
     if (debug) {
@@ -497,13 +492,7 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     : [origin stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLQueryAllowedCharacterSet];
 }
 
-<<<<<<< HEAD
-- (void) addNewTask: (NSString*) taskId url: (NSString*) url status: (int) status progress: (int) progress filename: (NSString*) filename savedDir: (NSString*) savedDir searchDir:(NSSearchPathDirectory)searchDir headers: (NSString*) headers resumable: (BOOL) resumable showNotification: (BOOL) showNotification openFileFromNotification: (BOOL) openFileFromNotification
-{
-    headers = [self escape:headers revert:false];
-    NSString *query = [NSString stringWithFormat:@"INSERT INTO task (task_id,url,status,progress,file_name,saved_dir,search_dir,headers,resumable,show_notification,open_file_from_notification,time_created) VALUES (\"%@\",\"%@\",%d,%d,\"%@\",\"%@\",%lu,\"%@\",%d,%d,%d,%lld)", taskId, url, status, progress, filename, savedDir, searchDir, headers, resumable ? 1 : 0, showNotification ? 1 : 0, openFileFromNotification ? 1 : 0, [self currentTimeInMilliseconds]];
-    [_dbManager executeQuery:query];
-=======
+
 - (void)addNewTask:(NSString *)taskId
                url:(NSString *)url
             status:(int)status
@@ -511,19 +500,19 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
            filename:(NSString *)filename
            savedDir:(NSString *)savedDir
            headers:(NSString *)headers
+           searchDir:(NSSearchPathDirectory)searchDir
            resumable:(BOOL)resumable
            showNotification:(BOOL)showNotification
            openFileFromNotification:(BOOL)openFileFromNotification {
 
     headers = [self escape:headers revert:NO];
     
-    NSString *query = @"INSERT INTO task (task_id, url, status, progress, file_name, saved_dir, headers, resumable, show_notification, open_file_from_notification, time_created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    NSString *query = @"INSERT INTO task (task_id, url, status, progress, file_name, saved_dir, search_dir, headers, resumable, show_notification, open_file_from_notification, time_created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     
     NSArray *values = @[taskId, url, @(status), @(progress), filename, savedDir, headers, @(resumable ? 1:0), @(showNotification ? 1 : 0), @(openFileFromNotification ? 1: 0), @([self currentTimeInMilliseconds])];
     
     [_dbManager executeQuery:query withParameters:values];
     
->>>>>>> 1d19dbb (Security (#887))
     if (debug) {
         if (_dbManager.affectedRows != 0) {
             NSLog(@"Query was executed successfully. Affected rows = %d", _dbManager.affectedRows);
