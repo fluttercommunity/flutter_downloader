@@ -21,6 +21,11 @@
 
 -(NSArray *)loadDataFromDB:(NSString *)query withParameters:(NSArray *)parameters;
 
+- (void)addLazilyColumnForTable:(const char *)table
+                         column:(const char *)column
+                           type:(const char *)type
+                   defaultValue:(const char *)defaultValue;
+
 -(void)executeQuery:(NSString *)query withParameters:(NSArray *)parameters;
 
 @end

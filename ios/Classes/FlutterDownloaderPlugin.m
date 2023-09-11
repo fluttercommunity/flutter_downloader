@@ -11,6 +11,7 @@
 
 #define KEY_URL @"url"
 #define KEY_SAVED_DIR @"saved_dir"
+#define KEY_SEARCH_DIR @"search_dir"
 #define KEY_FILE_NAME @"file_name"
 #define KEY_PROGRESS @"progress"
 #define KEY_ID @"id"
@@ -57,6 +58,7 @@ static int64_t _callbackHandle = 0;
 static int _step = 10;
 static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = nil;
 
+static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirectory;
 
 @synthesize databaseQueue;
 
@@ -93,7 +95,13 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
             NSLog(@"database path: %@", dbPath);
         }
         databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
+        
         _dbManager = [[DBManager alloc] initWithDatabaseFilePath:dbPath];
+        
+        __typeof__(self) __weak weakSelf = self;
+        [self executeInDatabaseQueueForTask:^{
+            [weakSelf addDatabaseColumnForMakingFileCouldSaveInAnyDirectory];
+        }];
         
         if (_runningTaskById == nil) {
             _runningTaskById = [[NSMutableDictionary alloc] init];
@@ -305,6 +313,14 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     });
 }
 
++ (NSArray<NSNumber *> *)avaliableCommonDirectories {
+    return @[@(NSCachesDirectory),
+             @(NSApplicationSupportDirectory),
+             @(NSLibraryDirectory),
+             @(kDefaultSearchPathDirectory),
+             @(NSDownloadsDirectory)];;
+}
+
 - (BOOL)openDocumentWithURL:(NSURL*)url {
     if (debug) {
         NSLog(@"try to open file in url: %@", url);
@@ -368,6 +384,10 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     return [self fileUrlFromDict:mutableTaskInfo];
 }
 
+- (NSString*)absoluteSavedDirPathWithShortSavedDir:(NSString*)shortSavedDir searchPathDirectory:(NSSearchPathDirectory)searchPathDirectory {
+    return [[NSSearchPathForDirectoriesInDomains(searchPathDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:shortSavedDir];
+}
+
 - (NSString *)sanitizeFilename:(NSString *)filename {
     // Define a list of allowed characters for filenames
     NSCharacterSet *allowedCharacters = [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."];
@@ -400,30 +420,38 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 
 
 
-- (NSString*)absoluteSavedDirPath:(NSString*)savedDir {
-    return [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:savedDir];
-}
-
-- (NSString*)shortenSavedDirPath:(NSString*)absolutePath {
+- (NSArray *)shortenSavedDirPath:(NSString*)absolutePath {
     if (debug) {
         NSLog(@"Absolute savedDir path: %@", absolutePath);
     }
-    
+
+    for (NSNumber *element in self.class.avaliableCommonDirectories) {
+        NSString *shortSvedDirPath = [self shortenSavedDirPath:absolutePath searchPathDirectory:element.unsignedIntegerValue];
+        if (shortSvedDirPath) {
+            return @[shortSvedDirPath, element];
+        }
+    }
+
+    return @[@"", @(kDefaultSearchPathDirectory)];
+}
+
+- (NSString*)shortenSavedDirPath:(NSString*)absolutePath searchPathDirectory:(NSSearchPathDirectory)searchPathDirectory {
     if (absolutePath) {
-        NSString* documentDirPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-        if ([absolutePath isEqualToString:documentDirPath]) {
+        NSString *searchDirPath = [NSSearchPathForDirectoriesInDomains(searchPathDirectory, NSUserDomainMask, YES) firstObject];
+        if ([absolutePath isEqualToString:searchDirPath]) {
             return @"";
         }
-        NSRange foundRank = [absolutePath rangeOfString:documentDirPath];
+        NSRange foundRank = [absolutePath rangeOfString:searchDirPath];
         if (foundRank.length > 0) {
             // we increase the location of range by one because we want to remove the file separator as well.
-            NSString *shortenSavedDirPath = [absolutePath substringWithRange:NSMakeRange(foundRank.length + 1, absolutePath.length - documentDirPath.length - 1)];
+            NSString *shortenSavedDirPath = [absolutePath substringWithRange:NSMakeRange(foundRank.length + 1, absolutePath.length - searchDirPath.length - 1)];
             return shortenSavedDirPath != nil ? shortenSavedDirPath : @"";
         }
     }
-   
-    return absolutePath;
+    
+    return nil;
 }
+
 
 - (long long)currentTimeInMilliseconds
 {
@@ -432,6 +460,27 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 
 # pragma mark - Database Accessing
 
+/// Before version 1.11.1, FlutterDownloader only allows file to be saved in [NSDocumentDirectory]. This limits the freedom of development.
+///
+/// This function serves two purposes:
+///
+/// 1. Add a database column `search_dir` for determining common root directory such as the flowing directories
+///
+///    - NSCachesDirectory
+///    - NSApplicationSupportDirectory
+///    - NSLibraryDirectory
+///    - NSDocumentDirectory
+///    - NSDownloadsDirectory
+///
+///    Definition of common root directory refers to [path_provider](https://github.com/flutter/packages/blob/main/packages/path_provider/path_provider/lib/path_provider.dart).
+///
+/// 2.  Resolve previous compatibility issue
+- (void)addDatabaseColumnForMakingFileCouldSaveInAnyDirectory {
+    [_dbManager addLazilyColumnForTable:"task"
+                                 column:KEY_SEARCH_DIR.UTF8String
+                                   type:"integer"
+                           defaultValue:[NSString stringWithFormat:@"%lu", kDefaultSearchPathDirectory].UTF8String]; // kDefaultSearchPathDirectory is [NSDocumentDirectory](9), this is compatible with previous FlutterDownloader versions.
+}
 - (NSString*) escape:(NSString*) origin revert:(BOOL)revert
 {
     if ( origin == (NSString *)[NSNull null] )
@@ -443,12 +492,14 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     : [origin stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLQueryAllowedCharacterSet];
 }
 
+
 - (void)addNewTask:(NSString *)taskId
                url:(NSString *)url
             status:(int)status
            progress:(int)progress
            filename:(NSString *)filename
            savedDir:(NSString *)savedDir
+           searchDir:(NSSearchPathDirectory)searchDir
            headers:(NSString *)headers
            resumable:(BOOL)resumable
            showNotification:(BOOL)showNotification
@@ -456,9 +507,9 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 
     headers = [self escape:headers revert:NO];
     
-    NSString *query = @"INSERT INTO task (task_id, url, status, progress, file_name, saved_dir, headers, resumable, show_notification, open_file_from_notification, time_created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    
-    NSArray *values = @[taskId, url, @(status), @(progress), filename, savedDir, headers, @(resumable ? 1:0), @(showNotification ? 1 : 0), @(openFileFromNotification ? 1: 0), @([self currentTimeInMilliseconds])];
+    NSString *query = @"INSERT INTO task (task_id, url, status, progress, file_name, saved_dir, search_dir, headers, resumable, show_notification, open_file_from_notification, time_created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    NSNumber *searchDirValue = @(searchDir);
+    NSArray *values = @[taskId, url, @(status), @(progress), filename, savedDir, searchDirValue, headers, @(resumable ? 1:0), @(showNotification ? 1 : 0), @(openFileFromNotification ? 1: 0), @([self currentTimeInMilliseconds])];
     
     [_dbManager executeQuery:query withParameters:values];
     
@@ -584,8 +635,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     }
 }
 
-- (NSArray*)loadAllTasks
-{
+- (NSArray*)loadAllTasks{
     NSString *query = @"SELECT * FROM task";
     NSArray *records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query withParameters:@[]]];
     if (debug) {
@@ -652,7 +702,14 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         int progress = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"progress"]] intValue];
         NSString *url = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"url"]];
         NSString *filename = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"file_name"]];
-        NSString *savedDir = [self absoluteSavedDirPath:[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"saved_dir"]]];
+        NSString *shortSavedDir = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"saved_dir"]];
+
+        NSString *searchDirStr = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:KEY_SEARCH_DIR]];
+        int searchDir = [searchDirStr intValue];
+        NSNumber *searchDirNum = [NSNumber numberWithInt:searchDir];
+
+        NSString *savedDir = [self absoluteSavedDirPathWithShortSavedDir:shortSavedDir searchPathDirectory:searchDir];
+        
         NSString *headers = @"";
         // in certain cases, headers column might not be available and will cause NSRangeException
         @try {
@@ -665,7 +722,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         int showNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"show_notification"]] intValue];
         int openFileFromNotification = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"open_file_from_notification"]] intValue];
         long long timeCreated = [[record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"time_created"]] longLongValue];
-        return [NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, headers, KEY_HEADERS, savedDir, KEY_SAVED_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, [NSNumber numberWithBool:(showNotification == 1)], KEY_SHOW_NOTIFICATION, [NSNumber numberWithBool:(openFileFromNotification == 1)], KEY_OPEN_FILE_FROM_NOTIFICATION, @(timeCreated), KEY_TIME_CREATED, nil];
+        return [NSDictionary dictionaryWithObjectsAndKeys:taskId, KEY_TASK_ID, @(status), KEY_STATUS, @(progress), KEY_PROGRESS, url, KEY_URL, filename, KEY_FILE_NAME, headers, KEY_HEADERS, savedDir, KEY_SAVED_DIR, searchDirNum, KEY_SEARCH_DIR, [NSNumber numberWithBool:(resumable == 1)], KEY_RESUMABLE, [NSNumber numberWithBool:(showNotification == 1)], KEY_SHOW_NOTIFICATION, [NSNumber numberWithBool:(openFileFromNotification == 1)], KEY_OPEN_FILE_FROM_NOTIFICATION, @(timeCreated), KEY_TIME_CREATED, nil];
     } @catch(NSException *exception) {
         NSLog(@"invalid task data: %@", exception);
         return [NSDictionary dictionary];
@@ -711,21 +768,28 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 
 - (void)enqueueMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString *urlString = call.arguments[KEY_URL];
-    NSString *savedDir = call.arguments[KEY_SAVED_DIR];
-    NSString *shortSavedDir = [self shortenSavedDirPath:savedDir];
+    
+    NSString *savedDirFromSource = call.arguments[KEY_SAVED_DIR];
+    NSArray *shortSavedDirArgs = [self shortenSavedDirPath:savedDirFromSource];
+    NSString *shortSavedDir = shortSavedDirArgs[0];
+    NSNumber *searchDirNum = shortSavedDirArgs[1];
+    NSSearchPathDirectory searchDir = searchDirNum.unsignedIntegerValue;
+    NSString *savedDir = [self absoluteSavedDirPathWithShortSavedDir:shortSavedDir searchPathDirectory:searchDir];
+
     NSString *fileName = call.arguments[KEY_FILE_NAME];
     NSString *headers = call.arguments[KEY_HEADERS];
     NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
     NSNumber *openFileFromNotification = call.arguments[KEY_OPEN_FILE_FROM_NOTIFICATION];
-
+    
     NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
-
+    
     NSString *taskId = [self identifierForTask:task];
-
+    
     [_runningTaskById setObject: [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                   urlString, KEY_URL,
                                   fileName, KEY_FILE_NAME,
                                   savedDir, KEY_SAVED_DIR,
+                                  searchDirNum, KEY_SEARCH_DIR,
                                   headers, KEY_HEADERS,
                                   showNotification, KEY_SHOW_NOTIFICATION,
                                   openFileFromNotification, KEY_OPEN_FILE_FROM_NOTIFICATION,
@@ -733,11 +797,11 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
                                   @(STATUS_ENQUEUED), KEY_STATUS,
                                   @(0), KEY_PROGRESS, nil]
                          forKey:taskId];
-
+    
     __typeof__(self) __weak weakSelf = self;
     
     [self executeInDatabaseQueueForTask:^{
-        [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:shortSavedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
+        [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:shortSavedDir searchDir:searchDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
     }];
     result(taskId);
     [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
