@@ -384,7 +384,6 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     return [self fileUrlFromDict:mutableTaskInfo];
 }
 
-
 - (NSString*)absoluteSavedDirPathWithShortSavedDir:(NSString*)shortSavedDir searchPathDirectory:(NSSearchPathDirectory)searchPathDirectory {
     return [[NSSearchPathForDirectoriesInDomains(searchPathDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:shortSavedDir];
 }
@@ -420,18 +419,19 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
 }
 
 
+
 - (NSArray *)shortenSavedDirPath:(NSString*)absolutePath {
     if (debug) {
         NSLog(@"Absolute savedDir path: %@", absolutePath);
     }
-    
+
     for (NSNumber *element in self.class.avaliableCommonDirectories) {
         NSString *shortSvedDirPath = [self shortenSavedDirPath:absolutePath searchPathDirectory:element.unsignedIntegerValue];
         if (shortSvedDirPath) {
             return @[shortSvedDirPath, element];
         }
     }
-    
+
     return @[@"", @(kDefaultSearchPathDirectory)];
 }
 
@@ -451,6 +451,7 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     
     return nil;
 }
+
 
 - (long long)currentTimeInMilliseconds
 {
@@ -480,7 +481,6 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
                                    type:"integer"
                            defaultValue:[NSString stringWithFormat:@"%lu", kDefaultSearchPathDirectory].UTF8String]; // kDefaultSearchPathDirectory is [NSDocumentDirectory](9), this is compatible with previous FlutterDownloader versions.
 }
-
 - (NSString*) escape:(NSString*) origin revert:(BOOL)revert
 {
     if ( origin == (NSString *)[NSNull null] )
@@ -499,8 +499,8 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
            progress:(int)progress
            filename:(NSString *)filename
            savedDir:(NSString *)savedDir
-           headers:(NSString *)headers
            searchDir:(NSSearchPathDirectory)searchDir
+           headers:(NSString *)headers
            resumable:(BOOL)resumable
            showNotification:(BOOL)showNotification
            openFileFromNotification:(BOOL)openFileFromNotification {
@@ -508,8 +508,8 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     headers = [self escape:headers revert:NO];
     
     NSString *query = @"INSERT INTO task (task_id, url, status, progress, file_name, saved_dir, search_dir, headers, resumable, show_notification, open_file_from_notification, time_created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    
-    NSArray *values = @[taskId, url, @(status), @(progress), filename, savedDir, headers, @(resumable ? 1:0), @(showNotification ? 1 : 0), @(openFileFromNotification ? 1: 0), @([self currentTimeInMilliseconds])];
+    NSNumber *searchDirValue = @(searchDir);
+    NSArray *values = @[taskId, url, @(status), @(progress), filename, savedDir, searchDirValue, headers, @(resumable ? 1:0), @(showNotification ? 1 : 0), @(openFileFromNotification ? 1: 0), @([self currentTimeInMilliseconds])];
     
     [_dbManager executeQuery:query withParameters:values];
     
@@ -635,8 +635,7 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     }
 }
 
-- (NSArray*)loadAllTasks
-{
+- (NSArray*)loadAllTasks{
     NSString *query = @"SELECT * FROM task";
     NSArray *records = [[NSArray alloc] initWithArray:[_dbManager loadDataFromDB:query withParameters:@[]]];
     if (debug) {
@@ -704,11 +703,11 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
         NSString *url = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"url"]];
         NSString *filename = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"file_name"]];
         NSString *shortSavedDir = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:@"saved_dir"]];
-        
+
         NSString *searchDirStr = [record objectAtIndex:[_dbManager.arrColumnNames indexOfObject:KEY_SEARCH_DIR]];
         int searchDir = [searchDirStr intValue];
         NSNumber *searchDirNum = [NSNumber numberWithInt:searchDir];
-        
+
         NSString *savedDir = [self absoluteSavedDirPathWithShortSavedDir:shortSavedDir searchPathDirectory:searchDir];
         
         NSString *headers = @"";
@@ -776,7 +775,7 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     NSNumber *searchDirNum = shortSavedDirArgs[1];
     NSSearchPathDirectory searchDir = searchDirNum.unsignedIntegerValue;
     NSString *savedDir = [self absoluteSavedDirPathWithShortSavedDir:shortSavedDir searchPathDirectory:searchDir];
-    
+
     NSString *fileName = call.arguments[KEY_FILE_NAME];
     NSString *headers = call.arguments[KEY_HEADERS];
     NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
