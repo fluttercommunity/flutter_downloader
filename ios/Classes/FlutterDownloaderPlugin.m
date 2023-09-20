@@ -350,48 +350,51 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     NSURL *savedDirURL = [NSURL fileURLWithPath:savedDir];
     return [savedDirURL URLByAppendingPathComponent:filename];
 }
+
 - (NSURL*)fileUrlOf:(NSString*)taskId taskInfo:(NSDictionary*)taskInfo downloadTask:(NSURLSessionDownloadTask*)downloadTask {
-    NSString *filename = taskInfo[KEY_FILE_NAME];
-    NSString *suggestedFilename = downloadTask.response.suggestedFilename;
-    if (debug) {
-        NSLog(@"SuggestedFileName: %@", suggestedFilename);
-    }
-    // Check if suggestedFilename is nil or empty
-    if (!suggestedFilename || [suggestedFilename isEqualToString:@""]) {
-        // If suggestedFilename is empty, use the last path component of the URL as the filename
-        NSString *urlLastPathComponent = downloadTask.currentRequest.URL.lastPathComponent;
-        suggestedFilename = [self sanitizeFilename:urlLastPathComponent];
-    } else {
-        // Sanitize the suggestedFilename to remove unsafe characters
-        suggestedFilename = [self sanitizeFilename:suggestedFilename];
-    }
+     NSString *filename = taskInfo[KEY_FILE_NAME];
+     NSString *suggestedFilename = downloadTask.response.suggestedFilename;
+     if (debug) {
+         NSLog(@"SuggestedFileName: %@", suggestedFilename);
+     }
+     // Check if filename is nil or empty
+     if (filename == nil || ![filename isKindOfClass:[NSString class]] || [filename isEqualToString:@""]) {
+         // If suggestedFilename is empty, use the last path component of the URL as the filename
+         filename = [self sanitizeFilename:suggestedFilename];
+     } else {
+         // Sanitize the suggestedFilename to remove unsafe characters
+         filename = [self sanitizeFilename:filename];
+     }
 
-    // Update the taskInfo with the sanitized filename
-    NSMutableDictionary *mutableTaskInfo = [taskInfo mutableCopy];
-    mutableTaskInfo[KEY_FILE_NAME] = suggestedFilename;
+     // Update the taskInfo with the sanitized filename
+     NSMutableDictionary *mutableTaskInfo = [taskInfo mutableCopy];
+     mutableTaskInfo[KEY_FILE_NAME] = filename;
 
-    // Update the taskInfo
-    if ([_runningTaskById objectForKey:taskId]) {
-        _runningTaskById[taskId][KEY_FILE_NAME] = suggestedFilename;
-    }
+     // Update the taskInfo
+     if ([_runningTaskById objectForKey:taskId]) {
+         _runningTaskById[taskId][KEY_FILE_NAME] = filename;
+     }
 
-    // update DB
-    __weak typeof(self) weakSelf = self;
-    [self executeInDatabaseQueueForTask:^{
-        [weakSelf updateTask:taskId filename:suggestedFilename];
-    }];
+     // update DB
+     __weak typeof(self) weakSelf = self;
+     [self executeInDatabaseQueueForTask:^{
+         [weakSelf updateTask:taskId filename:filename];
+     }];
 
-    return [self fileUrlFromDict:mutableTaskInfo];
+     return [self fileUrlFromDict:mutableTaskInfo];
 }
 
 - (NSString*)absoluteSavedDirPathWithShortSavedDir:(NSString*)shortSavedDir searchPathDirectory:(NSSearchPathDirectory)searchPathDirectory {
     return [[NSSearchPathForDirectoriesInDomains(searchPathDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:shortSavedDir];
 }
 
-- (NSString *)sanitizeFilename:(NSString *)filename {
+- (NSString *)sanitizeFilename:(nullable NSString *)filename {
     // Define a list of allowed characters for filenames
     NSCharacterSet *allowedCharacters = [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."];
-    
+    if (filename == nil || [filename isEqual:[NSNull null]] || [filename isEqualToString:@""]) {
+           NSString *defaultFilename = @"default_filename";
+           return defaultFilename;
+       }
     // Create a mutable string to build the sanitized filename
     NSMutableString *sanitizedFilename = [NSMutableString string];
     
@@ -412,7 +415,8 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     // Ensure the sanitized filename is not empty
     if ([sanitizedFilename isEqualToString:@""]) {
         // Provide a default filename if the sanitized one is empty
-        sanitizedFilename = @"default_filename";
+        NSString *defaultFilename = @"default_filename";
+        sanitizedFilename = [[NSMutableString alloc] initWithString:defaultFilename];
     }
     
     return sanitizedFilename;
@@ -509,7 +513,8 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
     
     NSString *query = @"INSERT INTO task (task_id, url, status, progress, file_name, saved_dir, search_dir, headers, resumable, show_notification, open_file_from_notification, time_created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     NSNumber *searchDirValue = @(searchDir);
-    NSArray *values = @[taskId, url, @(status), @(progress), filename, savedDir, searchDirValue, headers, @(resumable ? 1:0), @(showNotification ? 1 : 0), @(openFileFromNotification ? 1: 0), @([self currentTimeInMilliseconds])];
+    NSString *sanitizedFileName = [self sanitizeFilename:filename];
+    NSArray *values = @[taskId, url, @(status), @(progress), sanitizedFileName, savedDir, searchDirValue, headers, @(resumable ? 1:0), @(showNotification ? 1 : 0), @(openFileFromNotification ? 1: 0), @([self currentTimeInMilliseconds])];
     
     [_dbManager executeQuery:query withParameters:values];
     
