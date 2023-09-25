@@ -19,6 +19,12 @@ manage download file location. It is still in triage and discussion in this
 very appreciated to have contribution and feedback from Flutter developer to get
 better design for the plugin._
 
+# Past Versions and SQL Injection Vulnerabilities
+
+In previous versions of this package, there were known vulnerabilities related to SQL injection. SQL injection is a type of security vulnerability that can allow malicious users to manipulate SQL queries executed by an application, potentially leading to unauthorized access or manipulation of the database.
+
+It is strongly recommended to upgrade to the latest version of this package to ensure that your application is not exposed to SQL injection vulnerabilities. The latest version contains the necessary security improvements and patches to mitigate such risks.
+
 ## iOS integration
 
 ### Required configuration:
