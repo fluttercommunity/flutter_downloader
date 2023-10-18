@@ -1,3 +1,9 @@
+## 1.11.4
+
+- Fix for not working after upgrade to IOS 17 and Xcode 15 (#899) 
+- fix for Issue with Spaces and Parentheses in File Names (#904)
+
+
 ## 1.11.3
 
 - Fix for file name not being saved (#894) 
