@@ -299,7 +299,9 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
 {
     NSArray *args = @[@(_callbackHandle), taskId, status, progress];
     if (initialized && _callbackHandle != 0) {
-        [_callbackChannel invokeMethod:@"" arguments:args];
+        dispatch_async(dispatch_get_main_queue(), ^{
+        [self-> _callbackChannel invokeMethod:@"" arguments:args];
+         });
     } else {
         [_eventQueue addObject:args];
     }
@@ -361,11 +363,7 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
      if (filename == nil || ![filename isKindOfClass:[NSString class]] || [filename isEqualToString:@""]) {
          // If suggestedFilename is empty, use the last path component of the URL as the filename
          filename = [self sanitizeFilename:suggestedFilename];
-     } else {
-         // Sanitize the suggestedFilename to remove unsafe characters
-         filename = [self sanitizeFilename:filename];
-     }
-
+     } 
      // Update the taskInfo with the sanitized filename
      NSMutableDictionary *mutableTaskInfo = [taskInfo mutableCopy];
      mutableTaskInfo[KEY_FILE_NAME] = filename;
@@ -390,7 +388,25 @@ static NSSearchPathDirectory const kDefaultSearchPathDirectory = NSDocumentDirec
 
 - (NSString *)sanitizeFilename:(nullable NSString *)filename {
     // Define a list of allowed characters for filenames
-    NSCharacterSet *allowedCharacters = [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."];
+    NSMutableCharacterSet *allowedCharacters = [[NSMutableCharacterSet alloc] init];
+
+    // Allow alphabetical characters (lowercase and uppercase)
+    [allowedCharacters formUnionWithCharacterSet:[NSCharacterSet letterCharacterSet]];
+
+    // Allow digits
+    [allowedCharacters addCharactersInRange:NSMakeRange('0', 10)]; // ASCII digits
+
+    // Allow additional characters: -_.()
+    [allowedCharacters addCharactersInString:@"-_.()"];
+
+    // Allow empty spaces
+    [allowedCharacters addCharactersInString:@" "];
+
+    // Remove the backslash (if you want to disallow it)
+    [allowedCharacters removeCharactersInString:@"\\"];
+
+    // Now, you have a character set that allows the specified characters
+    NSCharacterSet *finalCharacterSet = [allowedCharacters copy];
     if (filename == nil || [filename isEqual:[NSNull null]] || [filename isEqualToString:@""]) {
            NSString *defaultFilename = @"default_filename";
            return defaultFilename;
