@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
 
-import 'package:android_path_provider/android_path_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
@@ -363,46 +362,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<String?> _getSavedDir() async {
     String? externalStorageDirPath;
-
-    if (Platform.isAndroid) {
-      try {
-        externalStorageDirPath = await AndroidPathProvider.downloadsPath;
-      } catch (err, st) {
-        print('failed to get downloads path: $err, $st');
-
-        final directory = await getExternalStorageDirectory();
-        externalStorageDirPath = directory?.path;
-      }
-    } else if (Platform.isIOS) {
-      // var dir = (await _dirsOnIOS)[0]; // temporary
-      // var dir = (await _dirsOnIOS)[1]; // applicationSupport
-      // var dir = (await _dirsOnIOS)[2]; // library
-      var dir = (await _dirsOnIOS)[3]; // applicationDocuments
-      // var dir = (await _dirsOnIOS)[4]; // downloads
-
-      dir ??= await getApplicationDocumentsDirectory();
-      externalStorageDirPath = dir.absolute.path;
-    }
+    externalStorageDirPath =
+        (await getApplicationDocumentsDirectory()).absolute.path;
 
     return externalStorageDirPath;
-  }
-
-  Future<List<Directory?>> get _dirsOnIOS async {
-    final temporary = await getTemporaryDirectory();
-    final applicationSupport = await getApplicationSupportDirectory();
-    final library = await getLibraryDirectory();
-    final applicationDocuments = await getApplicationDocumentsDirectory();
-    final downloads = await getDownloadsDirectory();
-
-    final dirs = [
-      temporary,
-      applicationSupport,
-      library,
-      applicationDocuments,
-      downloads
-    ];
-
-    return dirs;
   }
 
   @override
