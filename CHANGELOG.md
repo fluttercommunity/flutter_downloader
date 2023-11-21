@@ -1,3 +1,7 @@
+## 1.11.5
+- Republish Fixes for previous verison. 
+
+
 ## 1.11.4
 
 - Fix for not working after upgrade to IOS 17 and Xcode 15 (#899) 
