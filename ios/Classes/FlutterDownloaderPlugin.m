@@ -370,7 +370,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
 
 - (NSString *)sanitizeFilename:(nullable NSString *)filename {
     // Define a list of allowed characters for filenames
-    NSCharacterSet *allowedCharacters = [[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.() "] invertedSet];
+    NSCharacterSet *allowedCharacters = [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.() "];
 
     if (filename == nil || [filename isEqual:[NSNull null]] || [filename isEqualToString:@""]) {
            NSString *defaultFilename = @"default_filename";
