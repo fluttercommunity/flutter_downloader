@@ -1,14 +1,14 @@
 //
-//  DBManager.m
+//  FlutterDownloaderDBManager.m
 //  Runner
 //
 //  Author: GABRIEL THEODOROPOULOS.
 //
 
-#import "DBManager.h"
+#import "FlutterDownloaderDBManager.h"
 #import <sqlite3.h>
 
-@interface DBManager()
+@interface FlutterDownloaderDBManager()
 
 @property (nonatomic, strong) NSString *appDirectory;
 @property (nonatomic, strong) NSString *databaseFilePath;
@@ -20,7 +20,7 @@
 
 @end
 
-@implementation DBManager
+@implementation FlutterDownloaderDBManager
 
 @synthesize debug;
 
