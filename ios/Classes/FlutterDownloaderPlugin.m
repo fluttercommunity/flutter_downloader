@@ -1,5 +1,5 @@
 #import "FlutterDownloaderPlugin.h"
-#import "DBManager.h"
+#import "FlutterDownloaderDBManager.h"
 
 #define STATUS_UNDEFINED 0
 #define STATUS_ENQUEUED 1
@@ -35,7 +35,7 @@
     FlutterMethodChannel *_mainChannel;
     FlutterMethodChannel *_callbackChannel;
     NSObject<FlutterPluginRegistrar> *_registrar;
-    DBManager *_dbManager;
+    FlutterDownloaderDBManager *_dbManager;
     NSString *_allFilesDownloadedMsg;
     NSMutableArray *_eventQueue;
 }
@@ -94,7 +94,7 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         }
         databaseQueue = dispatch_queue_create("vn.hunghd.flutter_downloader", 0);
         
-        _dbManager = [[DBManager alloc] initWithDatabaseFilePath:dbPath];
+        _dbManager = [[FlutterDownloaderDBManager alloc] initWithDatabaseFilePath:dbPath];
         
         if (_runningTaskById == nil) {
             _runningTaskById = [[NSMutableDictionary alloc] init];
