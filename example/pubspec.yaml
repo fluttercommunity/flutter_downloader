@@ -9,13 +9,13 @@ environment:
 
 dependencies:
   android_path_provider: ^0.3.0
-  device_info_plus: ^8.2.2
+  device_info_plus: ^8.0.0
   flutter:
     sdk: flutter
   flutter_downloader:
     path: ../
   path_provider: ^2.1.2
-  permission_handler: ^11.3.1
+  permission_handler: ^10.0.0
 
 dev_dependencies:
   flutter_test:
