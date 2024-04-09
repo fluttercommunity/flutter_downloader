@@ -1,20 +1,29 @@
-## 1.11.5
-- Republish Fixes for previous verison. 
+## 1.11.7
 
+- Update dependencies (#946)
+- Update CI workflows (#945)
+- Bump `compileSdk` to 34 (#944)
+
+## 1.11.6
+
+- No release notes were provided
+
+## 1.11.5
+
+- Republish fixes for previous verison
 
 ## 1.11.4
 
-- Fix for not working after upgrade to IOS 17 and Xcode 15 (#899) 
+- Fix for not working after upgrade to IOS 17 and Xcode 15 (#899)
 - fix for Issue with Spaces and Parentheses in File Names (#904)
-
 
 ## 1.11.3
 
-- Fix for file name not being saved (#894) 
+- Fix for file name not being saved (#894)
 
 ## 1.11.2
 
-- Security update for iOS (#887) 
+- Security update for iOS (#887)
 - Support file store in any iOS directory (#829)
 
 ## 1.11.1
