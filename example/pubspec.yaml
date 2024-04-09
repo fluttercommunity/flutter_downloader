@@ -4,8 +4,8 @@ version: 1.0.0+1
 publish_to: none
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
-  flutter: '>=3.10.0'
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
 
 dependencies:
   android_path_provider: ^0.3.0
@@ -14,7 +14,7 @@ dependencies:
     sdk: flutter
   flutter_downloader:
     path: ../
-  path_provider: ^2.0.11
+  path_provider: ^2.1.2
   permission_handler: ^10.0.0
 
 dev_dependencies:
