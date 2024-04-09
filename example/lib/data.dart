@@ -53,7 +53,7 @@ class DownloadItems {
       name: 'Spitfire',
       url:
           'https://github.com/bartekpacia/spitfire/releases/download/v1.2.0/spitfire.apk',
-    )
+    ),
   ];
 }
 

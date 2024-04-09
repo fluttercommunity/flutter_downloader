@@ -4,23 +4,23 @@ version: 1.0.0+1
 publish_to: none
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
-  flutter: '>=3.10.0'
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
 
 dependencies:
   android_path_provider: ^0.3.0
-  device_info_plus: ^8.0.0
+  device_info_plus: ^8.2.2
   flutter:
     sdk: flutter
   flutter_downloader:
     path: ../
-  path_provider: ^2.0.11
-  permission_handler: ^10.0.0
+  path_provider: ^2.1.2
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  leancode_lint: ^4.0.0+2
+  leancode_lint: ^12.0.0
 
 flutter:
   uses-material-design: true

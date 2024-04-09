@@ -137,9 +137,11 @@ class _MyHomePageState extends State<MyHomePage> {
             return DownloadListItem(
               data: item,
               onTap: (task) async {
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+
                 final success = await _openDownloadedFile(task);
                 if (!success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(
                       content: Text('Cannot open this file'),
                     ),
@@ -192,7 +194,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 fontSize: 20,
               ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -391,7 +393,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               ],
-            )
+            ),
         ],
       ),
       body: Builder(

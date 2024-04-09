@@ -66,7 +66,7 @@ class DownloadListItem extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.delete),
             tooltip: 'Delete',
-          )
+          ),
         ],
       );
     } else if (task.status == DownloadTaskStatus.canceled) {
@@ -81,7 +81,7 @@ class DownloadListItem extends StatelessWidget {
               constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
               icon: const Icon(Icons.cancel),
               tooltip: 'Cancel',
-            )
+            ),
         ],
       );
     } else if (task.status == DownloadTaskStatus.failed) {
@@ -95,7 +95,7 @@ class DownloadListItem extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
             icon: const Icon(Icons.refresh, color: Colors.green),
             tooltip: 'Refresh',
-          )
+          ),
         ],
       );
     } else if (task.status == DownloadTaskStatus.enqueued) {
@@ -147,7 +147,7 @@ class DownloadListItem extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: data!.task!.progress! / 100,
                   ),
-                )
+                ),
             ],
           ),
         ),
