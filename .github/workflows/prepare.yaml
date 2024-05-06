@@ -25,6 +25,12 @@ jobs:
           channel: stable
           flutter-version: ${{ matrix.flutter-version }}
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
       - name: flutter pub get
         run: flutter pub get
 
