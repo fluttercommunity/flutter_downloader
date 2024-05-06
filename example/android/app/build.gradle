@@ -35,6 +35,15 @@ android {
         versionName = flutterVersionName
     }
 
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8
+    }
+
     buildTypes {
         release {
             // Signing with the debug keys for now, so `flutter run --release` works.

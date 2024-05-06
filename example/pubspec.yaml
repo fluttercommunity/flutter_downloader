@@ -8,7 +8,7 @@ environment:
   flutter: ">=3.10.0"
 
 dependencies:
-  device_info_plus: ^8.0.0
+  device_info_plus: ^10.1.0
   flutter:
     sdk: flutter
   flutter_downloader:
