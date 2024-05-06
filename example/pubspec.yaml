@@ -8,7 +8,6 @@ environment:
   flutter: ">=3.10.0"
 
 dependencies:
-  android_path_provider: ^0.3.0
   device_info_plus: ^8.0.0
   flutter:
     sdk: flutter
