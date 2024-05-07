@@ -34,6 +34,10 @@ jobs:
       - name: flutter pub get
         run: flutter pub get
 
+      - name: Build example app
+        working-directory: example
+        run: flutter build apk --debug
+
       - name: dart format
         run: dart format --set-exit-if-changed .
 
