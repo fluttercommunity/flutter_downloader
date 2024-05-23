@@ -13,6 +13,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         TaskEntry.COLUMN_NAME_STATUS,
         TaskEntry.COLUMN_NAME_URL,
         TaskEntry.COLUMN_NAME_FILE_NAME,
+        TaskEntry.COLUMN_NAME_DISPLAY_NAME,
         TaskEntry.COLUMN_NAME_SAVED_DIR,
         TaskEntry.COLUMN_NAME_HEADERS,
         TaskEntry.COLUMN_NAME_MIME_TYPE,
@@ -30,6 +31,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         status: DownloadStatus,
         progress: Int,
         fileName: String?,
+        displayName: String?,
         savedDir: String?,
         headers: String?,
         showNotification: Boolean,
@@ -48,6 +50,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         values.put(TaskEntry.COLUMN_NAME_HEADERS, headers)
         values.put(TaskEntry.COLUMN_NAME_MIME_TYPE, "unknown")
         values.put(TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION, if (showNotification) 1 else 0)
+        values.put(TaskEntry.COLUMN_NAME_DISPLAY_NAME, displayName)
         values.put(
             TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION,
             if (openFileFromNotification) 1 else 0
@@ -238,6 +241,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         val progress = cursor.getInt(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_PROGRESS))
         val url = cursor.getString(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_URL))
         val filename = cursor.getString(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_FILE_NAME))
+        val displayName = cursor.getString(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_DISPLAY_NAME))
         val savedDir = cursor.getString(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_SAVED_DIR))
         val headers = cursor.getString(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_HEADERS))
         val mimeType = cursor.getString(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_MIME_TYPE))
@@ -254,6 +258,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
             progress,
             url,
             filename,
+            displayName,
             savedDir,
             headers,
             mimeType,
