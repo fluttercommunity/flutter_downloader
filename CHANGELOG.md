@@ -1,3 +1,10 @@
+## 1.11.8
+
+- Dependencies update (#952)
+  - Gradle buildscripts on Android
+  - Bump minimum Android SDK to 21
+  - Bump minimum Flutter to 3.19
+
 ## 1.11.7
 
 - Update dependencies (#946)
