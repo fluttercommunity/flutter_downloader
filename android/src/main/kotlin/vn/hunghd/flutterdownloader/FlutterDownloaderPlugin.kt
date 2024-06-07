@@ -202,6 +202,35 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         )
     }
 
+     private fun insertOrUpdateTaskManully(call: MethodCall, result: MethodChannel.Result) {
+        val url: String = call.requireArgument("url")
+        val savedDir: String = call.requireArgument("saved_dir")
+        val filename: String? = call.argument("file_name")
+        val headers: String = call.requireArgument("headers")
+        val timeout: Int = call.requireArgument("timeout")
+        val showNotification: Boolean = call.requireArgument("show_notification")
+        val openFileFromNotification: Boolean = call.requireArgument("open_file_from_notification")
+        val requiresStorageNotLow: Boolean = call.requireArgument("requires_storage_not_low")
+        val saveInPublicStorage: Boolean = call.requireArgument("save_in_public_storage")
+        val allowCellular: Boolean = call.requireArgument("allow_cellular")
+       
+        val taskId: String = filename.toString()
+        result.success(taskId)
+        taskDao!!.insertOrUpdateNewTask(
+            taskId,
+            url,
+            DownloadStatus.COMPLETE,
+            100,
+            filename,
+            savedDir,
+            headers,
+            showNotification,
+            openFileFromNotification,
+            saveInPublicStorage,
+            allowCellular = allowCellular
+        )
+    }
+
     private fun loadTasks(result: MethodChannel.Result) {
         val tasks = taskDao!!.loadAllTasks()
         val array: MutableList<Map<*, *>> = ArrayList()

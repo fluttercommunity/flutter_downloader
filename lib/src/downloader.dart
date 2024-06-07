@@ -136,6 +136,53 @@ class FlutterDownloader {
     return null;
   }
 
+  static Future<String?> insertOrUpdateTaskManully({
+    required String url,
+    required String savedDir,
+    String? fileName,
+    Map<String, String> headers = const {},
+    bool showNotification = true,
+    bool openFileFromNotification = true,
+    bool requiresStorageNotLow = true,
+    bool saveInPublicStorage = false,
+    bool allowCellular = true,
+    int timeout = 15000,
+  }) async {
+    assert(_initialized, 'plugin flutter_downloader is not initialized');
+    assert(Directory(savedDir).existsSync(), 'savedDir does not exist');
+
+    try {
+      final taskId = await _channel.invokeMethod<String>('insertOrUpdateTaskManully', {
+        'url': url,
+        'saved_dir': savedDir,
+        'file_name': fileName,
+        'headers': jsonEncode(headers),
+        'show_notification': showNotification,
+        'open_file_from_notification': openFileFromNotification,
+        'requires_storage_not_low': requiresStorageNotLow,
+        'save_in_public_storage': saveInPublicStorage,
+        'timeout': timeout,
+        'allow_cellular': allowCellular,
+      });
+
+      if (taskId == null) {
+        throw const FlutterDownloaderException(
+          message: '`enqueue` returned null taskId',
+        );
+      }
+
+      return taskId;
+    } on FlutterDownloaderException catch (err) {
+      _log('Failed to enqueue. Reason: ${err.message}');
+    } on PlatformException catch (err) {
+      _log('Failed to enqueue. Reason: ${err.message}');
+    }
+
+    return null;
+  }
+
+
+
   /// Loads all tasks from SQLite database.
   static Future<List<DownloadTask>?> loadTasks() async {
     assert(_initialized, 'plugin flutter_downloader is not initialized');
