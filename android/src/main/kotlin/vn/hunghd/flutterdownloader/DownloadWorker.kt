@@ -338,12 +338,14 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                 break
             }
             httpConn!!.connect()
-            val contentType: String
+            val contentType: String?
             if ((responseCode == HttpURLConnection.HTTP_OK || isResume && responseCode == HttpURLConnection.HTTP_PARTIAL) && !isStopped) {
                 contentType = httpConn.contentType
                 val contentLength: Long =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) httpConn.contentLengthLong else httpConn.contentLength.toLong()
-                log("Content-Type = $contentType")
+                if (contentType != null){
+                    log("Content-Type = $contentType")
+                }
                 log("Content-Length = $contentLength")
                 val charset = getCharsetFromContentType(contentType)
                 log("Charset = $charset")
