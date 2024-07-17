@@ -519,7 +519,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
      * Create a file inside the Download folder using MediaStore API
      */
     @RequiresApi(Build.VERSION_CODES.Q)
-    private fun createFileInPublicDownloadsDir(filename: String?, mimeType: String): Uri? {
+    private fun createFileInPublicDownloadsDir(filename: String?, mimeType: String?): Uri? {
         val collection: Uri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
         val values = ContentValues()
         values.put(MediaStore.Downloads.DISPLAY_NAME, filename)
@@ -772,7 +772,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         return contentType?.split(";")?.toTypedArray()?.get(0)?.trim { it <= ' ' }
     }
 
-    private fun isImageOrVideoFile(contentType: String): Boolean {
+    private fun isImageOrVideoFile(contentType: String?): Boolean {
         val newContentType = getContentTypeWithoutCharset(contentType)
         return newContentType != null && (newContentType.startsWith("image/") || newContentType.startsWith("video"))
     }
