@@ -199,7 +199,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         val db = dbHelper.writableDatabase
         val values = ContentValues()
         values.put(TaskEntry.COLUMN_NAME_FILE_NAME, filename)
-        values.put(TaskEntry.COLUMN_NAME_MIME_TYPE, mimeType)
+        values.put(TaskEntry.COLUMN_NAME_MIME_TYPE, mimeType ?: "unknown")
         db.beginTransaction()
         try {
             db.update(
