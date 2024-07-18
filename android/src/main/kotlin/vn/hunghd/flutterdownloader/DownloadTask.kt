@@ -9,7 +9,7 @@ data class DownloadTask(
     var filename: String?,
     var savedDir: String,
     var headers: String,
-    var mimeType: String,
+    var mimeType: String?,
     var resumable: Boolean,
     var showNotification: Boolean,
     var openFileFromNotification: Boolean,
