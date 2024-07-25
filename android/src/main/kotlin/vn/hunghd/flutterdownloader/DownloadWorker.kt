@@ -343,7 +343,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                 contentType = httpConn.contentType
                 val contentLength: Long =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) httpConn.contentLengthLong else httpConn.contentLength.toLong()
-                if (contentType != null){
+                if (contentType != null) {
                     log("Content-Type = $contentType")
                 }
                 log("Content-Length = $contentLength")
