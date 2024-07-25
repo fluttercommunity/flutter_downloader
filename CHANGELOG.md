@@ -1,5 +1,6 @@
 ## 1.11.8
 
+- Allow nullable Content-Yype (#966)
 - Dependencies update (#952)
   - Gradle buildscripts on Android
   - Bump minimum Android SDK to 21
