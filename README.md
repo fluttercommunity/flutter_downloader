@@ -293,6 +293,9 @@ void main() {
 
 ### Create new download task
 
+The directory must be created in advance.
+After that, you need to provide the path of the directory in the `savedDir` parameter.
+
 ```dart
 final taskId = await FlutterDownloader.enqueue(
   url: 'your download link',
@@ -326,7 +329,7 @@ void initState() {
   IsolateNameServer.registerPortWithName(_port.sendPort, 'downloader_send_port');
   _port.listen((dynamic data) {
     String id = data[0];
-    DownloadTaskStatus status = DownloadTaskStatus(data[1]);
+    DownloadTaskStatus status = DownloadTaskStatus.fromInt(data[1]);
     int progress = data[2];
     setState((){ });
   });
@@ -342,8 +345,8 @@ void dispose() {
 
 @pragma('vm:entry-point')
 static void downloadCallback(String id, int status, int progress) {
-  final SendPort send = IsolateNameServer.lookupPortByName('downloader_send_port');
-  send.send([id, status, progress]);
+  final SendPort? send = IsolateNameServer.lookupPortByName('downloader_send_port');
+  send?.send([id, status, progress]);
 }
 
 ```
@@ -354,13 +357,13 @@ avoid tree shaking in release mode for Android.
 ### Load all download tasks
 
 ```dart
-final tasks = await FlutterDownloader.loadTasks();
+final List<DownloadTask>? tasks = await FlutterDownloader.loadTasks();
 ```
 
 ### Load download tasks using a raw SQL query
 
 ```dart
-final tasks = await FlutterDownloader.loadTasksWithRawQuery(query: query);
+final List<DownloadTask>? tasks = await FlutterDownloader.loadTasksWithRawQuery(query: query);
 ```
 
 In order to parse data into `DownloadTask` object successfully, you should load
