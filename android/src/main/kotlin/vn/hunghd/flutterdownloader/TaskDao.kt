@@ -93,7 +93,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
 
     fun loadTasksWithRawQuery(query: String?): List<DownloadTask> {
         val db = dbHelper.readableDatabase
-        val cursor = db.rawQuery(query, null)
+        val cursor = db.rawQuery(query!!, null)
         val result: MutableList<DownloadTask> = ArrayList()
         while (cursor.moveToNext()) {
             result.add(parseCursor(cursor))
