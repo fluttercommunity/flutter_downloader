@@ -11,6 +11,7 @@ data class DownloadTask(
     var headers: String,
     var mimeType: String?,
     var resumable: Boolean,
+    var notificationTitle: String?,
     var showNotification: Boolean,
     var openFileFromNotification: Boolean,
     var timeCreated: Long,

@@ -18,6 +18,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         TaskEntry.COLUMN_NAME_MIME_TYPE,
         TaskEntry.COLUMN_NAME_RESUMABLE,
         TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION,
+        TaskEntry.COLUMN_NAME_NOTIFICATION_TITLE,
         TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION,
         TaskEntry.COLUMN_NAME_TIME_CREATED,
         TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE,
@@ -32,6 +33,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         fileName: String?,
         savedDir: String?,
         headers: String?,
+        notificationTitle: String?,
         showNotification: Boolean,
         openFileFromNotification: Boolean,
         saveInPublicStorage: Boolean,
@@ -47,6 +49,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         values.put(TaskEntry.COLUMN_NAME_SAVED_DIR, savedDir)
         values.put(TaskEntry.COLUMN_NAME_HEADERS, headers)
         values.put(TaskEntry.COLUMN_NAME_MIME_TYPE, "unknown")
+        values.put(TaskEntry.COLUMN_NAME_NOTIFICATION_TITLE, notificationTitle)
         values.put(TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION, if (showNotification) 1 else 0)
         values.put(
             TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION,
@@ -242,6 +245,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         val headers = cursor.getString(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_HEADERS))
         val mimeType = cursor.getString(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_MIME_TYPE))
         val resumable = cursor.getShort(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_RESUMABLE)).toInt()
+        val notificationTitle = cursor.getString(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_NOTIFICATION_TITLE))
         val showNotification = cursor.getShort(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION)).toInt()
         val clickToOpenDownloadedFile = cursor.getShort(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION)).toInt()
         val timeCreated = cursor.getLong(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_TIME_CREATED))
@@ -258,6 +262,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
             headers,
             mimeType,
             resumable == 1,
+            notificationTitle,
             showNotification == 1,
             clickToOpenDownloadedFile == 1,
             timeCreated,

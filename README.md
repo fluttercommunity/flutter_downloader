@@ -385,6 +385,7 @@ CREATE TABLE `task` (
   `saved_dir` TEXT,
   `resumable` TINYINT DEFAULT 0,
   `headers` TEXT,
+  `notification_title` TEXT,
   `show_notification` TINYINT DEFAULT 0,
   `open_file_from_notification` TINYINT DEFAULT 0,
   `time_created`  INTEGER DEFAULT 0
