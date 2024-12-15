@@ -25,6 +25,7 @@ apply plugin: 'com.android.library'
 
 android {
     compileSdkVersion 31
+    namespace 'vn.hunghd.flutterdownloader'
 
     defaultConfig {
         minSdkVersion 19
