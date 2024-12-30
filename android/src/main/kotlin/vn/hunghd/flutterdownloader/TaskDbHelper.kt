@@ -15,6 +15,7 @@ class TaskDbHelper private constructor(context: Context) :
         update1to2(db, oldVersion)
         update2to3(db, oldVersion)
         update3to4(db, oldVersion)
+        update4to5(db, oldVersion)
     }
 
     private fun update1to2(db: SQLiteDatabase, oldVersion: Int) {
@@ -39,12 +40,19 @@ class TaskDbHelper private constructor(context: Context) :
         db.execSQL("ALTER TABLE ${TaskEntry.TABLE_NAME} ADD COLUMN ${TaskEntry.COLUMN_ALLOW_CELLULAR} TINYINT DEFAULT 1")
     }
 
+    private fun update4to5(db: SQLiteDatabase, oldVersion: Int) {
+        if (oldVersion > 4) {
+            return
+        }
+        db.execSQL("ALTER TABLE ${TaskEntry.TABLE_NAME} ADD COLUMN ${TaskEntry.COLUMN_NAME_NOTIFICATION_TITLE} TEXT")
+    }
+
     override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         onUpgrade(db, oldVersion, newVersion)
     }
 
     companion object {
-        const val DATABASE_VERSION = 4
+        const val DATABASE_VERSION = 5
         const val DATABASE_NAME = "download_tasks.db"
         private var instance: TaskDbHelper? = null
         private const val SQL_CREATE_ENTRIES = (
@@ -59,6 +67,7 @@ class TaskDbHelper private constructor(context: Context) :
                 TaskEntry.COLUMN_NAME_HEADERS + " TEXT, " +
                 TaskEntry.COLUMN_NAME_MIME_TYPE + " VARCHAR(128), " +
                 TaskEntry.COLUMN_NAME_RESUMABLE + " TINYINT DEFAULT 0, " +
+                TaskEntry.COLUMN_NAME_NOTIFICATION_TITLE + " TEXT, " +
                 TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION + " TINYINT DEFAULT 0, " +
                 TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION + " TINYINT DEFAULT 0, " +
                 TaskEntry.COLUMN_NAME_TIME_CREATED + " INTEGER DEFAULT 0, " +
