@@ -1,4 +1,4 @@
-## Unreleased
+## 1.12.0
 
 - Dependencies update (#990)
   - **Bump minimum Flutter to 3.27**
