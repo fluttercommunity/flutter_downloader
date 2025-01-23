@@ -1,3 +1,11 @@
+## Unreleased
+
+- Dependencies update (#990)
+  - **Bump minimum Flutter to 3.27**
+  - Update leancode_lint and fix all new warnings
+  - Bump Gradle to 8.8
+  - Bump Kotlin to 2.1.0
+
 ## 1.11.8
 
 - Allow nullable Content-Yype (#966)

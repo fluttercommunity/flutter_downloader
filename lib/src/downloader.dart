@@ -1,3 +1,4 @@
+// In some cases, it's hard to get around calls on 'dynamic'.
 // ignore_for_file: avoid_dynamic_calls
 
 import 'dart:async';
@@ -438,6 +439,7 @@ class FlutterDownloader {
   /// Prints [message] to console if [_debug] is true.
   static void _log(String? message) {
     if (_debug) {
+      // Using print here seeems good enough.
       // ignore: avoid_print
       print(message);
     }
