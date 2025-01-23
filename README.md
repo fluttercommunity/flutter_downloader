@@ -98,16 +98,14 @@ import flutter_downloader
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
-    FlutterDownloaderPlugin.setPluginRegistrantCallback(registerPlugins)
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+      GeneratedPluginRegistrant.register(with: self)
+      FlutterDownloaderPlugin.setPluginRegistrantCallback { registry in
+              if (!registry.hasPlugin("FlutterDownloaderPlugin")) {
+                 FlutterDownloaderPlugin.register(with: registry.registrar(forPlugin: "FlutterDownloaderPlugin")!)
+              }
+      }
+      return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
-}
-
-private func registerPlugins(registry: FlutterPluginRegistry) {
-    if (!registry.hasPlugin("FlutterDownloaderPlugin")) {
-       FlutterDownloaderPlugin.register(with: registry.registrar(forPlugin: "FlutterDownloaderPlugin")!)
-    }
 }
 
 ```
