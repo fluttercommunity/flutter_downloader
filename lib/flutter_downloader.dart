@@ -9,8 +9,7 @@
 ///
 /// * author: hunghd
 /// * email: hunghd.yb@gmail.com
-
-library flutter_downloader;
+library;
 
 export 'src/downloader.dart';
 export 'src/exceptions.dart';
