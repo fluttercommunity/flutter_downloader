@@ -75,6 +75,9 @@ class FlutterDownloader {
   ///
   /// ### Android-only
   ///
+  /// [notificationTitle] is the title of the notification shown during the
+  /// download. If it is null, the title is determined from the fileName or HTTP response.
+  ///
   /// If [showNotification] is true, a notification with the current download
   /// progress will be shown.
   ///
@@ -97,6 +100,7 @@ class FlutterDownloader {
     required String savedDir,
     String? fileName,
     Map<String, String> headers = const {},
+    String? notificationTitle,
     bool showNotification = true,
     bool openFileFromNotification = true,
     bool requiresStorageNotLow = true,
@@ -113,6 +117,7 @@ class FlutterDownloader {
         'saved_dir': savedDir,
         'file_name': fileName,
         'headers': jsonEncode(headers),
+        'notification_title': notificationTitle,
         'show_notification': showNotification,
         'open_file_from_notification': openFileFromNotification,
         'requires_storage_not_low': requiresStorageNotLow,

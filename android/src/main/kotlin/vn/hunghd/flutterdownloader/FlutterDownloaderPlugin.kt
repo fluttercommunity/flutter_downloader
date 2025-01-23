@@ -86,6 +86,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         savedDir: String?,
         filename: String?,
         headers: String?,
+        notificationTitle: String?,
         showNotification: Boolean,
         openFileFromNotification: Boolean,
         isResume: Boolean,
@@ -109,6 +110,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                     .putString(DownloadWorker.ARG_SAVED_DIR, savedDir)
                     .putString(DownloadWorker.ARG_FILE_NAME, filename)
                     .putString(DownloadWorker.ARG_HEADERS, headers)
+                    .putString(DownloadWorker.ARG_NOTIFICATION_TITLE, notificationTitle)
                     .putBoolean(DownloadWorker.ARG_SHOW_NOTIFICATION, showNotification)
                     .putBoolean(
                         DownloadWorker.ARG_OPEN_FILE_FROM_NOTIFICATION,
@@ -165,6 +167,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
         val filename: String? = call.argument("file_name")
         val headers: String = call.requireArgument("headers")
         val timeout: Int = call.requireArgument("timeout")
+        val notificationTitle: String? = call.argument("notification_title")
         val showNotification: Boolean = call.requireArgument("show_notification")
         val openFileFromNotification: Boolean = call.requireArgument("open_file_from_notification")
         val requiresStorageNotLow: Boolean = call.requireArgument("requires_storage_not_low")
@@ -175,6 +178,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             savedDir,
             filename,
             headers,
+            notificationTitle,
             showNotification,
             openFileFromNotification,
             false,
@@ -195,6 +199,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             filename,
             savedDir,
             headers,
+            notificationTitle,
             showNotification,
             openFileFromNotification,
             saveInPublicStorage,
@@ -279,6 +284,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                         task.savedDir,
                         task.filename,
                         task.headers,
+                        task.notificationTitle,
                         task.showNotification,
                         task.openFileFromNotification,
                         true,
@@ -323,7 +329,7 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
             if (task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
                 val request: WorkRequest = buildRequest(
                     task.url, task.savedDir, task.filename,
-                    task.headers, task.showNotification, task.openFileFromNotification,
+                    task.headers, task.notificationTitle, task.showNotification, task.openFileFromNotification,
                     false, requiresStorageNotLow, task.saveInPublicStorage, timeout, allowCellular = task.allowCellular
                 )
                 val newTaskId: String = request.id.toString()
