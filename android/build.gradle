@@ -21,7 +21,7 @@ repositories {
 }
 
 apply plugin: "com.android.library"
-apply plugin: "kotlin-android"
+apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "org.jlleitschuh.gradle.ktlint"
 
 android {
@@ -29,12 +29,12 @@ android {
     compileSdk = 35
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
+        jvmTarget = "11"
         // allWarningsAsErrors = true // TODO(bartekpacia): Re-enable
     }
 
