@@ -11,6 +11,7 @@ import java.io.IOException
 import java.lang.Exception
 import java.net.URLConnection
 import kotlin.jvm.Synchronized
+import android.util.Log
 
 object IntentUtils {
     private fun buildIntent(context: Context, file: File, mime: String?): Intent {
@@ -34,14 +35,14 @@ object IntentUtils {
     fun validatedFileIntent(context: Context, path: String, contentType: String?): Intent? {
         val file = File(path)
         var intent = buildIntent(context, file, contentType)
-        if (canBeHandled(context, intent)) {
-            return intent
-        }
         var mime: String? = null
         var inputFile: FileInputStream? = null
         try {
             inputFile = FileInputStream(path)
             mime = URLConnection.guessContentTypeFromStream(inputFile) // fails sometimes
+            if(mime == "application/octet-stream"){
+                mime = null
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
