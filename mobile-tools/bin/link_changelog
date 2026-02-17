@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# link_changelog prints a link to changelog for the package's version on
+# https://pub.dev.
+#
+# It handles both simple git tags (starting with "v", e.g v0.2.5 or v4.2.0) and
+# prefixed git tags (e.g "flutter_comms-v0.0.5" or "leancode_lint-v1.3.0").
+#
+# Usage:
+#
+# $ link_changelog <git_tag>
+#
+# For example:
+#
+# $ link_changelog some_single_package v0.7.3
+#
+# $ link_changelog leancode_contracts v2.1.0
+#
+# $ link_changelog dispose_scope-v3.0.0-dev.1
+#
+# $ link_changelog dispose_scope 3.0.0-dev.1 # the leading "v" can be ommitted
+
+if [ "$#" = 1 ]; then
+	tag="${1:-}"
+elif [ "$#" = 2 ]; then
+	package_name="${1:-}"
+	tag="${2:-}"
+fi
+
+if [ -z "$tag" ]; then
+	echo "error: missing tag" 1>&2
+	exit 1
+fi
+
+if [ -n "${package_name:-}" ]; then
+	# package name + git tag
+	version="${tag#"$package_name"}"
+	version="${version#v}"
+	version=$(echo "$version" | tr -d '.+')
+else
+	# only git tag
+	package_name="$(echo "$tag" | cut -d '-' -f 1)"
+	version="$(echo "$tag" | cut -d '-' -f 2-)"
+
+	if [ "$package_name" = "$version" ]; then
+		echo "error: invalid version" 1>&2
+		exit 1
+	fi
+
+	version="${version#v}"
+	version=$(echo "$version" | tr -d '.+')
+fi
+
+link="https://pub.dev/packages/$package_name/changelog#$version"
+echo "$link"
