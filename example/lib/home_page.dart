@@ -21,6 +21,7 @@ class MyHomePage extends StatefulWidget with WidgetsBindingObserver {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
+@pragma('vm:entry-point')
 class _MyHomePageState extends State<MyHomePage> {
   List<TaskInfo>? _tasks;
   late List<ItemHolder> _items;

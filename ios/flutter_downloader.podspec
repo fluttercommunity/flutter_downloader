@@ -4,15 +4,15 @@
 Pod::Spec.new do |spec|
   spec.name             = 'flutter_downloader'
   spec.version          = '0.0.1'
-  spec.summary          = 'A plugin to create and manage bankground download tasks'
-  spec.homepage         = 'https://github.com/hnvn/flutter_downloader'
+  spec.summary          = 'A plugin to create and manage background download tasks'
+  spec.homepage         = 'https://github.com/flutter_community/flutter_downloader'
   spec.license          = { :file => '../LICENSE' }
   spec.author           = { 'HungHD' => 'hunghd.yb@gmail.com' }
   spec.source           = { :path => '.' }
-  spec.source_files = 'Classes/**/*'
-  spec.public_header_files = 'Classes/**/*.h'
+  spec.source_files = 'flutter_downloader/Sources/flutter_downloader/**/*'
+  spec.public_header_files = 'flutter_downloader/Sources/flutter_downloader/**/*.h'
   spec.dependency 'Flutter'
   spec.ios.library = 'sqlite3'
-  spec.ios.resource_bundle = { 'FlutterDownloaderDatabase' => 'Assets/download_tasks.sql' }
+  spec.ios.resource_bundle = { 'FlutterDownloaderDatabase' => 'flutter_downloader/Sources/flutter_downloader/download_tasks.sql' }
   spec.ios.deployment_target = '9.0'
 end
