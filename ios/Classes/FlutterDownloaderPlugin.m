@@ -54,6 +54,7 @@ static BOOL initialized = NO;
 static BOOL debug = YES;
 static NSURLSession *_session = nil;
 static FlutterEngine *_headlessRunner = nil;
+static BOOL _headlessRunnerStarted = NO;
 static int64_t _callbackHandle = 0;
 static int _step = 10;
 static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = nil;
@@ -137,6 +138,21 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     if (debug) {
         NSLog(@"startBackgroundIsolate");
     }
+    if (_headlessRunnerStarted) {
+        // A Flutter hot restart re-runs the app's main() — and therefore
+        // FlutterDownloader.initialize() — in the same native process, while
+        // the static _headlessRunner from the previous Dart session is still
+        // running. Calling -runWithEntrypoint: on an already-running engine
+        // trips FlutterEngine's "This FlutterEngine was already invoked."
+        // assertion, and re-running registerPlugins() against the live engine
+        // then crashes the app. Starting the background isolate only once per
+        // native process keeps hot restart working (fixes #182, #724).
+        if (debug) {
+            NSLog(@"headless runner already started; skipping restart");
+        }
+        return;
+    }
+    _headlessRunnerStarted = YES;
     FlutterCallbackInformation *info = [FlutterCallbackCache lookupCallbackInformation:handle];
     NSAssert(info != nil, @"failed to find callback");
     NSString *entrypoint = info.callbackName;

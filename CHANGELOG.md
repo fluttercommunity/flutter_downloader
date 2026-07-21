@@ -1,3 +1,11 @@
+## Unreleased
+
+- **[iOS] Fix hot restart crashing the app.** The background isolate is now
+  started only once per native process, so re-running
+  `FlutterDownloader.initialize()` on a hot restart no longer trips
+  `FlutterEngine`'s "This FlutterEngine was already invoked." assertion
+  (#182, #724).
+
 ## 1.12.0
 
 - Dependencies update (#990)
