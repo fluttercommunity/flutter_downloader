@@ -1,13 +1,12 @@
 package vn.hunghd.flutterdownloader
 
-import com.tencent.mars.xlog.Log
-import com.tencent.mars.xlog.Xlog
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
+import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
@@ -16,7 +15,6 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
-import com.tencent.mars.BuildConfig
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
@@ -30,7 +28,6 @@ import java.util.concurrent.TimeUnit
 
 private const val invalidTaskId = "invalid_task_id"
 private const val invalidStatus = "invalid_status"
-private const val invalidData = "invalid_data"
 
 class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
     private var flutterChannel: MethodChannel? = null
@@ -75,29 +72,12 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
 
     override fun onAttachedToEngine(binding: FlutterPluginBinding) {
         onAttachedToEngine(binding.applicationContext, binding.binaryMessenger)
-        setupXLog(binding.applicationContext)
     }
 
     override fun onDetachedFromEngine(binding: FlutterPluginBinding) {
         context = null
         flutterChannel?.setMethodCallHandler(null)
         flutterChannel = null
-        Log.appenderClose()
-    }
-
-    private fun setupXLog(context: Context) {
-       try {
-           
-           val logPath = context.getExternalFilesDir(null)?.path + "/xlog"
-           val cachePath = context.getExternalFilesDir(null)?.path + "/cacheXlog"
-            val appenderMode = if (BuildConfig.DEBUG) Xlog.AppednerModeSync else Xlog.AppednerModeAsync;
-           val xlog = Xlog()
-           Xlog.open(true, Xlog.LEVEL_ALL, appenderMode, cachePath, logPath, "DEVOPS_APP", "demo")
-           Log.setLogImp(xlog)
-
-       } catch (e: Error) {
-           android.util.Log.e("Xlog Error", e.toString());
-       }
     }
 
     private fun requireContext() = requireNotNull(context)
@@ -262,6 +242,13 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
 
     private fun cancel(call: MethodCall, result: MethodChannel.Result) {
         val taskId: String = call.requireArgument("task_id")
+        val task = taskDao!!.loadTask(taskId)
+        if (task == null) {
+            result.error(invalidTaskId, "not found task corresponding to given task id", null)
+            return
+        }
+        taskDao!!.updateTask(taskId, false)
+        taskDao!!.updateTask(taskId, DownloadStatus.CANCELED, task.progress)
         WorkManager.getInstance(requireContext()).cancelWorkById(UUID.fromString(taskId))
         result.success(null)
     }
@@ -294,39 +281,30 @@ class FlutterDownloaderPlugin : MethodChannel.MethodCallHandler, FlutterPlugin {
                 }
                 val partialFilePath = task.savedDir + File.separator + filename
                 val partialFile = File(partialFilePath)
-                if (partialFile.exists()) {
-                    val request: WorkRequest = buildRequest(
-                        task.url,
-                        task.savedDir,
-                        task.filename,
-                        task.headers,
-                        task.showNotification,
-                        task.openFileFromNotification,
-                        true,
-                        requiresStorageNotLow,
-                        task.saveInPublicStorage,
-                        timeout,
-                        allowCellular = task.allowCellular
-                    )
-                    val newTaskId: String = request.id.toString()
-                    result.success(newTaskId)
-                    sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress)
-                    taskDao!!.updateTask(
-                        taskId,
-                        newTaskId,
-                        DownloadStatus.RUNNING,
-                        task.progress,
-                        false
-                    )
-                    WorkManager.getInstance(requireContext()).enqueue(request)
-                } else {
-                    taskDao!!.updateTask(taskId, false)
-                    result.error(
-                        invalidData,
-                        "not found partial downloaded data, this task cannot be resumed",
-                        null
-                    )
-                }
+                val request: WorkRequest = buildRequest(
+                    task.url,
+                    task.savedDir,
+                    task.filename,
+                    task.headers,
+                    task.showNotification,
+                    task.openFileFromNotification,
+                    partialFile.exists(),
+                    requiresStorageNotLow,
+                    task.saveInPublicStorage,
+                    timeout,
+                    allowCellular = task.allowCellular
+                )
+                val newTaskId: String = request.id.toString()
+                result.success(newTaskId)
+                sendUpdateProgress(newTaskId, DownloadStatus.RUNNING, task.progress)
+                taskDao!!.updateTask(
+                    taskId,
+                    newTaskId,
+                    DownloadStatus.RUNNING,
+                    task.progress,
+                    false
+                )
+                WorkManager.getInstance(requireContext()).enqueue(request)
             } else {
                 result.error(invalidStatus, "only paused task can be resumed", null)
             }

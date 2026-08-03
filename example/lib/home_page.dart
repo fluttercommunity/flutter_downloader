@@ -91,10 +91,11 @@ class _MyHomePageState extends State<MyHomePage> {
     String id,
     int status,
     int progress,
+    String error,
   ) {
     print(
       'Callback on background isolate: '
-      'task ($id) is in status ($status) and process ($progress)',
+      'task ($id) is in status ($status) and process ($progress), error: $error',
     );
 
     IsolateNameServer.lookupPortByName('downloader_send_port')

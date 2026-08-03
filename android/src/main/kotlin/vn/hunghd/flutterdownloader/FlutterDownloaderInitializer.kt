@@ -7,9 +7,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.NameNotFoundException
 import android.net.Uri
+import android.util.Log
 import androidx.work.Configuration
 import androidx.work.WorkManager
-import com.tencent.mars.xlog.Log
 import java.util.concurrent.Executors
 
 class FlutterDownloaderInitializer : ContentProvider() {

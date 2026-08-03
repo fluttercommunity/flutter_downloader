@@ -10,11 +10,13 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.os.Handler
 import android.provider.MediaStore
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -23,7 +25,6 @@ import androidx.work.Worker
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.ForegroundInfo
-import com.tencent.mars.xlog.Log
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.dart.DartExecutor
@@ -65,6 +66,10 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
     private var backgroundChannel: MethodChannel? = null
     private var dbHelper: TaskDbHelper? = null
     private var taskDao: TaskDao? = null
+    @Volatile
+    private var activeConnection: HttpURLConnection? = null
+    @Volatile
+    private var stopStateHandled = false
     private var showNotification = false
     private var clickToOpenDownloadedFile = false
     private var debug = true
@@ -136,17 +141,16 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
     }
 
     override fun onStopped() {
+        activeConnection?.disconnect()
+
         val context: Context = applicationContext
         dbHelper = TaskDbHelper.getInstance(context)
         taskDao = TaskDao(dbHelper!!)
         val url: String? = inputData.getString(ARG_URL)
         val filename: String? = inputData.getString(ARG_FILE_NAME)
         val task = taskDao?.loadTask(id.toString())
-        if (task != null && task.status == DownloadStatus.ENQUEUED) {
-            updateNotification(context, filename ?: url, DownloadStatus.CANCELED, -1, null, true)
-            taskDao?.updateTask(id.toString(), DownloadStatus.CANCELED, lastProgress)
-        } else if (task != null) {
-            taskDao?.updateTask(id.toString(), true)
+        if (task != null) {
+            updateStoppedTask(context, filename ?: url, task)
         }
     }
 
@@ -219,6 +223,17 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
             taskDao = null
             Result.success()
         } catch (e: Exception) {
+            if (isStopped) {
+                val stoppedTask = taskDao?.loadTask(id.toString())
+                if (stoppedTask != null && !stopStateHandled) {
+                    updateStoppedTask(applicationContext, filename ?: url, stoppedTask)
+                }
+                cleanUp()
+                dbHelper = null
+                taskDao = null
+                return Result.success()
+            }
+
             val (errorCode, errorMessage) = when (e) {
                 is InsufficientStorageException -> {
                     ERROR_INSUFFICIENT_SPACE to e.message
@@ -232,11 +247,15 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
             }
             
             taskDao?.updateTask(id.toString(), DownloadStatus.FAILED, lastProgress)
-            log("Download failed: $errorMessage")
+            log("Download failed [$errorCode]: $errorMessage")
             updateNotification(applicationContext, filename ?: url, DownloadStatus.FAILED, -1, null, true)
             
             // Send error to Flutter
-            sendUpdateProcessEvent(DownloadStatus.FAILED, -1, errorMessage ?: "")
+            sendUpdateProcessEvent(
+                DownloadStatus.FAILED,
+                -1,
+                listOfNotNull(errorCode, errorMessage).joinToString(": ")
+            )
             
             e.printStackTrace()
             dbHelper = null
@@ -333,6 +352,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                         resourceUrl.openConnection() as HttpURLConnection
                     }
                 }
+                activeConnection = httpConn
+                if (isStopped) throw IOException("Download cancelled")
                 log("Open connection to $url")
                 httpConn.connectTimeout = timeout
                 httpConn.readTimeout = timeout
@@ -344,38 +365,6 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                 // try to continue downloading a file from its partial downloaded data.
                 if (isResume) {
                     downloadedBytes = setupPartialDownloadedDataHeader(httpConn, actualFilename, savedDir)
-                }
-
-                // Check content length before proceeding with download
-                val contentLength: Long = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) 
-                    httpConn.contentLengthLong 
-                else 
-                    httpConn.contentLength.toLong()
-                    
-                // Check available storage space
-                val requiredSpace = contentLength * 2
-                val availableSpace = when {
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && saveInPublicStorage -> {
-                        val storageManager = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
-                        val volumes = storageManager.storageVolumes
-                        volumes.firstOrNull()?.let { volume ->
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                volume.directory?.freeSpace ?: 0
-                            } else {
-                                File(Environment.getExternalStorageDirectory().path).freeSpace
-                            }
-                        } ?: 0
-                    }
-                    else -> {
-                        File(savedDir).freeSpace
-                    }
-                }
-
-                log("Required space: ${requiredSpace/1024/1024/1024}GB")
-                log("Available space: ${availableSpace/1024/1024/1024}GB")
-
-                if (availableSpace < requiredSpace) {
-                    throw InsufficientStorageException("Required: ${requiredSpace/1024/1024/1024}GB, Available: ${availableSpace/1024/1024/1024}GB")
                 }
 
                 responseCode = httpConn.responseCode
@@ -397,23 +386,24 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                 }
                 break
             }
-            httpConn!!.connect()
+            val connection = requireNotNull(httpConn)
             val contentType: String?
             if ((responseCode == HttpURLConnection.HTTP_OK || isResume && responseCode == HttpURLConnection.HTTP_PARTIAL) && !isStopped) {
-                contentType = (getContentTypeWithoutCharset(httpConn.contentType) ?: httpConn.contentType) as String
+                contentType = getContentTypeWithoutCharset(connection.contentType) ?: connection.contentType
                 val contentLength: Long =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) httpConn.contentLengthLong else httpConn.contentLength.toLong()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) connection.contentLengthLong else connection.contentLength.toLong()
+                ensureEnoughSpace(context, savedDir, contentLength)
                 if (contentType != null) {
                     log("Content-Type = $contentType")
                 }
-                log("Content-With-charset = ${httpConn.contentType}")
+                log("Content-With-charset = ${connection.contentType}")
                 log("Content-Length = $contentLength")
-                val charset = getCharsetFromContentType(httpConn.contentType)
+                val charset = getCharsetFromContentType(connection.contentType)
                 log("Charset = $charset")
                 if (!isResume) {
                     // try to extract filename from HTTP headers if it is not given by user
                     if (actualFilename == null) {
-                        val disposition: String? = httpConn.getHeaderField("Content-Disposition")
+                        val disposition: String? = connection.getHeaderField("Content-Disposition")
                         log("Content-Disposition = $disposition")
                         if (!disposition.isNullOrEmpty()) {
                             actualFilename = getFileNameFromContentDisposition(disposition, charset)
@@ -433,7 +423,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                 taskDao?.updateTask(id.toString(), actualFilename, contentType)
 
                 // opens input stream from the HTTP connection
-                inputStream = httpConn.inputStream
+                inputStream = connection.inputStream
                 val savedFilePath: String?
                 // opens an output stream to save into file
                 // there are two case:
@@ -531,7 +521,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                     if (isStopped) if (loadedTask!!.resumable) DownloadStatus.PAUSED else DownloadStatus.CANCELED else DownloadStatus.FAILED
                 taskDao!!.updateTask(id.toString(), status, lastProgress)
                 updateNotification(context, actualFilename ?: fileURL, status, -1, null, true)
-                val responseBody = httpConn.errorStream.bufferedReader().readText()
+                val responseBody = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
                 log(if (isStopped) "Download canceled" else "Server replied HTTP code: $responseCode , body: $responseBody")
                 throw IOException("Server replied HTTP code: $responseCode, body: $responseBody")
             }
@@ -555,6 +545,42 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                 }
             }
             httpConn?.disconnect()
+            if (activeConnection === httpConn) {
+                activeConnection = null
+            }
+        }
+    }
+
+    private fun updateStoppedTask(context: Context, title: String?, task: DownloadTask) {
+        val status = if (task.resumable) DownloadStatus.PAUSED else DownloadStatus.CANCELED
+        taskDao?.updateTask(id.toString(), status, lastProgress)
+        updateNotification(context, title, status, lastProgress, null, true)
+        stopStateHandled = true
+    }
+
+    private fun ensureEnoughSpace(context: Context, savedDir: String, contentLength: Long) {
+        if (contentLength < 0) return
+
+        val availableSpace = when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && saveInPublicStorage -> {
+                val storageManager = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
+                storageManager.storageVolumes.firstOrNull()?.let { volume ->
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        volume.directory?.freeSpace ?: 0
+                    } else {
+                        File(Environment.getExternalStorageDirectory().path).freeSpace
+                    }
+                } ?: 0
+            }
+            else -> File(savedDir).freeSpace
+        }
+
+        log("Required space: ${contentLength / 1024 / 1024}MB")
+        log("Available space: ${availableSpace / 1024 / 1024}MB")
+        if (availableSpace < contentLength) {
+            throw InsufficientStorageException(
+                "Required: ${contentLength / 1024 / 1024}MB, Available: ${availableSpace / 1024 / 1024}MB"
+            )
         }
     }
 
@@ -682,7 +708,15 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(notificationIconRes)
             .build()
-        return ForegroundInfo(primaryId, notification)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ForegroundInfo(
+                primaryId,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            ForegroundInfo(primaryId, notification)
+        }
     }
 
 
@@ -888,15 +922,12 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
     }
 
     private fun log(message: String) {
-        Log.d(TAG, message)
-        android.util.Log.d(TAG, message)
         if (debug) {
             Log.d(TAG, message)
         }
     }
 
     private fun logError(message: String) {
-        android.util.Log.e(TAG, message)
         Log.e(TAG, message)
     }
 
