@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileInputStream
@@ -30,18 +31,34 @@ object IntentUtils {
         return intent
     }
 
+    /** Use extension-based MIME when server sent a generic type so the right app (e.g. PDF viewer) is chosen. */
+    private fun effectiveMimeType(path: String, contentType: String?): String? {
+        val generic = contentType == null ||
+            contentType.startsWith("application/octet-stream") ||
+            contentType.startsWith("application/unknown")
+        if (generic) {
+            val ext = path.substringAfterLast('.', "").lowercase()
+            if (ext.isNotEmpty()) {
+                val fromExt = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
+                if (fromExt != null) return fromExt
+            }
+        }
+        return contentType
+    }
+
     @Synchronized
     fun validatedFileIntent(context: Context, path: String, contentType: String?): Intent? {
         val file = File(path)
-        var intent = buildIntent(context, file, contentType)
+        val mime = effectiveMimeType(path, contentType) ?: contentType
+        var intent = buildIntent(context, file, mime)
         if (canBeHandled(context, intent)) {
             return intent
         }
-        var mime: String? = null
+        var fallbackMime: String? = null
         var inputFile: FileInputStream? = null
         try {
             inputFile = FileInputStream(path)
-            mime = URLConnection.guessContentTypeFromStream(inputFile) // fails sometimes
+            fallbackMime = URLConnection.guessContentTypeFromStream(inputFile) // fails sometimes
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
@@ -53,11 +70,11 @@ object IntentUtils {
                 }
             }
         }
-        if (mime == null) {
-            mime = URLConnection.guessContentTypeFromName(path) // fallback to check file extension
+        if (fallbackMime == null) {
+            fallbackMime = URLConnection.guessContentTypeFromName(path) // fallback to check file extension
         }
-        if (mime != null) {
-            intent = buildIntent(context, file, mime)
+        if (fallbackMime != null) {
+            intent = buildIntent(context, file, fallbackMime)
             if (canBeHandled(context, intent)) return intent
         }
         return null
