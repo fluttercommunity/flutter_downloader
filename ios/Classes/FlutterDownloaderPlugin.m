@@ -748,6 +748,41 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
     [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
 }
 
+
+- (void)insertOrUpdateTaskManullyMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    NSString *urlString = call.arguments[KEY_URL];
+    NSString *savedDir = call.arguments[KEY_SAVED_DIR];
+    NSString *shortSavedDir = [self shortenSavedDirPath:savedDir];
+    NSString *fileName = call.arguments[KEY_FILE_NAME];
+    NSString *headers = call.arguments[KEY_HEADERS];
+    NSNumber *showNotification = call.arguments[KEY_SHOW_NOTIFICATION];
+    NSNumber *openFileFromNotification = call.arguments[KEY_OPEN_FILE_FROM_NOTIFICATION];
+    
+    NSURLSessionDownloadTask *task = [self downloadTaskWithURL:[NSURL URLWithString:urlString] fileName:fileName andSavedDir:savedDir andHeaders:headers];
+    
+    NSString *taskId = [self identifierForTask:task];
+    
+    [_runningTaskById setObject: [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                                  urlString, KEY_URL,
+                                  fileName, KEY_FILE_NAME,
+                                  savedDir, KEY_SAVED_DIR,
+                                  headers, KEY_HEADERS,
+                                  showNotification, KEY_SHOW_NOTIFICATION,
+                                  openFileFromNotification, KEY_OPEN_FILE_FROM_NOTIFICATION,
+                                  @(NO), KEY_RESUMABLE,
+                                  @(STATUS_ENQUEUED), KEY_STATUS,
+                                  @(0), KEY_PROGRESS, nil]
+                         forKey:taskId];
+    
+    __typeof__(self) __weak weakSelf = self;
+    
+    [self executeInDatabaseQueueForTask:^{
+        [weakSelf addNewTask:taskId url:urlString status:STATUS_ENQUEUED progress:0 filename:fileName savedDir:shortSavedDir headers:headers resumable:NO showNotification: [showNotification boolValue] openFileFromNotification: [openFileFromNotification boolValue]];
+    }];
+    result(taskId);
+    [self sendUpdateProgressForTaskId:taskId inStatus:@(STATUS_ENQUEUED) andProgress:@0];
+}
+
 - (void)loadTasksMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     __typeof__(self) __weak weakSelf = self;
     [self executeInDatabaseQueueForTask:^{
