@@ -355,7 +355,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                         val disposition: String? = httpConn.getHeaderField("Content-Disposition")
                         log("Content-Disposition = $disposition")
                         if (!disposition.isNullOrEmpty()) {
-                            actualFilename = getFileNameFromContentDisposition(disposition, charset)
+                            val name = getFileNameFromContentDisposition(disposition, charset)
+                            actualFilename = toSingleFileName(name)
                         }
                         if (actualFilename.isNullOrEmpty()) {
                             actualFilename = url.substring(url.lastIndexOf("/") + 1)
@@ -365,6 +366,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                                 /* ok, just let filename be not encoded */
                                 e.printStackTrace()
                             }
+                            actualFilename = toSingleFileName(actualFilename)
                         }
                     }
                 }
@@ -739,6 +741,20 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         } else {
             null
         }
+    }
+
+    /**
+     * Reduce a name that came from the server to a single path component.
+     *
+     * Both the Content-Disposition header and the URL that produces the fallback name are
+     * controlled by whoever answers the request, so the name they yield must not be able to
+     * point outside `savedDir`. Returns an empty string when nothing usable is left, which
+     * makes the caller move on to the next source of a name.
+     */
+    private fun toSingleFileName(filename: String?): String? {
+        if (filename == null) return null
+        val name = filename.substringAfterLast('/')
+        return if (name == "." || name == "..") "" else name
     }
 
     @Throws(UnsupportedEncodingException::class)
