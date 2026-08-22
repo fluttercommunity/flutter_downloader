@@ -41,6 +41,7 @@ version
 .pub-cache/
 .pub/
 build/
+.swiftpm/
 flutter_*.png
 linked_*.ds
 unlinked.ds
