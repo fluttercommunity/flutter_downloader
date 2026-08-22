@@ -1,3 +1,7 @@
+## 1.12.1
+
+- Security update for Android (#1022)
+
 ## 1.12.0
 
 - Dependencies update (#990)
