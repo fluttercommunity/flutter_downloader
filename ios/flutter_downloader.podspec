@@ -9,10 +9,10 @@ Pod::Spec.new do |spec|
   spec.license          = { :file => '../LICENSE' }
   spec.author           = { 'HungHD' => 'hunghd.yb@gmail.com' }
   spec.source           = { :path => '.' }
-  spec.source_files = 'Classes/**/*'
-  spec.public_header_files = 'Classes/**/*.h'
+  spec.source_files = 'flutter_downloader/Sources/flutter_downloader/**/*.{h,m}'
+  spec.public_header_files = 'flutter_downloader/Sources/flutter_downloader/include/**/*.h'
   spec.dependency 'Flutter'
   spec.ios.library = 'sqlite3'
-  spec.ios.resource_bundle = { 'FlutterDownloaderDatabase' => 'Assets/download_tasks.sql' }
-  spec.ios.deployment_target = '9.0'
+  spec.ios.resource_bundle = { 'FlutterDownloaderDatabase' => 'flutter_downloader/Sources/flutter_downloader/Resources/download_tasks.sql' }
+  spec.ios.deployment_target = '12.0'
 end

@@ -86,9 +86,27 @@ static NSMutableDictionary<NSString*, NSMutableDictionary*> *_runningTaskById = 
         NSBundle *frameworkBundle = [NSBundle bundleForClass:FlutterDownloaderPlugin.class];
 
         // initialize Database
-        NSURL *bundleUrl = [[frameworkBundle resourceURL] URLByAppendingPathComponent:@"FlutterDownloaderDatabase.bundle"];
-        NSBundle *resourceBundle = [NSBundle bundleWithURL:bundleUrl];
-        NSString *dbPath = [resourceBundle pathForResource:@"download_tasks" ofType:@"sql"];
+        //
+        // The `download_tasks.sql` seed file ships in a resource bundle. The
+        // bundle name differs depending on how the plugin is integrated:
+        //   - CocoaPods names it after the podspec `resource_bundle`
+        //     ("FlutterDownloaderDatabase").
+        //   - Swift Package Manager names it "<package>_<target>"
+        //     ("flutter_downloader_flutter_downloader").
+        // Try each in turn so the plugin works under both build systems.
+        NSString *dbPath = nil;
+        NSArray<NSString *> *candidateBundleNames = @[
+            @"flutter_downloader_flutter_downloader",
+            @"FlutterDownloaderDatabase"
+        ];
+        for (NSString *bundleName in candidateBundleNames) {
+            NSURL *bundleUrl = [[frameworkBundle resourceURL] URLByAppendingPathComponent:[bundleName stringByAppendingPathExtension:@"bundle"]];
+            NSBundle *resourceBundle = [NSBundle bundleWithURL:bundleUrl];
+            dbPath = [resourceBundle pathForResource:@"download_tasks" ofType:@"sql"];
+            if (dbPath != nil) {
+                break;
+            }
+        }
         if (debug) {
             NSLog(@"database path: %@", dbPath);
         }
