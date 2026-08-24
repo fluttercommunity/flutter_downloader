@@ -1,6 +1,10 @@
 #include "AppDelegate.h"
 #include "GeneratedPluginRegistrant.h"
-#include "FlutterDownloaderPlugin.h"
+#if __has_include(<flutter_downloader/FlutterDownloaderPlugin.h>)
+#import <flutter_downloader/FlutterDownloaderPlugin.h>
+#else
+#import "FlutterDownloaderPlugin.h"
+#endif
 
 @implementation AppDelegate
 

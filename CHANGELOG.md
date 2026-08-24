@@ -1,3 +1,8 @@
+## 1.13.0
+
+- Adds Swift Package Manager support for iOS. The plugin can now be built with
+  either Swift Package Manager or CocoaPods.
+
 ## 1.12.1
 
 - Security update for Android (#1022)
