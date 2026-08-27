@@ -21,8 +21,22 @@ repositories {
 }
 
 apply plugin: "com.android.library"
-apply plugin: "org.jetbrains.kotlin.android"
+
+// AGP 9 ships built-in Kotlin, so the Kotlin Gradle Plugin must only be applied on older AGP.
+// See https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-plugin-authors
+def agpMajor = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize(".")[0] as int
+if (agpMajor < 9) {
+    pluginManager.apply("org.jetbrains.kotlin.android")
+}
+
 apply plugin: "org.jlleitschuh.gradle.ktlint"
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+        // allWarningsAsErrors = true // TODO(bartekpacia): Re-enable
+    }
+}
 
 android {
     namespace = "vn.hunghd.flutterdownloader"
@@ -31,11 +45,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = "11"
-        // allWarningsAsErrors = true // TODO(bartekpacia): Re-enable
     }
 
     sourceSets {
